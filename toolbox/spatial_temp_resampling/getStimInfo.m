@@ -94,19 +94,19 @@ end
 if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
     
     if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
-        wDat.sPars.int(rep_i, 1) = lStim.sPars.int;
-        wDat.sPars.freq(rep_i, 1) = lStim.sPars.freq;
-        wDat.sPars.width(rep_i, 1) = lStim.sPars.width;
-        wDat.sPars.sr = lStim.sPars.sr;
-        wDat.sPars.basPre = lStim.sPars.basPre/unit_cor_factor;
-        wDat.sPars.basPost = lStim.sPars.basPost/unit_cor_factor;
+        wDat.sPars.int(rep_i, :) = lStim.sPars.int;
+        wDat.sPars.freq(rep_i, :) = lStim.sPars.freq;
+        wDat.sPars.width(rep_i, :) = lStim.sPars.width;
+        wDat.sPars.sr(rep_i, :) = lStim.sPars.sr;
+        wDat.sPars.basPre(rep_i, :) = lStim.sPars.basPre/unit_cor_factor;
+        wDat.sPars.basPost(rep_i, :) = lStim.sPars.basPost/unit_cor_factor;
     else
-        wDat.sPars.int(rep_i, 1) = sDat.intensity;
-        wDat.sPars.freq(rep_i, 1) = sDat.freq;
-        wDat.sPars.width(rep_i, 1) = sDat.width;
-        wDat.sPars.sr = sDat.fs;
-        wDat.sPars.basPre = sDat.silencePre/unit_cor_factor;
-        wDat.sPars.basPost = sDat.silencePost/unit_cor_factor;
+        wDat.sPars.int(rep_i, :) = sDat.intensity;
+        wDat.sPars.freq(rep_i, :) = sDat.freq;
+        wDat.sPars.width(rep_i, :) = sDat.width;
+        wDat.sPars.sr(rep_i, :) = sDat.fs;
+        wDat.sPars.basPre(rep_i, :) = sDat.silencePre/unit_cor_factor;
+        wDat.sPars.basPost(rep_i, :) = sDat.silencePost/unit_cor_factor;
     end
     
     wDat.sPars.led_mini(rep_i, 1) = cDat.minInit;

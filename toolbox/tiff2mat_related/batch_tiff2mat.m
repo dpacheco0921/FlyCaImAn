@@ -632,17 +632,29 @@ elseif saveType == 3
     
 end
 
-if exist('rDat', 'var') && exist('logs', 'var')
-    sDat.fStrain = logs.fStrain;
+sDat.fName = fDat.FileName;
+
+% update sDat 
+if exist('rDat', 'var')
     sDat.fs = rDat.Fs;
-    sDat.fName = fDat.FileName;
-    sDat.trial = numel(rDat.selectedStimulus);
-else
-    sDat = [];
-    sDat.fStrain = [];
+    sDat.trial = numel(rDat.selectedStimulus);  
+end
+
+if ~isfield(sDat, 'fs')
     sDat.fs = 10^4;
-    sDat.fName = fDat.FileName;
-    sDat.trial = [];    
+end
+
+if ~isfield(sDat, 'trial')
+    sDat.trial = [];
+end
+
+% update sDat 
+if exist('logs', 'var')
+    sDat.fStrain = logs.fStrain;
+end
+
+if ~isfield(sDat, 'fStrain')
+    sDat.fStrain = [];
 end
 
 % update and save metadata
