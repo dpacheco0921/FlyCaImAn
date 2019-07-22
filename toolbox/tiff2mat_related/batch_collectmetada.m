@@ -182,7 +182,7 @@ switch datatype
             
         elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
             
-            % stimuli delivered using LEDcontroler (deprecated)
+            % stimuli delivered using LEDcontroler (old setup)
             Ch = local_binread(sDat);
             
         else

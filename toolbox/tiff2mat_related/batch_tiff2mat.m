@@ -13,7 +13,15 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %       (ch2save: channels to save)
 %           (1, red)
 %           (2, green)
-%       (SpMode: type of data to run (2DxT, 3DxT, old, new, etc))
+%       (SpMode: main string used for all preprocesing steps it basically
+%           sets:
+%           (data dimensions: 2DxT, 3DxT, or 3D)
+%           (type of stimuli delivered: _song, _opto)
+%           (for opto only: which code was used prv or LEDcontroler: _prv, (otherwise it assumes it used LEDcontroler))
+%           (for song: we only used prv)
+%           (version of tiff: _old, (otherwise it assumes it is the new version))
+%           (type of axial device: 'piezo', 'remotefocus')
+%               examples: 2DxT_song_prv, 3DxT_song_prv, 3DxT_opto_prv, 3DxT_opto
 %       (Zres: space between planes, 1 um)
 %       (pixelsym: flag for pixel symmetry)
 %           (0, asymmetric)
@@ -313,11 +321,13 @@ eval(['Data = ', ImMeta.Imclass, '(Data);'])
 if contains(tifpars.SpMode, 'song') || ...
         contains(tifpars.SpMode, 'prv')
     
+    % all prv (for song or opto)
     SavingDataNew([], fDat, iDat, 3, ...
         tifpars.cDir, tifpars.Folder2Run)
     
-else
+elseif ~contains(tifpars.SpMode, 'prv')
     
+    % old opto using LEDcontroler
     SavingDataNew([], fDat, iDat, 1, ...
         tifpars.cDir, tifpars.Folder2Run)
     
