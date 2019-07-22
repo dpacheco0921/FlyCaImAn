@@ -8,7 +8,7 @@ function [stimuli_onset_offset, stimuli_cat_trace] = ...
 %       songstim_init_end(rDat, init_end, stimCha, minSize)
 %
 % Args:
-%   rDat: name of file to load
+%   rDat: prv metadata structure variable
 %   start_end: start and end of trace
 %   stimCha: analog output channel
 %   minSize: is the min inter pulse interval to consider two pulse as a separate bout

@@ -7,7 +7,7 @@ function [stimuli_onset_offset, stimuli_cat_trace] = ...
 %   [stimuli_onset_offset, stimuli_cat_trace] = songstim_init_end_rDat(rDat, init_end, stimCha)
 %
 % Args:
-%   rDat: name of file to load
+%   rDat: prv metadata structure variable
 %   start_end: start and end of trace
 %   stimCha: analog output channel
 %   findStim: gate to use stimuli trace to find stimuli start and end
