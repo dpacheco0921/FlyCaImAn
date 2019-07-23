@@ -1,8 +1,14 @@
 %% demo
-%% Move to folder
+%% Move to folder and Download demo data
 tDir = 'C:\Users\Diego\Dropbox\LabScripts\myRepos\CaImProPi\demodata';
 cd(tDir)
 
+url = 'https://www.dropbox.com/s/1s2h6yigfmdhodf/20161129.zip?dl=1';
+filename = '20161129.zip';
+outfilename = websave(filename, url);
+unzip(outfilename);
+clear url outfilename
+    
 %% Test batch_tiff2mat
 FolderName = {'20161129'}; FileName = [];
 m2vpar = [];
