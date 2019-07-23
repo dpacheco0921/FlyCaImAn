@@ -449,6 +449,7 @@ for F2R_idx = 1:numel(f2run)
         % saving processed video to .mat file
         save(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), ...
             'iDat', 'lStim', 'mcDat', '-append')
+        
         Data = GreenCha;
         save(f2run{F2R_idx}, 'Data', '-v7.3');
         GreenCha = [];

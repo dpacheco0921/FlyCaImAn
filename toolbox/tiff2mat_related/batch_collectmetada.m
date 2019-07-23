@@ -340,8 +340,14 @@ switch datatype
                 repmat(sDat.silencePost, [size(lStim.lstEn, 1), 1]);
             
             lStim.sPars.order = 1:size(lStim.lstEn, 1);
-            lStim.sPars.name = ...
-                repmat({'OPTO'}, [size(lStim.lstEn, 1), 1]);
+            
+            if isfield(sDat, 'stimFileName')
+                lStim.sPars.name = ...
+                    repmat({sDat.stimFileName}, [size(lStim.lstEn, 1), 1]);
+            else
+                lStim.sPars.name = ...
+                    repmat({'OPTO'}, [size(lStim.lstEn, 1), 1]);                
+            end
             
             clear sDat
             

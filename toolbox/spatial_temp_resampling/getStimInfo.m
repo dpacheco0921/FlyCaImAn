@@ -52,7 +52,7 @@ end
 % Collect song-related
 if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
     
-    % it assumes that within a fly name, the stimuli params are the same
+    % it assumes that within a file name, the stimuli params are the same
     wDat.sTrace = lStim.trace;
     
     if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
@@ -93,6 +93,8 @@ end
 % Collect opto-related
 if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
     
+    wDat.sTrace = lStim.trace;
+
     if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
         wDat.sPars.int(rep_i, :) = lStim.sPars.int;
         wDat.sPars.freq(rep_i, :) = lStim.sPars.freq;
