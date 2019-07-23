@@ -1,6 +1,6 @@
 function save_wDat(filename, datatype, ...
     imdirection, bkgate, fshift, blowcap)
-% save_wDat: load all metadata variables pass relevant fields to wDat 
+% save_wDat: load all metadata variables and pass relevant fields to wDat 
 %   and save wDat(for compatibility with postprocessing steps like ROIseg)
 %
 % Usage:
@@ -20,7 +20,7 @@ cDat = [];
 wDat = [];
 
 % load all metadata variables
-load(filename, 'iDat', 'sDat', 'fDat', 'mcDat', 'lStim');
+load(filename, 'iDat', 'fDat', 'mcDat', 'lStim');
 
 if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
     load(filename, 'cDat');
@@ -75,7 +75,7 @@ end
 
 % get stimuli info
 wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
-    sDat, mcDat, strrep(filename, '_metadata', ''), ...
+    mcDat, strrep(filename, '_metadata', ''), ...
     1, 1, [], iDat.FrameN);
 
 % tag and remove whole nan-planes (3D data only)

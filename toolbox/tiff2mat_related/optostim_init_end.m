@@ -1,12 +1,12 @@
-function stimuli_onset_offset = optostim_init_end(trace, sDat)
+function stimuli_onset_offset = optostim_init_end(trace, lStim)
 % optostim_init_end: Using the stim trace, it gets the beginning and end of stimulation(LED)
 %
 % Usage:
-%   stimuli_onset_offset = optostim_init_end(trace, sDat)
+%   stimuli_onset_offset = optostim_init_end(trace, lStim)
 %
 % Args:
 %   trace: stimuli trace
-%   sDat: LED controler field with stimuli information
+%   lStim: stimuli variable from LEDcontroler (only requires .freq and .fs)
 %
 % Returns:
 %   stimuli_onset_offset: stimuli onset and offset [onset, offset]
@@ -20,7 +20,7 @@ pulsenInit = find(pulseIdx > 0) + 1;
 pulseEnd = find(pulseIdx < 0);
 
 % find trains
-Ths = (1/sDat.freq)*sDat.fs; % in time units (a.u.)
+Ths = (1/lStim.freq)*lStim.fs; % in time units (a.u.)
 initDis = diff(pulsenInit);
 peaks = find(initDis > Ths*2);
 stimuli_onset_offset = zeros(numel(peaks) + 1,2);

@@ -26,6 +26,7 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %       (pixelsym: flag for pixel symmetry)
 %           (0, asymmetric)
 %           (1, symmetric)
+%       (fStrain: append animal strain to metadata)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -34,7 +35,40 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %   *_rawdata.mat: has a Data variable with dimensions:
 %       (y (rows/lines), x (columns/pixels per line), z, time, pmt) 
 %   *_metadata.mat: is populated with imaging structure variable 'iDat' and
-%       also it loads and passes stimuli related variables (fDat, sDat)
+%       file/directory structure variable fDat, and initial stimuli
+%       structure variable lStim.
+%
+% iDat: image metadata structure
+%   iDat.FrameN: number of planes
+%   iDat.StackN: number of timeseries
+%   iDat.FrameSize: [heigth, width]
+%   iDat.Power: laser power
+%   iDat.DelFrames: frames to delete (deprecated)
+%   iDat.LEDCorr: flag for LED corrected stacks
+%   iDat.MotCorr: flag for motion corrected stacks
+%   iDat.histshift: (deprecated)
+%   iDat.bsSubs: (deprecated)
+%   iDat.XYresmatch: flag for spatially resampled stacks
+%   iDat.sSmooth: flag for spatially smoothed stacks
+%   iDat.tResample: flag for temporally resampled stacks
+%   iDat.tSmooth: flag for temporally smoothed stacks
+%   iDat.MetaData: image resolution
+%       {'voxelsize', 'y x z', []}
+%
+% fDat: file or directory metadata structure
+%   fDat.FileName: input file name (without suffices '_rawdata.mat' or '.tiff')
+%   fDat.FolderOrigin: original data directory
+%   fDat.FolderTrace: original main directory
+%   fDat.DataType: main string used for all preprocesing
+%   fDat.fName: name of all inout tiffs contributing to this mat file
+%
+% lStim: stimuli related (auditory/opto) metadata structure
+%   lStim.fName: file name
+%   lStim.fs: default sampling rate (stimuli delivery)
+%   lStim.trialn: number of trials delivered 
+%   lStim.fStrain: fly strain / genotype
+%   lStim.channels: number of channels recorded
+%
 % Field of view: needs to be measured per objective or 2P setup
 %   using zoom 10 and 256 pixels (width and heigth)
 %   motion of 2.1um ~= 7 pixels (~twice the distance calculated for zoom 20)
@@ -48,6 +82,7 @@ tifpars.ch2save = [1 2];
 tifpars.SpMode = [];
 tifpars.Zres = 1;
 tifpars.pixelsym = 0;
+tifpars.fStrain = [];
 
 % internal variables
 tifpars.fName = [];
@@ -595,7 +630,7 @@ end
 
 function SavingDataNew(Data, fDat, iDat, saveType, ...
     cDir, Folder2Run)
-% SavingDataNew: saving data in current folder
+% SavingDataNew: saving both dataand metadata in current folder
 %
 % Usage:
 %   SavingDataNew(Data, fDat, iDat, saveType)
@@ -632,33 +667,38 @@ elseif saveType == 3
     
 end
 
-sDat.fName = fDat.FileName;
+lStim.fName = fDat.FileName;
+lStim.fs = [];
+lStim.trialn = [];
+lStim.fStrain = [];
+lStim.channels = [];
 
-% update sDat 
+% update lStim (using rDat)
 if exist('rDat', 'var')
-    sDat.fs = rDat.Fs;
-    sDat.trial = numel(rDat.selectedStimulus);  
+    lStim.fs = rDat.Fs;
+    lStim.trialn = numel(rDat.selectedStimulus);  
 end
 
-if ~isfield(sDat, 'fs')
-    sDat.fs = 10^4;
-end
-
-if ~isfield(sDat, 'trial')
-    sDat.trial = [];
-end
-
-% update sDat 
+% update lStim (using logs)
 if exist('logs', 'var')
-    sDat.fStrain = logs.fStrain;
+    lStim.fStrain = logs.fStrain;
 end
 
-if ~isfield(sDat, 'fStrain')
-    sDat.fStrain = [];
+% update lStim (using sDat)
+if exist('sDat', 'var')
+    lStim.fs = sDat.fs;
+    lStim.trialn = sDat.trial;
+    lStim.fStrain = sDat.fStrain;
+    lStim.channels = sDat.channels;
+end
+
+% replace/append userdefine fStrain metadata to lStim
+if ~isempty(tifpars.fStrain)
+    lStim.fStrain = tifpars.fStrain;
 end
 
 % update and save metadata
-save([o_file_name_preffix, '_metadata.mat'], 'fDat', 'iDat', 'sDat')
+save([o_file_name_preffix, '_metadata.mat'], 'fDat', 'iDat', 'lStim')
 
 end
 

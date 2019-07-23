@@ -1,12 +1,10 @@
 function wDat = getStimInfo(wDat, iDat, fDat, lStim, ...
-    cDat, sDat, mcDat, fname, rep_i, reps, ...
-    shifts_align, zlength)
+    cDat, mcDat, fname, rep_i, reps, shifts_align, zlength)
 % getStimInfo: compiles all relevant stimuli parameters into wDat structure
 %
 % Usage:
 %   Dat = getStimInfo(wDat, iDat, fDat, lStim, ...
-%       cDat, sDat, mcDat, fname, rep_i, reps, ...
-%       shifts_align, zlength)
+%       cDat, mcDat, fname, rep_i, reps, shifts_align, zlength)
 %
 % Args:
 %   filename: file name
@@ -15,7 +13,6 @@ function wDat = getStimInfo(wDat, iDat, fDat, lStim, ...
 %   fDat: file name metadata structure
 %   lStim: stimuli metadata structure
 %   cDat: LED correction metadata structure
-%   sDat: LED controler field with stimuli information
 %   mcDat: motion correction metadata structure
 %   fname: file name
 %   rep_i: rep index
@@ -26,13 +23,15 @@ function wDat = getStimInfo(wDat, iDat, fDat, lStim, ...
 % Notes:
 % Input lStim.basPre and lStim.basPro are in ms, so it applies the right scaling
 
-unit_cor_factor = 10^3; % initial unit is ms, final unit is seconds
+% initial unit is ms, final unit is seconds
+unit_cor_factor = 10^3;
+
 n_reps = numel(reps);
 
 if rep_i == 1
     
     % general metadata
-    wDat.fStrain = sDat.fStrain;
+    wDat.fStrain = lStim.fStrain;
     wDat.datatype = fDat.DataType;
     wDat.XYZres = iDat.MetaData(2:end); 
     wDat.fTime = iDat.Tres;
@@ -59,7 +58,8 @@ if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
         
         if rep_i == 1
             wDat.sPars.name = cell(n_reps, length(lStim.sPars.name));
-            wDat.sPars.int = []; wDat.sPars.sr = [];
+            wDat.sPars.int = [];
+            wDat.sPars.sr = [];
         end
         
         wDat.sPars.order(rep_i, :) = lStim.sPars.order;
@@ -75,7 +75,8 @@ if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
         
         if rep_i == 1
             wDat.sPars.name = cell(n_reps, length(rDat.ctrl.stimFileName));
-            wDat.sPars.int = []; wDat.sPars.sr = [];
+            wDat.sPars.int = [];
+            wDat.sPars.sr = [];
         end
         
         wDat.sPars.order(rep_i, :) = rDat.stimOrder;
@@ -94,7 +95,7 @@ end
 if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
     
     wDat.sTrace = lStim.trace;
-
+    
     if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
         wDat.sPars.int(rep_i, :) = lStim.sPars.int;
         wDat.sPars.freq(rep_i, :) = lStim.sPars.freq;
@@ -103,12 +104,7 @@ if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
         wDat.sPars.basPre(rep_i, :) = lStim.sPars.basPre/unit_cor_factor;
         wDat.sPars.basPost(rep_i, :) = lStim.sPars.basPost/unit_cor_factor;
     else
-        wDat.sPars.int(rep_i, :) = sDat.intensity;
-        wDat.sPars.freq(rep_i, :) = sDat.freq;
-        wDat.sPars.width(rep_i, :) = sDat.width;
-        wDat.sPars.sr(rep_i, :) = sDat.fs;
-        wDat.sPars.basPre(rep_i, :) = sDat.silencePre/unit_cor_factor;
-        wDat.sPars.basPost(rep_i, :) = sDat.silencePost/unit_cor_factor;
+        fprintf('Error lStim variable is missing fields\n')
     end
     
     wDat.sPars.led_mini(rep_i, 1) = cDat.minInit;

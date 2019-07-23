@@ -188,7 +188,7 @@ for i = 1:numel(repnum)
     end
 
     load(strrep(rep2run, '_rawdata', '_metadata'), ...
-        'iDat', 'sDat', 'lStim', 'fDat')
+        'iDat', 'lStim', 'fDat')
 
     if ~isempty(strfind(fDat.DataType, 'opto'))
         load(strrep(rep2run, '_rawdata', '_metadata'), 'cDat')
@@ -317,10 +317,10 @@ for i = 1:numel(repnum)
             % convert from sampling points to seconds
             
             if ~isfield(lStim, 'lstEn') && contains(fDat.DataType, 'opto')
-                lStim.lstEn = optostim_init_end(lStim.trace, sDat)/sDat.fs;
+                lStim.lstEn = optostim_init_end(lStim.trace, lStim)/lStim.fs;
             end
             
-            lstEn = (lStim.lstEn)/sDat.fs;
+            lstEn = (lStim.lstEn)/lStim.fs;
             
         end
         
@@ -339,11 +339,11 @@ for i = 1:numel(repnum)
     if ~isfield(iDat, 'tResample') || iDat.tResample == 0
         
         % get new time stamps
-        iniT = reshape(iDat.fstEn(:, 2), [iDat.FrameN iDat.StackN])/sDat.fs;
+        iniT = reshape(iDat.fstEn(:, 2), [iDat.FrameN iDat.StackN])/lStim.fs;
         iniT = iniT - lstEn(1, 1);
         
         % chop stim trace
-        itIdx = round((endT(1) + lstEn(1, 1))*sDat.fs);
+        itIdx = round((endT(1) + lstEn(1, 1))*lStim.fs);
         lStim.trace = lStim.trace(itIdx:end);
         
         % resample PMT_fscore
@@ -435,7 +435,7 @@ for i = 1:numel(repnum)
     end
     
     fprintf('\n')
-    clear iDat sDat lStim iniT Data inpres nantest rep2run
+    clear iDat lStim iniT Data inpres nantest rep2run
     
 end
 
@@ -480,8 +480,8 @@ end
 if ~check_gate
 
     for i = 1:numel(repnum)
-        load([f2run, '_', num2str(repnum(i)), '_metadata.mat'], 'iDat', 'sDat', 'lStim')
-        iniT_t = (iDat.fstEn(:, 2)' - lStim.lstEn(1, 1))/sDat.fs;
+        load([f2run, '_', num2str(repnum(i)), '_metadata.mat'], 'iDat', 'lStim')
+        iniT_t = (iDat.fstEn(:, 2)' - lStim.lstEn(1, 1))/lStim.fs;
         iniT_t = reshape(iniT_t, [iDat.FrameN iDat.StackN]);
         iniT(i, :) = [max(iniT_t(:, 1)), min(iniT_t(:, end))];
     end
@@ -502,7 +502,7 @@ fprintf(['Target time ends are: ', num2str(start_end_time(1)), ' ', ...
     ' (automatically generated), original time ends: ', ...
     num2str(max(iniT(:, 1))), ' ', num2str(min(iniT(:, 2))), '\n']);
 
-clear iniT iniT_t iDat lStim sDat
+clear iniT iniT_t iDat lStim
 
 end
 

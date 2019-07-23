@@ -38,6 +38,27 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %           (default, [])
 % 
 % Notes
+% this function updates: lStim and iDat
+% lStim: stimuli related (auditory/opto) metadata structure
+%   adds the following fields:
+%       lStim.trace: stimulus raw trace
+%       lStim.lstEn: stimulus onset and offset  (sound and opto)
+%       lStim.sPars.order: stimulus order (sound and opto)
+%       lStim.sPars.name: name of each stimulus (sound and opto)
+%       lStim.sPars.int: stimulus intensity (sound and opto)
+%       lStim.sPars.sr: sampling rate (sound and opto)
+%       lStim.sPars.basPre: silence pre stimulus (sound and opto)
+%       lStim.sPars.basPost: silence post stimulus (sound and opto)
+%       lStim.sPars.freq: frequency of pulse stimulus (opto)
+%       lStim.sPars.width: width of pulse stimulus (opto)
+%
+% iDat: image metadata structure
+%   adds the following fields:
+%       iDat.StackN: updates depending on the length of time stamps
+%           collected
+%       iDat.fstEn: frame timestamps [onset offset]
+%       iDat.sstEn: volume timestamps [onset offset]
+%
 % 2019-02-22: bleedthrough is adding a stronger DC change than expected and
 %   affecting Frame time estimation, so now it runs calculate the mode frame
 %   width and then uses it to eliminate peaks in between. need to work on
@@ -136,9 +157,9 @@ function runperfile(filename, metpars)
 %   filename: name of file to load
 %   metpars: parameters
 
-% Load main variables 'sDat', 'iDat', 'fDat'
+% Load main variables 'lStim', 'iDat', 'fDat'
 display(['Running file : ', filename])
-load(['.', filesep, filename, '_metadata.mat'], 'sDat', 'iDat', 'fDat')
+load(['.', filesep, filename, '_metadata.mat'], 'lStim', 'iDat', 'fDat')
 
 % copy datatype (2D or 4D)
 datatype = fDat.DataType;
@@ -159,9 +180,12 @@ switch datatype
             
             if contains(datatype, 'prv') && contains(datatype, 'opto')
                 %ip.frameCh = 3; ip.lstimCh = 4; ip.lstimrDat = 2;
-                metpars.frameCh = 2; metpars.lstimCh = 1; metpars.lstimrDat = 2;
+                metpars.frameCh = 2;
+                metpars.lstimCh = 1;
+                metpars.lstimrDat = 2;
             else
-                metpars.frameCh = 2; metpars.lstimCh = 1;
+                metpars.frameCh = 2;
+                metpars.lstimCh = 1;
             end
             
             bin_file_name = ['.', filesep, filename, '_bin.mat'];
@@ -183,7 +207,7 @@ switch datatype
         elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
             
             % stimuli delivered using LEDcontroler (old setup)
-            Ch = local_binread(sDat);
+            Ch = local_binread(lStim);
             
         else
             
@@ -229,17 +253,15 @@ switch datatype
             
         end
                 
-        % Populate lStim variable
+        % update lStim field 'fName'
         if contains(datatype, 'song') || contains(datatype, 'prv')
-            lStim.fName = [sDat.fName, '_bin.mat'];
+            lStim.fName = [lStim.fName, '_bin.mat'];
         elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
-            lStim.fName = [sDat.fName, '.bin'];
+            lStim.fName = [lStim.fName, '.bin'];
         else
             lStim.fName = 'no stimulus file';
         end
-        
-        lStim.trialn = sDat.trial;
-        
+                
         fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
             ' second ', num2str(iDat.fstEn(2, :)), '\n'])
         
@@ -260,8 +282,8 @@ switch datatype
         end
         
         % chopping stim trace to start and end of imaging + buffer time
-        start_end = [iDat.fstEn(1, 1) - metpars.buffer*sDat.fs, ...
-            (iDat.fstEn(end, 2) + metpars.buffer*sDat.fs)];
+        start_end = [iDat.fstEn(1, 1) - metpars.buffer*lStim.fs, ...
+            (iDat.fstEn(end, 2) + metpars.buffer*lStim.fs)];
         
         % chop and pass Ch (stimuli trace) to lStim.trace
         if ~isempty(Ch)
@@ -293,7 +315,7 @@ switch datatype
             
         end
         
-        % get stim init and end and extra metadata
+        % get stim onset and offset and extra metadata
         if contains(datatype, 'song') || contains(datatype, 'prv')
             
             % load rDat
@@ -323,6 +345,7 @@ switch datatype
             
         elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
             
+            load(['.', filesep, filename, '.mat'], 'sDat');
             lStim.lstEn = optostim_init_end(lStim.trace, sDat);
             
             % collect extra metadata
@@ -374,7 +397,7 @@ switch datatype
 
 end
 
-clear iDat fDat sDat Ch lStim ROI lStim
+clear iDat fDat Ch lStim ROI lStim
 
 end
 
@@ -579,24 +602,24 @@ end
 
 end
 
-function Y = local_binread(sDat, cNum)
+function Y = local_binread(stimrel_var, cNum)
 % local_binread: read '.bin' files
 %
 % Usage:
-%   data = local_binread(sDat, cNum)
+%   data = local_binread(stimrel_var, cNum)
 %
 % Args:
-%   sDat: variable generated by prv
+%   stimrel_var: stimuli related variable generated by LEDcontroler
 %   cNum: number of channels to load
 %
 % Returns:
 %   Y: vector or matrix contained in bin file
 
-fID = fopen([strrep(sDat.fName, '.mat', '') '.bin'], 'r');
+fID = fopen([strrep(stimrel_var.fName, '.mat', '') '.bin'], 'r');
 
 if ~exist('cNum', 'var')
     
-    Y = fread(fID, [length(sDat.channels) inf], 'double');
+    Y = fread(fID, [length(stimrel_var.channels) inf], 'double');
     
 else
     
@@ -606,7 +629,7 @@ else
         error('Could not seek for channel');
     end
     
-    Y = fread(fID, 'double', (length(sDat.channels)-1)*8)';
+    Y = fread(fID, 'double', (length(stimrel_var.channels)-1)*8)';
     
 end
 
