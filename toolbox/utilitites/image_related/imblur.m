@@ -31,15 +31,21 @@ end
 assert(nDimBlur == length(siz));
 
 for i = 1:nDimBlur
+    
     if sig(i)
         x = -floor(siz(i) / 2):floor(siz(i) / 2);
         H = exp(-(x.^2/ (2 * sig(i)^2)));
         H = H' / sum(H(:));
+        
         if nDimBlur > 1
-            indH = 1:nDimBlur; indH(i) = 1; indH(1) = i;
+            indH = 1:nDimBlur;
+            indH(i) = 1;
+            indH(1) = i;
             H = permute(H, indH);
         end
+        
         data = imfilter(data, H, 'same', 0);
-        %size(H)
+        
     end
+    
 end

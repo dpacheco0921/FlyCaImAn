@@ -31,4 +31,7 @@ for roi_i = 1:roiNum
     end
 end
 
+% do not interpolate NaN values
+Data1DxT(isnan(Data1D)) = nan;
+
 end

@@ -30,7 +30,8 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
-%   (year|month|day)_animalnum_(trial/rep)num_00*.tif
+%   (year|month|day)_animalnum_(trial/rep)num_'*'.tif ('*' refers to any
+%       integer), beware scanimage starts counting from 0. (see demo)
 % this function generates *_rawdata.mat and *_metadata.mat
 %   *_rawdata.mat: has a Data variable with dimensions:
 %       (y (rows/lines), x (columns/pixels per line), z, time, pmt) 

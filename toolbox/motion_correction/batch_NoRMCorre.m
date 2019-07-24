@@ -147,6 +147,7 @@ function runperfolder(fname, pMC)
 %
 % Args:
 %   fname: file name pattern
+%   pMC: parameter variable
 
 global RedCha GreenCha
 
