@@ -63,6 +63,10 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %   affecting Frame time estimation, so now it runs calculate the mode frame
 %   width and then uses it to eliminate peaks in between. need to work on
 %   denoising this opto-related signal
+% 2019-07-26:
+%   1) now it is compatible with cases where no Y-galvo info is
+%   provided or extra stimuli info
+%   2) compatible with new setup (reads Y-galvo from data_*.mat files)
 
 % default params
 metpars.frameCh = 1;
@@ -164,6 +168,16 @@ load(['.', filesep, filename, '_metadata.mat'], 'lStim', 'iDat', 'fDat')
 % copy datatype (2D or 4D)
 datatype = fDat.DataType;
 
+% input data to load
+stim_file2load = [];
+if contains(datatype, 'song') || contains(datatype, 'prv') && ~contains(datatype, 'fict')
+    stim_file2load = 'prv';
+elseif contains(datatype, 'opto') && ~contains(datatype, 'prv') && ~contains(datatype, 'fict')
+    stim_file2load = 'LEDcontroler';
+elseif contains(datatype, 'fict')
+    stim_file2load = 'fict';
+end
+
 switch datatype
     
     case {'2DxT', '3DxT', '2DxT_song', '3DxT_song', ...
@@ -175,7 +189,7 @@ switch datatype
         % cases for 3DxT new data, sometimes the Y movement stops, giving you a
         %   wrong frame end for the last frame, which is then deleted
                 
-        if contains(datatype, 'song') || contains(datatype, 'prv')
+        if contains(stim_file2load, 'prv')
             % stimuli delivered using prv code
             
             if contains(datatype, 'prv') && contains(datatype, 'opto')
@@ -204,10 +218,20 @@ switch datatype
                 
             end
             
-        elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
+        elseif contains(stim_file2load, 'LEDcontroler')
             
             % stimuli delivered using LEDcontroler (old setup)
             Ch = local_binread(lStim);
+            
+        elseif contains(stim_file2load, 'fict')
+            
+            % stimuli delivered using **
+            data = h5load(['.', filesep, filename, 'h5']);
+            eval('Ch = ', 'data.input.samples(:,3);');
+            Ch = double(Ch)';
+            clear data
+            
+            metpars.frameCh = 1;
             
         else
             
@@ -316,7 +340,7 @@ switch datatype
         end
         
         % get stim onset and offset and extra metadata
-        if contains(datatype, 'song') || contains(datatype, 'prv')
+        if contains(stim_file2load, 'prv')
             
             % load rDat
             load(['.', filesep, filename, '_vDat.mat'], 'rDat')
@@ -343,7 +367,7 @@ switch datatype
             lStim.sPars.basPost = rDat.ctrl.silencePost;
             clear rDat
             
-        elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
+        elseif contains(stim_file2load, 'LEDcontroler')
             
             load(['.', filesep, filename, '.mat'], 'sDat');
             lStim.lstEn = optostim_init_end(lStim.trace, sDat);
@@ -487,8 +511,10 @@ end
 end
 
 function [Frame_Init, Frame_End] = ...
-    colecttimestamp(mirror_y_trace, frame_num, min_frame_time)
-% local_binread: read '.bin' files
+    colecttimestamp(mirror_y_trace, ...
+    frame_num, min_frame_time, stim_file2load)
+% colecttimestamp: calculate frame onset anf offset based on the movement
+% of the Y galvo.
 %
 % Usage:
 %   [Frame_Init, Frame_End] = ...
@@ -498,36 +524,47 @@ function [Frame_Init, Frame_End] = ...
 %   mirror_y_trace: mirror y trace from 2PM
 %   frame_num: number of frames (from Data)
 %   min_frame_time: minimun time between frames
+%   stim_file2load: stimuli delivery setup
+%
+% Notes:
+% regular vs resonant galvo
 
+if size(mirror_y_trace, 1) > 1; mirror_y_trace = mirror_y_trace'; end
+
+% edit trace for resonant galvo
+if contains(stim_file2load, 'fict')
+    idx_start = find(mirror_y_trace < -1, 1, 'last');
+    mirror_y_trace(1, 1:idx_start) = mirror_y_trace(idx_start + 1);
+end
+
+% calculate the diff of the smooth vector
 tracet = -diff(diff(smooth(mirror_y_trace(1, :), 10)));
-% tracet_detrend = prctfilt(mirror_y_trace, 10, 10^3, 10, 0);
-% think more about which detrending would be better
 
 % amplitude threshold
 max_pred = prctile(tracet, 99.8)*0.5;
 
-% find frame ends & delete peaks that are closer than expected frame interval
+% find frame ends & delete peaks that are shorter than expected frame interval
 [~, Frame_End] = findpeaks(tracet, 'MinPeakHeight', max_pred);
 Frame_End(diff(Frame_End) < min_frame_time*0.8) = [];
+Frame_End = Frame_End';
 
 % correct for artifact peak at the beginning
 if Frame_End(1) > min_frame_time*0.8
     % frame end is as expected
-    Frame_End = Frame_End(1:end)';
+    Frame_End = Frame_End(1:end);
 else
     % frame end is too short, so delete this frametime
     % this could be due to a later start (happens for different settings).
-    Frame_End = Frame_End(2:end)';
+    Frame_End = Frame_End(2:end);
 end
 
 % amplitude threshold
 max_pred = prctile(-tracet, 99.8)*0.5;
 
-% find frame inits delete peaks that are closer than expected frame interval
+% find frame inits delete peaks that are shorter than expected frame interval
 [~, Frame_Init] = findpeaks(-tracet, 'MinPeakHeight', max_pred);
 Frame_Init(diff(Frame_Init) < min_frame_time*0.8) = [];
-
-Frame_Init = Frame_Init' + 15;
+Frame_Init = Frame_Init';
 
 % if first time init is missed, add one
 if Frame_Init(1) > min_frame_time*0.8
@@ -552,7 +589,6 @@ end
 mode_frame_width = mode(Frame_End - Frame_Init)*0.9;
 
 % recalculate frame times
-% [pks,locs] = findpeaks(avSpots,year,'MinPeakDistance',6);
 
 tracet = -diff(diff(smooth(mirror_y_trace(1, :), 10)));
 % tracet_detrend = prctfilt(mirror_y_trace, 10, 10^3, 10, 0);
@@ -565,12 +601,13 @@ max_pred = prctile(tracet, 99.8)*0.5;
 [~, Frame_End] = findpeaks(tracet, 'MinPeakHeight', max_pred, ...
     'MinPeakDistance', mode_frame_width);
 Frame_End(diff(Frame_End) < min_frame_time*0.8) = [];
+Frame_End = Frame_End';
 
 % correct for artifact peak at the beginning
 if Frame_End(1) > min_frame_time*0.8
-    Frame_End = Frame_End(1:end)';
+    Frame_End = Frame_End(1:end);
 else
-    Frame_End = Frame_End(2:end)';
+    Frame_End = Frame_End(2:end);
 end
 
 % amplitude threshold
@@ -580,8 +617,15 @@ max_pred = prctile(-tracet, 99.8)*0.5;
 [~, Frame_Init] = findpeaks(-tracet, 'MinPeakHeight', max_pred, ...
     'MinPeakDistance', mode_frame_width);
 Frame_Init(diff(Frame_Init) < min_frame_time*0.8) = [];
+Frame_Init = Frame_Init';
 
-Frame_Init = Frame_Init' + 15;
+% manual shift of onset/offset
+if ~contains(stim_file2load, 'fict')
+    Frame_Init = Frame_Init + 15;
+else
+    Frame_End = Frame_End - 2;
+    Frame_Init = Frame_Init + 4;
+end
 
 if Frame_Init(1) > min_frame_time*0.8
 	Frame_Init = [Frame_Init(1) - round(mean(Frame_Init(2:2:10^2) ...

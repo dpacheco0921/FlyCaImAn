@@ -359,13 +359,15 @@ if contains(tifpars.SpMode, 'song') || ...
     
     % all prv (for song or opto)
     SavingDataNew([], fDat, iDat, 3, ...
-        tifpars.cDir, tifpars.Folder2Run)
+        tifpars.cDir, tifpars.Folder2Run, ...
+        tifpars.fStrain)
     
 elseif ~contains(tifpars.SpMode, 'prv')
     
     % old opto using LEDcontroler
     SavingDataNew([], fDat, iDat, 1, ...
-        tifpars.cDir, tifpars.Folder2Run)
+        tifpars.cDir, tifpars.Folder2Run, ...
+        tifpars.fStrain)
     
 end
 
@@ -430,7 +432,8 @@ for acqIdx = 1:numel(TemplateFile)
         tifpars.FieldOfView, tifpars.fName);
     
     SavingDataNew(Data, fDat, iDat, 1, ...
-        tifpars.cDir, tifpars.Folder2Run)
+        tifpars.cDir, tifpars.Folder2Run, ...
+        tifpars.fStrain)
     
     clear Data iDat fDat ImMeta
     
@@ -503,7 +506,8 @@ end
     tifpars.FieldOfView, tifpars.fName);
 
 SavingDataNew(Data, fDat, iDat, 2, ...
-        tifpars.cDir, tifpars.Folder2Run)
+        tifpars.cDir, tifpars.Folder2Run, ...
+        tifpars.fStrain)
     
 clear X Y FrameNum Channels Zoom Data iDat fDat
 
@@ -630,11 +634,12 @@ end
 end
 
 function SavingDataNew(Data, fDat, iDat, saveType, ...
-    cDir, Folder2Run)
+    cDir, Folder2Run, ifStrain)
 % SavingDataNew: saving both dataand metadata in current folder
 %
 % Usage:
-%   SavingDataNew(Data, fDat, iDat, saveType)
+%   SavingDataNew(Data, fDat, iDat, saveType, ...
+%       cDir, Folder2Run, ifStrain)
 %
 % Args:
 %   Data: 3D or 4D matrix
@@ -643,6 +648,7 @@ function SavingDataNew(Data, fDat, iDat, saveType, ...
 %   saveType: which input file to read
 %   cDir: current directory
 %   Folder2Run: file directory
+%   ifStrain: input fStrain
 
 o_file_name_preffix = [cDir, filesep, ...
     Folder2Run, filesep, fDat.FileName];
@@ -694,8 +700,8 @@ if exist('sDat', 'var')
 end
 
 % replace/append userdefine fStrain metadata to lStim
-if ~isempty(tifpars.fStrain)
-    lStim.fStrain = tifpars.fStrain;
+if ~isempty(ifStrain)
+    lStim.fStrain = ifStrain;
 end
 
 % update and save metadata
