@@ -226,7 +226,7 @@ switch datatype
         elseif contains(stim_file2load, 'fict')
             
             % stimuli delivered using **
-            data = h5load(['.', filesep, filename, 'h5']);
+            data = h5load(['.', filesep, filename, '.h5']);
             eval('Ch = ', 'data.input.samples(:,3);');
             Ch = double(Ch)';
             clear data
