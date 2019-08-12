@@ -22,7 +22,8 @@ if ~isempty(iIm)
     X = sum(mask, 2) == dDim(2);
     Y = sum(mask, 1) == dDim(1);
     
-    if length(size(iIm)) == 3
+    if length(size(iIm)) == 3 ...
+            || length(size(iIm)) == 2
         iIm = iIm(X~= 1, Y~= 1, :);
     elseif length(size(iIm)) == 4
         iIm = iIm(X~= 1, Y~= 1, :, :);

@@ -16,6 +16,8 @@ function rho = neighcorr_2D(Y, iparams)
 % Notes: 
 % splits volume in n parts and runs lc2Dgen on each
 
+if ~exist('iparams', 'var'); iparams = []; end
+
 neigh_2d.overlap = [2 2];
 neigh_2d.chunksize = [50 50];
 neigh_2d.timestamps = [];
