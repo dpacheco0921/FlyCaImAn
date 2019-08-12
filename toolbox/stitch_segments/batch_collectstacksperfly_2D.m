@@ -30,6 +30,12 @@ function batch_collectstacksperfly_2D(FolderName, FileName, iparams)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
+%       (idp_run_flag: flag to run each selected file independently)
+%           (default, 0)
+%       (green_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [1 1])
+%       (red_field2save:  flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [0 1])
 
 cspf_2d = [];
 cspf_2d.cDir = pwd;
@@ -42,6 +48,9 @@ cspf_2d.blowcap = 0;
 cspf_2d.fshift = 6;
 cspf_2d.serId = 'int';
 cspf_2d.corenum = 4;
+cspf_2d.idp_run_flag = 0;
+cspf_2d.green_field2save = [1 1];
+cspf_2d.red_field2save = [0 1];
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -57,12 +66,6 @@ if ~isempty(cspf_2d.oDir)
         mkdir(cspf_2d.oDir);
     end    
     fprintf(['Copying output files at : ', ...
-        strrep(cspf_2d.oDir, filesep, ' '), '\n'])
-
-else
-    
-    cspf_2d.oDir = pwd;
-    fprintf(['Saving output files at : ', ...
         strrep(cspf_2d.oDir, filesep, ' '), '\n'])
     
 end
@@ -106,13 +109,25 @@ function runperfolder(fname, cspf_2d)
     cspf_2d.fi2reject, [], 1);
 fprintf('Reformatting stacks from');
 
-if numel(f2plot) == 1 && numel(rep2plot) == 1
-    % run single file
-    f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
-    fprintf(' one fly_seg ')    
+if cspf_2d.idp_run_flag == 1
+    
+    for i = 1:numel(f2plot)
+        % run single file
+        f2plot{i} = [f2plot{i}, '_', num2str(rep2plot(i))];
+    end
+    fprintf(' each seg independently ') 
+    
 else
-    % Run all files per folder
-    f2plot = unique(f2plot);
+    
+    if numel(f2plot) == 1 && numel(rep2plot) == 1
+        % run single file
+        f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
+        fprintf(' one fly_seg ')
+    else
+        % Run all flies per folder
+        f2plot = unique(f2plot);
+    end
+    
 end
 
 fprintf([num2str(numel(f2plot)), ' flies\n'])
@@ -130,7 +145,7 @@ for file_i = 1:numel(f2plot)
         if numel(filename) == 1
             
             fprintf(['Reformatting fly: ', ...
-                filename{file_i}, '_', num2str(repnum(rep_i)),'\n'])
+                filename{1}, '_', num2str(repnum(rep_i)),'\n'])
             fcompiler([filename{1}, '_', num2str(repnum(rep_i))], cspf_2d);
             
         else
@@ -168,12 +183,14 @@ vList = whos('-file', [fname, '_rawdata']);
 if ~contains([vList.name], 'Y')
     
     % saves Y and Yr
-    savedata_per_cha(fname, 1, wDat, [1 1], ...
+    savedata_per_cha(fname, 1, wDat, ...
+        cspf_2d.green_field2save, ...
         cspf_2d.bkgate, cspf_2d.fshift, cspf_2d.blowcap);
     
     % only saves Yr for red channel
     try
-        savedata_per_cha(fname, 2, wDat, [0 1], ...
+        savedata_per_cha(fname, 2, wDat, ...
+        cspf_2d.red_field2save, ...
             cspf_2d.bkgate, cspf_2d.fshift, cspf_2d.blowcap);
     end
     
@@ -189,13 +206,16 @@ wDat.lc2D = neighcorr_2D(dataObj);
 wDat.cspf = 1;
 save([fname, '_metadata.mat'], 'wDat', '-append');
 
-if ~strcmpi(pwd, cspf_2d.oDir)
+if ~isempty(cspf_2d.oDir)
     
-    copyfile([fname, '_metadata.mat'], [cspf_2d.oDir, filesep, fname, '_metadata.mat']);
-    copyfile([fname, '_rawdata.mat'], [cspf_2d.oDir, filesep, fname, '_rawdata.mat']);
+    copyfile([fname, '_metadata.mat'], ...
+        [cspf_2d.oDir, filesep, fname, '_metadata.mat']);
+    copyfile([fname, '_rawdata.mat'], ...
+        [cspf_2d.oDir, filesep, fname, '_rawdata.mat']);
     
     try
-        copyfile([fname, '_refdata.mat'], [cspf_2d.oDir, filesep, fname, '_refdata.mat']);
+        copyfile([fname, '_refdata.mat'], ...
+            [cspf_2d.oDir, filesep, fname, '_refdata.mat']);
     end
     
 end

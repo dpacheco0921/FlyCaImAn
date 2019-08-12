@@ -246,7 +246,7 @@ switch datatype
         if ~isempty(Ch)
             [FrameInit, FrameEnd] = ...
                 colecttimestamp(Ch(metpars.frameCh, :), ...
-                FrameN, metpars.minframet);
+                FrameN, metpars.minframet, stim_file2load);
         else
             
             % generate arbitrary timestamps
@@ -582,7 +582,8 @@ fprintf([' FrameTimePoints ( ', num2str(numel(Frame_Init)), ' )'])
 if frame_num == numel(Frame_Init)
     fprintf('\n');
 else
-    fprintf(' # of frames ~= from image \n');
+    fprintf([' # of frames ~= from image (', ...
+        num2str(frame_num), ')\n']);
 end
 
 % get the mode
@@ -641,7 +642,8 @@ fprintf([' FrameTimePoints ( ', num2str(numel(Frame_Init)), ' )'])
 if frame_num == numel(Frame_Init)
     fprintf('\n');
 else
-    fprintf(' # of frames ~= from image \n');
+    fprintf([' # of frames ~= from image (', ...
+        num2str(frame_num), ')\n']);
 end
 
 end

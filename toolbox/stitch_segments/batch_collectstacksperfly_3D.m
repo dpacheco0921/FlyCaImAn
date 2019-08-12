@@ -30,6 +30,12 @@ function batch_collectstacksperfly_3D(FolderName, FileName, iparams)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
+%       (idp_run_flag: flag to run each selected file independently)
+%           (default, 0)
+%       (green_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [1 1])
+%       (red_field2save:  flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [0 1])
 
 cspf_3d = [];
 cspf_3d.cDir = pwd;
@@ -42,6 +48,9 @@ cspf_3d.blowcap = 0;
 cspf_3d.fshift = 6;
 cspf_3d.serId = 'int';
 cspf_3d.corenum = 4;
+cspf_3d.idp_run_flag = 0;
+cspf_3d.green_field2save = [1 1];
+cspf_3d.red_field2save = [0 1];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -58,12 +67,6 @@ if ~isempty(cspf_3d.oDir)
         mkdir(cspf_3d.oDir);
     end    
     fprintf(['Copying output files at : ', ...
-        strrep(cspf_3d.oDir, filesep, ' '), '\n'])
-
-else
-    
-    cspf_3d.oDir = pwd;
-    fprintf(['Saving output files at : ', ...
         strrep(cspf_3d.oDir, filesep, ' '), '\n'])
     
 end
@@ -107,13 +110,25 @@ function runperfolder(fname, cspf_3d)
     cspf_3d.fi2reject, [], 1);
 fprintf('Reformatting stacks from');
 
-if numel(f2plot) == 1 && numel(rep2plot) == 1
-    % run single file
-    f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
-    fprintf(' one fly_seg ')    
+if cspf_3d.idp_run_flag == 1
+    
+    for i = 1:numel(f2plot)
+        % run single file
+        f2plot{i} = [f2plot{i}, '_', num2str(rep2plot(i))];
+    end
+    fprintf(' each seg independently ') 
+    
 else
-    % Run all files per folder
-    f2plot = unique(f2plot);
+    
+    if numel(f2plot) == 1 && numel(rep2plot) == 1
+        % run single file
+        f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
+        fprintf(' one fly_seg ')
+    else
+        % Run all flies per folder
+        f2plot = unique(f2plot);
+    end
+    
 end
 
 fprintf([num2str(numel(f2plot)), ' flies\n'])
@@ -193,13 +208,15 @@ vList = whos('-file', [fname, '_rawdata']);
 if ~contains([vList.name], 'Y')
     
     % saves Y and Yr
-    wDat = savedata_per_cha(fname, 1, wDat, [1 1], ...
+    wDat = savedata_per_cha(fname, 1, wDat, ...
+        cspf_3d.green_field2save, ...
         cspf_3d.bkgate, cspf_3d.fshift, cspf_3d.blowcap);
     
     % only saves Yr
     try
-        wDat = savedata_per_cha(fname, 2, wDat, [0 1], ...
-        cspf_3d.bkgate, cspf_3d.fshift, cspf_3d.blowcap);
+        wDat = savedata_per_cha(fname, 2, wDat, ...
+            cspf_3d.red_field2save, ...
+            cspf_3d.bkgate, cspf_3d.fshift, cspf_3d.blowcap);
     end
     
 end
@@ -224,13 +241,16 @@ wDat.lc3D = neighcorr_3D(dataObj);
 wDat.cspf = 1; 
 save([fname, '_metadata.mat'], 'wDat', '-append');
 
-if ~strcmpi(pwd, cspf_3d.oDir)
+if ~isempty(cspf_3d.oDir)
     
-    copyfile([fname, '_metadata.mat'], [cspf_3d.oDir, filesep, fname, '_metadata.mat']);
-    copyfile([fname, '_rawdata.mat'], [cspf_3d.oDir, filesep, fname, '_rawdata.mat']);
+    copyfile([fname, '_metadata.mat'], ...
+        [cspf_3d.oDir, filesep, fname, '_metadata.mat']);
+    copyfile([fname, '_rawdata.mat'], ...
+        [cspf_3d.oDir, filesep, fname, '_rawdata.mat']);
     
     try
-        copyfile([fname, '_refdata.mat'], [cspf_3d.oDir, filesep, fname, '_refdata.mat']);
+        copyfile([fname, '_refdata.mat'], ...
+            [cspf_3d.oDir, filesep, fname, '_refdata.mat']);
     end
     
 end

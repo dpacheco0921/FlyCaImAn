@@ -305,9 +305,9 @@ for tif_i = 1:tif_num
             
             if numel(siz) < 4; siz(4) = 1; end
            
-            idx2use = ((dim2count + 1) : (dim2count + siz(3)));
-            dataObj.Data(1:siz(1), 1:siz(2), idx2use, siz(4)) = single(tempdata);
-            dim2count = dim2count + siz(3);
+            idx2use = ((dim2count + 1) : (dim2count + siz(4)));
+            dataObj.Data(1:siz(1), 1:siz(2), idx2use, 1:siz(5)) = squeeze(single(tempdata));
+            dim2count = dim2count + siz(4);
             
         else
             
@@ -336,12 +336,7 @@ end
 clear tempdata_pre
 
 % Default values for reshape
-if ~isempty(ImMeta.Z)
-    ImMeta.RepeatNum = dim2count;
-else
-    ImMeta.RepeatNum = dim2count;
-end
-
+ImMeta.RepeatNum = dim2count;
 ImMeta.DelFrames = [];
 
 fprintf(['Data final size: ', num2str(size(dataObj.Data)), '\n'])

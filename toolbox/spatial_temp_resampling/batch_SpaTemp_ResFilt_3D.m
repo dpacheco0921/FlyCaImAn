@@ -49,6 +49,8 @@ function batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
 %           (default, 6)
 %       (stack2del: remove timepoints)
 %           (default, [])
+%       (idp_run_flag: flag to run each selected file independently)
+%           (default, 0)
 %
 % Notes:
 % Works specifically for 3DxT
@@ -78,6 +80,7 @@ spte.bkgate = 0;
 spte.blowcap = 0;
 spte.fshift = 6;
 spte.stack2del = [];
+spte.idp_run_flag = 0;
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -122,16 +125,24 @@ function runperfolder(fname, spte)
     spte.fsuffix, spte.fi2reject, [], 1);
 fprintf('Temporal resampling & aligment of');
 
-if numel(f2plot) == 1 && numel(rep2plot) == 1
+if spte.idp_run_flag == 1
     
-    % run single file
-    f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
-    fprintf(' one fly_seg ')  
+    for i = 1:numel(f2plot)
+        % run single file
+        f2plot{i} = [f2plot{i}, '_', num2str(rep2plot(i))];
+    end
+    fprintf(' each seg independently ') 
     
 else
     
-    % Run all flies per folder
-    f2plot = unique(f2plot);
+    if numel(f2plot) == 1 && numel(rep2plot) == 1
+        % run single file
+        f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
+        fprintf(' one fly_seg ')
+    else
+        % Run all flies per folder
+        f2plot = unique(f2plot);
+    end
     
 end
 

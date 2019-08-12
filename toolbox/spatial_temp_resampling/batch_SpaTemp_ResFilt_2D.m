@@ -46,6 +46,8 @@ function batch_SpaTemp_ResFilt_2D(FolderName, FileName, iparams)
 %           (default, 0)
 %       (fshift: shift distribution of F to the positive side)
 %           (default, 6)
+%       (idp_run_flag: flag to run each selected file independently)
+%           (default, 0)
 %
 % Notes:
 % Works specifically for 2DxT
@@ -71,6 +73,7 @@ spte.wDat_gen = 1;
 spte.bkgate = 0;
 spte.blowcap = 0;
 spte.fshift = 6;
+spte.idp_run_flag = 0;
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -115,16 +118,24 @@ function runperfolder(fname, spte)
     spte.fsuffix, spte.fi2reject, [], 1);
 fprintf('Temporal resampling & aligment of');
 
-if numel(f2plot) == 1 && numel(rep2plot) == 1
+if spte.idp_run_flag == 1
     
-    % run single file
-    f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
-    fprintf(' one fly_seg ')  
+    for i = 1:numel(f2plot)
+        % run single file
+        f2plot{i} = [f2plot{i}, '_', num2str(rep2plot(i))];
+    end
+    fprintf(' each seg independently ') 
     
 else
     
-    % Run all flies per folder
-    f2plot = unique(f2plot);
+    if numel(f2plot) == 1 && numel(rep2plot) == 1
+        % run single file
+        f2plot{1} = [f2plot{1}, '_', num2str(rep2plot)];
+        fprintf(' one fly_seg ')
+    else
+        % Run all flies per folder
+        f2plot = unique(f2plot);
+    end
     
 end
 
@@ -411,7 +422,7 @@ for i = 1:numel(repnum)
     % save wDat
     if spte.wDat_gen
         save_wDat(strrep(rep2run, '_rawdata', '_metadata'), '2DxT', ...
-            spte.direction, spte.bkgate, spte.fshift, spte.blowcap);
+            [], spte.bkgate, spte.fshift, spte.blowcap);
     end
 
     % resample temporally ref channel (from plane to plane)

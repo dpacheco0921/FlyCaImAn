@@ -475,7 +475,7 @@ for F2R_idx = 1:numel(f2run)
         
     end
     
-    clear dDim iDat lStim fDat
+    clear dDim iDat lStim fDat mcDat
     
 end
 
@@ -646,10 +646,10 @@ if ~isempty(stack2del)
     % load data
     data = data_obj.Data;
     
-    if iDat.StackN > 1
+    if iDat.FrameN > 1
         data(:, :, :, stack2del, :) = [];
     else
-        data(:, :, :, stack2del) = [];
+        data(:, :, stack2del, :) = [];
     end
     
     % overwrite data
@@ -682,7 +682,7 @@ if ~isempty(stack2del)
     iDat.StackN = iDat.StackN - numel(stack2del);
     
     % Update sstEn
-    if iDat.StackN > 1
+    if iDat.FrameN > 1
         preInit = min(reshape(iDat.fstEn(:, 1), ...
             [iDat.FrameN, iDat.StackN]), [], 1)';
         preEnd =  max(reshape(iDat.fstEn(:, 1), ...
