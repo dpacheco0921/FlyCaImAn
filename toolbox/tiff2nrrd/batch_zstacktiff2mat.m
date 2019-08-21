@@ -156,8 +156,8 @@ if ~exist('foldername', 'var'); foldername = []; end
 % hardcoded for current format naming
 alltiff = rdir(['*', isuffix, '_*_*.tif']);
 
-alltiff = GS_str2match(filename, alltiff);
-alltiff = GS_str2match(foldername, alltiff);
+alltiff = str2match(filename, alltiff);
+alltiff = str2match(foldername, alltiff);
 alltiff = {alltiff.name};
 
 basename = cell(1, numel(alltiff)); 

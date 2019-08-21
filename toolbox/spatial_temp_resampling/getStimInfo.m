@@ -31,7 +31,12 @@ n_reps = numel(reps);
 if rep_i == 1
     
     % general metadata
-    wDat.fStrain = lStim.fStrain;
+    if isfield(lStim, 'fStrain')
+        wDat.fStrain = lStim.fStrain;
+    else
+        wDat.fStrain = [];
+    end
+    
     wDat.datatype = fDat.DataType;
     wDat.XYZres = iDat.MetaData(2:end); 
     wDat.fTime = iDat.Tres;

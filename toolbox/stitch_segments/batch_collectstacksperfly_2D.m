@@ -65,10 +65,14 @@ if ~isempty(cspf_2d.oDir)
     if ~exist(cspf_2d.oDir, 'dir')
         mkdir(cspf_2d.oDir);
     end    
-    fprintf(['Copying output files at : ', ...
-        strrep(cspf_2d.oDir, filesep, ' '), '\n'])
+
+else
+    
+    cspf_2d.oDir = '.';
     
 end
+fprintf(['Saving output files at : ', ...
+	strrep(cspf_2d.oDir, filesep, ' '), '\n'])
 
 % Selecting folders
 f2run = dir;

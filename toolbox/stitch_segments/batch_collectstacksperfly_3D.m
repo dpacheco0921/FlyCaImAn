@@ -34,7 +34,7 @@ function batch_collectstacksperfly_3D(FolderName, FileName, iparams)
 %           (default, 0)
 %       (green_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
 %           (default, [1 1])
-%       (red_field2save:  flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%       (red_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
 %           (default, [0 1])
 
 cspf_3d = [];
@@ -66,10 +66,14 @@ if ~isempty(cspf_3d.oDir)
     if ~exist(cspf_3d.oDir, 'dir')
         mkdir(cspf_3d.oDir);
     end    
-    fprintf(['Copying output files at : ', ...
-        strrep(cspf_3d.oDir, filesep, ' '), '\n'])
+
+else
+    
+    cspf_3d.oDir = '.';
     
 end
+fprintf(['Saving output files at : ', ...
+	strrep(cspf_3d.oDir, filesep, ' '), '\n'])
 
 % find folders
 f2run = dir;

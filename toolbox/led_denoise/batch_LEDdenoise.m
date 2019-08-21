@@ -9,12 +9,19 @@ function batch_LEDdenoise(FolderName, FileName, iparams)
 %   FileName: File name to load
 %   iparams: parameters to update
 %       (pgate: plot gate)
+%           (default, 0)
 %       (redo: redo gate)
+%           (default, 0)
 %       (debug: debug gate)
+%           (default, 0)
 %       (minput: min fluorescence input)
+%           (default, 0)
 %       (iter: number of denoising interations)
+%           (default, 1)
 %       (baseline: timepoints to use as baseline)
+%           (default, [])
 %       (delredcha: gate to delete red channel)
+%           (default, 1)
 % 
 % Notes:
 % it generates iDat.LED and iDat.PMT_fscore
@@ -94,7 +101,7 @@ if ~isempty(FileName)
     end
 end
 
-File2Run = GS_str2match(FileName, File2Run);
+File2Run = str2match(FileName, File2Run);
 File2Run = {File2Run.name};
 fprintf('Correcting LED bleed to green channel\n')
 qgate = 0;

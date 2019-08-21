@@ -269,8 +269,10 @@ for rep_i = 1:numel(reps)
     if rep_i > 1
         
         % Set nan to min F value
-        local(rep_i).RedChaMean(isnan(local(rep_i).RedChaMean)) = min(local(rep_i).RedChaMean(:));
-        local(rep_i).GreenChaMean(isnan(local(rep_i).GreenChaMean)) = min(local(rep_i).GreenChaMean(:));
+        local(rep_i).RedChaMean(isnan(local(rep_i).RedChaMean)) = ...
+            min(local(rep_i).RedChaMean(:));
+        local(rep_i).GreenChaMean(isnan(local(rep_i).GreenChaMean)) = ...
+            min(local(rep_i).GreenChaMean(:));
         
         % get initial planes for contiguous stacks
         preSimRed = findXYZmotion(local(rep_i-1).RedChaMean(:, :, fPlane(rep_i-1)), ...
@@ -307,7 +309,7 @@ wDat.Zstitch.Zshift(:, 1) = maxperrow(SimRed);
 wDat.Zstitch.Zshift(:, 2) = maxperrow(SimGreen);
 wDat.Zstitch.Zend(:, 1) = fPlane;
 
-fprintf(['Z-shift ', num2str(wDat.Zstitch.Zshift(:, 1)'), '\n'])
+fprintf(['Z-shift ', num2str(wDat.Zstitch.Zshift(:, cspfa.refcha)'), '\n'])
 fprintf(['Last planes ', num2str(wDat.Zstitch.Zend(:, 1)'), '\n'])
 
 if ~isempty(cspfa.zend_man)
@@ -419,13 +421,24 @@ for rep_i = 1:numel(reps)
         options_align.grid_size(3) = dgDim(3);
         
         % get rid of nan values for motion correction
-        refIm = wDat.RedChaMean(:, :, end);
+        if cspfa.refcha == 1
+            refIm = wDat.RedChaMean(:, :, end);
+        else
+            refIm = wDat.GreenChaMean(:, :, end);
+        end
         refIm(isnan(refIm)) = min(refIm(:));
-        floatIm = iDat.RedChaMean(:, :, 1:2);
+        
+        if cspfa.refcha == 1
+            floatIm = iDat.RedChaMean(:, :, 1:2);
+        else
+            floatIm = iDat.GreenChaMean(:, :, 1:2);
+        end                
         floatIm(isnan(floatIm)) = min(floatIm(:));
         
         % do motion correction
         [~, shifts_align, ~] = normcorre(floatIm, options_align, refIm);
+        clear floatIm refIm
+        
         shifts_align = shifts_align(1);
         shifts_align.shifts(1, 1, 1, 3) = 0;
         shifts_align.shifts_up(1, 1, 1, 3) = 0;

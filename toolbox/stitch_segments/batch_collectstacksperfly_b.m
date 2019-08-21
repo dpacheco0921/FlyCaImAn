@@ -70,17 +70,15 @@ if ~isempty(cspfb.oDir)
     if ~exist(cspfb.oDir, 'dir')
         mkdir(cspfb.oDir);
     end    
-    fprintf(['Copying output files at : ', ...
-        strrep(cspfb.oDir, filesep, ' '), '\n'])
 
 else
     
-    cspfb.oDir = pwd;
-    fprintf(['Saving output files at : ', ...
-        strrep(cspfb.oDir, filesep, ' '), '\n'])
+    cspfb.oDir = '.';
     
 end
-
+fprintf(['Saving output files at : ', ...
+	strrep(cspfb.oDir, filesep, ' '), '\n'])
+    
 % Selecting folders
 f2run = dir;
 f2run = str2match(FolderName, f2run);
@@ -92,8 +90,8 @@ for i = 1:numel(f2run)
     
     fprintf(['Running folder : ', f2run{i}, '\n']); 
     cd(f2run{i});
-    runperfolder(FolderName);
-    cd(FileName, cspfb);
+    runperfolder(FileName, cspfb);
+    cd(cspfb.cDir);
     fprintf('\n')
     
 end
