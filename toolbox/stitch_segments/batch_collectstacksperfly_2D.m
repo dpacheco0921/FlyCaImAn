@@ -68,7 +68,7 @@ if ~isempty(cspf_2d.oDir)
 
 else
     
-    cspf_2d.oDir = '.';
+    cspf_2d.oDir = [];
     
 end
 fprintf(['Saving output files at : ', ...

@@ -257,8 +257,14 @@ ImMeta.RepeatNum = floor(size(Data, 3)/ImMeta.Z);
 ImMeta.FrameNum = ImMeta.Z;
 
 % resize Data
-siz = size(Data); 
-siz(5) = siz(4); 
+siz = size(Data);
+
+try
+    siz(5) = siz(4); 
+catch
+    siz(5) = 1; 
+end
+
 siz(3) = ImMeta.FrameNum; 
 siz(4) = ImMeta.RepeatNum;
 Data = Data(:, :, 1:siz(4)*siz(3), :);
@@ -285,14 +291,18 @@ end
 fprintf('Averaging volumes\n')
 Data = avbrain(Data, zt2m.ths, siz, zt2m.AxH);
 
-Data = permute(Data, [1 2 4 3]); 
-ImMeta.FrameNum = size(Data, 3);
+Data = permute(Data, [1 2 4 3]);
+ImMeta.FrameNum = size(Data, 4);
 
 fprintf(['Data final size: ',num2str(size(Data)), '\n'])
 eval(['Data = ', ImMeta.Imclass, '(Data);'])
 
 premaxRed = max(Data(:, :, :, 1), [], 3); 
-preMaxGreen = max(Data(:, :, :, 2), [], 3);
+try 
+    preMaxGreen = max(Data(:, :, :, 2), [], 3);
+catch
+    preMaxGreen = nan;
+end
 
 display(['Max val per channel ', ...
     num2str([max(premaxRed(:)), max(preMaxGreen(:))])])
@@ -389,22 +399,26 @@ function avgim = avbrain(im, im_ths, isiz, axH)
 % Notes:
 
 % get max per frame (both channels)
-maxpertime_g = squeeze(max(max(im(:, :, :, 2), [], 1), [], 2)); 
 maxpertime_r = squeeze(max(max(im(:, :, :, 1), [], 1), [], 2));
+if isiz(end) > 1
+    maxpertime_g = squeeze(max(max(im(:, :, :, 2), [], 1), [], 2)); 
+end
 
 im = reshape(im, isiz);
 
-maxpertime_g = reshape(maxpertime_g, isiz([3 4]));
 maxpertime_r = reshape(maxpertime_r, isiz([3 4]));
+if isiz(end) > 1
+    maxpertime_g = reshape(maxpertime_g, isiz([3 4]));
+end
 
 % remove flyback planes
 im(:, :, 1, :, :) = [];
-maxpertime_g(1, :) = [];
 maxpertime_r(1, :) = [];
+try maxpertime_g(1, :) = []; end
 
 % plot max's
-plot(maxpertime_g(:), 'g', 'Parent', axH(1)); 
 plot(maxpertime_r(:), 'r', 'Parent', axH(2));
+try plot(maxpertime_g(:), 'g', 'Parent', axH(1)); end
 hold(axH(1), 'on'); hold(axH(2), 'on')
 
 % generate average brain
@@ -412,13 +426,16 @@ avgim = inf(size(im, 1), size(im, 2), size(im, 3), size(im, 5));
 
 for z = 1:size(im, 3)
     
-    if sum((maxpertime_g(z, :)) > im_ths) >= 2
-        avgim(:, :, z, 2) = mean(squeeze(im(:, :, z, ...
-            (maxpertime_g(z, :)) > im_ths, 2)), 3);
-    end
     if sum((maxpertime_r(z, :)) > im_ths) >= 2
         avgim(:, :, z, 1) = mean(squeeze(im(:, :, z, ...
             (maxpertime_r(z, :)) > im_ths, 1)), 3);
+    end
+    
+    if isiz(end) > 1
+        if sum((maxpertime_g(z, :)) > im_ths) >= 2
+            avgim(:, :, z, 2) = mean(squeeze(im(:, :, z, ...
+                (maxpertime_g(z, :)) > im_ths, 2)), 3);
+        end
     end
     
 end

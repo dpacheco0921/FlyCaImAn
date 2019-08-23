@@ -196,7 +196,7 @@ for F2R_idx = 1:numel(f2run)
                 lStim = [];
             end
             
-            [lStim, iDat] =  volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
+            [lStim, iDat] = volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
             % update lStim and iDat
             save(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), ...
                 'iDat', 'lStim', '-append')
