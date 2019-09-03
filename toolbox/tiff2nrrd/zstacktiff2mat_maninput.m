@@ -1,30 +1,35 @@
-%% Debug batch_zstacktiff2mat
-%avgim(:, :, :, 1) = framegapfill(find(isinf(M(:, 1))), avgim(:, :, :, 1));
-%avgim(:, :, :, 2) = framegapfill(find(isinf(M(:, 2))), avgim(:, :, :, 2));
-pi = []; pi.sizY = [size(avgim, 1), size(avgim, 2), size(avgim, 3)];
-%slice3Dmatrix(avgim(:, :, :, 1), pi)
-%slice3Dmatrix(avgim(:, :, :, 2), pi)
+% Debug stacks that have frames with fluorescent values lower
+% than threshold (within batch_zstacktiff2mat)
 
-%% plot max per channel
-figure(); plot(MaxPerTime_g, 'g'); hold on; plot(MaxPerTime_r, 'r')
+%% 1) plot max fluorescence per channel per frame
+figure();
+plot(MaxPerTime_g, 'g');
+hold on;
+plot(MaxPerTime_r, 'r')
 
-%% display slices to replace
+%% 2) display slices to replace (with values below threshold)
 find(isinf(M(:, 1)))'
 find(isinf(M(:, 2)))'
 
-%% plot along Z axes
-pi = []; pi.lag = 0.01; pi.sizY = [size(avgim, 1), size(avgim, 2), size(avgim, 3)];
-channel = 2;
-%slice3Dmatrix(avgim(:, :, :, 1), pi)
-slice3Dmatrix(avgim(:, :, :, channel), pi)
+%% 3) plot zstack along Z axes
 
-%% plot some planes
-channel = 1; planes2plot = 275:279;
-pi.lag = 1;
-pi.sizY = [size(avgim, 1), size(avgim, 2),  numel(planes2plot)];
-slice3Dmatrix(avgim(:, :, planes2plot, channel), pi)
+% 3.1) all planes
+pi = [];
+pi.lag = 0.01;
+pi.sizY = [size(avgim, 1), size(avgim, 2), size(avgim, 3)];
 
-%% replace planes
-plane2replace = [1:4];
-channel = 1;
-avgim(:, :, :, channel) = framegapfill(plane2replace, avgim(:, :, :, channel));
+slice3Dmatrix(avgim(:, :, :, 1), pi)
+slice3Dmatrix(avgim(:, :, :, 2), pi)
+
+% 3.2) selected planes
+planes2plot = 275:279;
+
+slice3Dmatrix(avgim(:, :, planes2plot, 1), pi)
+slice3Dmatrix(avgim(:, :, planes2plot, 2), pi)
+
+%% 4) replace planes (using info from 2) and 3))
+
+plane2replace = [64:67];
+channel2use = 1;
+avgim(:, :, :, channel2use) = ...
+    framegapfill(plane2replace, avgim(:, :, :, channel2use));
