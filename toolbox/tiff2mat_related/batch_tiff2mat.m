@@ -17,7 +17,8 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           sets:
 %           (data dimensions: 2DxT, 3DxT, or 3D)
 %           (type of stimuli delivered: _song, _opto)
-%           (for opto only: which code was used prv or LEDcontroler: _prv, (otherwise it assumes it used LEDcontroler))
+%           (for opto only: which code was used prv or LEDcontroler: _prv, 
+%               (otherwise it assumes it used LEDcontroler))
 %           (for song: we only used prv)
 %           (version of tiff: _old, (otherwise it assumes it is the new version))
 %           (type of axial device: 'piezo', 'remotefocus')
@@ -306,7 +307,8 @@ for tif_i = 1:tif_num
             if numel(siz) < 4; siz(4) = 1; end
            
             idx2use = ((dim2count + 1) : (dim2count + siz(4)));
-            dataObj.Data(1:siz(1), 1:siz(2), idx2use, 1:siz(5)) = squeeze(single(tempdata));
+            dataObj.Data(1:siz(1), 1:siz(2), idx2use, 1:siz(5)) ...
+                = squeeze(single(tempdata));
             dim2count = dim2count + siz(4);
             
         else
@@ -314,7 +316,15 @@ for tif_i = 1:tif_num
             if numel(siz) < 5; siz(5) = 1; end
 
             idx2use = ((dim2count + 1) : (dim2count + siz(4)));
-            dataObj.Data(1:siz(1), 1:siz(2), 1:siz(3), idx2use, 1:siz(5)) = single(tempdata);
+            
+            if siz(5) > 1
+                dataObj.Data(1:siz(1), 1:siz(2), 1:siz(3), idx2use, 1:siz(5)) ...
+                    = single(tempdata);
+            else
+                dataObj.Data(1:siz(1), 1:siz(2), 1:siz(3), idx2use) ...
+                    = single(tempdata);
+            end
+            
             dim2count = dim2count + siz(4);
             
         end
