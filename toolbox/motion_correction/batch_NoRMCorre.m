@@ -29,6 +29,8 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %       (refcha: reference channel)
 %           (red channel, 1, default)
 %           (green channel, 2)
+%       (iter_num: number of iterations)
+%           (1, default)
 %       %%%%%%%%%%%% internal NoRMCorre params %%%%%%%%%%%%
 %       (def_maxshift: max shift allowed from frame-to-frame)
 %           (default, [5 5 2])
@@ -54,6 +56,16 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (deafult, true)
 %       (min_patch_size: minimum size of patch)
 %           (deafult, [64 64 5])
+%       (plot_df_flag: flag to plot df videos)
+%           (deafult, 0)
+%           (if 1, it plots iteration 0, and the last iteration)
+%           (if 2, it plots iteration 0, and all iterations)
+%       (baseline_tp: timepoints to use as baseline to generate DF videos)
+%           (deafult, [1:5])
+%       (int_range: intensity range for DF videos)
+%           (deafult, [0 1])
+%       (oDir: directory where videos are saved)
+%           (deafult, pwd)
 %       %%%%%%%%%%%% extra editing %%%%%%%%%%%%
 %       (shift_ths: max cumulative motion or delta from fram-to-frame (assummes smoothness))
 %           (default, [18, 0.7])
@@ -88,6 +100,7 @@ pMC.stack2del = [];
 pMC.rigidg = 1;
 pMC.nrigidg = 0;
 pMC.refcha = 1;
+pMC.iter_num = 1;
 pMC.def_maxshift = [5 5 2];
 pMC.phaseflag = 1;
 pMC.shifts_method = 'linear';
@@ -100,6 +113,10 @@ pMC.overlap_pre = [16 16 3];
 pMC.overlap_post = [16 16 3];
 pMC.use_parallel = true;
 pMC.min_patch_size = [64 64 4];
+pMC.plot_df_flag = 0;
+pMC.baseline_tp = [1:5];
+pMC.int_range = [0 1];
+pMC.oDir = pwd;
 pMC.shift_ths = [18, 0.7];
 pMC.span = 10;
 pMC.sgate = 1;
@@ -111,6 +128,10 @@ if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pMC = loparam_updater(pMC, iparams);
+
+if pMC.iter_num ~= numel(pMC.sgate)
+    pMC.sgate = pMC.sgate*ones(1, pMC.iter_num);
+end
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pMC.serId, pMC.corenum);
@@ -151,337 +172,436 @@ function runperfolder(fname, pMC)
 
 global RedCha GreenCha
 
+figH = [];
+axH = [];
+input_colors = jet(pMC.iter_num);
+
+shifts_pre = [];
 shifts_r = [];
 shifts_nr = [];
 RedCha = [];
 GreenCha = [];
 
 % Files to load
-sep = filesep;
-f2run = rdir(['.', sep, '*', pMC.fsuffix]);
+f2run = rdir(['.', filesep, '*', pMC.fsuffix]);
 fname = addsuffix(fname, pMC.fsuffix);
 f2run = str2match(fname, f2run);
 f2run = {f2run.name};
 fprintf('Correcting motion\n')
+k = 1;
 
 for F2R_idx = 1:numel(f2run)
     
-    % Loading files
-    fprintf(['Correcting file: ', ...
-        f2run{F2R_idx}((max(strfind(f2run{F2R_idx}, sep))+1):end), '\n'])
-    % Loading metadata
-    load(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), ...
-        'iDat', 'lStim', 'fDat')
+    try
+        runperfile(f2run{F2R_idx}, pMC)
+    catch error
+        keyboard
+        failedfiles{k, 1} = strrep(f2run{F2R_idx}, ...
+            '_rawdata', '_refdata');
+        k = k + 1;
+    end
     
-    if iDat.MotCorr == 0 || pMC.redo == 1
-        
-        % Loading Data (uint16) and keeping the format as double
-        %   (cos some functions require double precision)
-        if pMC.redo == 1 && exist(strrep(f2run{F2R_idx}, '_rawdata', '_refdata'), 'file')
-            
-            load(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), 'mcDat')
-            green_obj = matfile(f2run{F2R_idx}, 'Writable', true);            
-            GreenCha = green_obj.Data; 
-            red_obj = matfile(strrep(f2run{F2R_idx}, ...
-                '_rawdata', '_refdata'), 'Writable', true);            
-            RedCha = red_obj.Data;
-            
-        else
-            
-            data_obj = matfile(f2run{F2R_idx}, 'Writable', true);
-            % Delete frame during flyback / update frameN / RedChaMean
-            iDat = deleteflybackframe(iDat, fDat, data_obj);
-            
-            if ~exist('lStim', 'var')
-                lStim = [];
-            end
-            
-            [lStim, iDat] = volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
-            % update lStim and iDat
-            save(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), ...
-                'iDat', 'lStim', '-append')
-        
-            siz = size(data_obj.Data);
-            ChannelSplitter(siz, data_obj)
-            
+end
+
+if exist('failedfiles', 'var')
+    failedfiles
+end
+
+fprintf('****** Done ******\n')
+
+end
+
+function runperfile(f2run, pMC)
+% runperfile: run each file
+%
+% Usage:
+%   runperfile(f2run, pMC)
+%
+% Args:
+%   f2run: file name
+%   pMC: parameter variable
+
+global RedCha GreenCha
+
+% initialize variables
+figH = [];
+axH = [];
+input_colors = jet(pMC.iter_num);
+
+shifts_pre = [];
+shifts_r = [];
+shifts_nr = [];
+
+RedCha = [];
+GreenCha = [];
+
+cha_str = {'RedCha', 'GreenCha'};
+
+% Loading files
+fprintf(['Correcting file: ', ...
+    f2run((max(strfind(f2run, filesep))+1):end), '\n'])
+
+% Loading metadata
+load(strrep(f2run, '_rawdata', '_metadata'), ...
+    'iDat', 'lStim', 'fDat')
+
+if iDat.MotCorr == 0 || pMC.redo == 1
+
+    % Loading Data (uint16) and keeping the format as double
+    %   (because some functions require double precision)
+    if pMC.redo == 1 && exist(strrep(f2run, '_rawdata', '_refdata'), 'file')
+
+        load(strrep(f2run, '_rawdata', '_metadata'), 'mcDat')
+        green_obj = matfile(f2run, 'Writable', true);            
+        GreenCha = green_obj.Data; 
+        red_obj = matfile(strrep(f2run, ...
+            '_rawdata', '_refdata'), 'Writable', true);            
+        RedCha = red_obj.Data;
+
+    else
+
+        data_obj = matfile(f2run, 'Writable', true);
+        % Delete frame during flyback / update frameN / RedChaMean
+        iDat = deleteflybackframe(iDat, fDat, data_obj);
+
+        if ~exist('lStim', 'var')
+            lStim = [];
         end
-        
-        % fill in gaps in RedCha if it is opto data
-        %   (when opto stim is overlapping with red PMT)
-        fillgaps_redcha(fDat, iDat, pMC.debug)
-        
-        % Do motion correction
+
+        [lStim, iDat] = volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
+        % update lStim and iDat
+        save(strrep(f2run, '_rawdata', '_metadata'), ...
+            'iDat', 'lStim', '-append')
+
+        siz = size(data_obj.Data);
+        ChannelSplitter(siz, data_obj)
+
+    end
+
+    % fill in gaps in RedCha if it is opto data
+    %   (when opto stim is overlapping with red PMT)
+    fillgaps_redcha(fDat, iDat, pMC.debug)
+
+    % save max-df movie to asses motion
+    if pMC.plot_df_flag
+        video_name = strrep(f2run, '_rawdata', '_metadata');
+        plot_df_video(GreenCha, pMC.int_range, ...
+            pMC.baseline_tp, pMC.oDir, [video_name, '_DF_iter_0'])
+    end
+
+    % Do motion correction
+    for iter_i = 1:pMC.iter_num
+        fprintf(['Iteration # ', num2str(iter_i), '\n'])
+
         dgDim = size(GreenCha);
+        display(dgDim)
 
         % motion correction parameters
+        [options_r, options_nr] = ...
+            generate_normcore_params(dgDim, pMC);
 
-        if length(dgDim) == 4
-            d3 = dgDim(3);
-        else
-            d3 = 1;
-            pMC.overlap_pre = pMC.overlap_pre(1);
-            pMC.overlap_post = pMC.overlap_post(1);
-            pMC.grid_size(3) = 1;
-        end
-        
-        % rigid correction settings
-        options_r = NoRMCorreSetParms(...
-            'd1', dgDim(1), 'd2', dgDim(2), 'd3', d3, ...
-            'grid_size', [dgDim(1:2) d3], 'bin_width', pMC.bin_width, ...
-            'mot_uf', pMC.mot_uf, 'us_fac', pMC.us_fac, ...
-            'overlap_pre', pMC.overlap_pre, 'overlap_post', pMC.overlap_post, ...
-            'use_parallel', pMC.use_parallel, 'max_shift', pMC.def_maxshift, ...
-            'phase_flag', pMC.phaseflag, 'boundary', pMC.boundary, ...
-            'shifts_method', pMC.shifts_method);
-        options_r.correct_bidir = 0;
-
-        % non-rigid correction settings
-        options_nr = NoRMCorreSetParms(...
-            'd1', dgDim(1), 'd2', dgDim(2), 'd3', d3, ...
-            'grid_size', pMC.grid_size, 'bin_width', pMC.bin_width, ...
-            'mot_uf', pMC.mot_uf, 'us_fac', pMC.us_fac, ...
-            'overlap_pre', pMC.overlap_pre, 'overlap_post', pMC.overlap_post, ...
-            'min_patch_size', pMC.def_maxshift, 'use_parallel', pMC.use_parallel, ...
-            'max_shift', pMC.def_maxshift, 'phase_flag', pMC.phaseflag, ...
-            'boundary', pMC.boundary, 'shifts_method', pMC.shifts_method);
-        options_nr.correct_bidir = 0;
-        
         % crispness of the mean        
-        if pMC.refcha == 1
-            mcDat.crisp(1, 1) = get_crisp_idx(RedCha);
-        else
-            mcDat.crisp(1, 1) = get_crisp_idx(GreenCha);
+        if iter_i == 1
+            eval(['mcDat.crisp(1, 1) = get_crisp_idx(', ...
+                cha_str{pMC.refcha}, ');']);
         end
 
         % Run rigid
         if pMC.rigidg
-            
+
             fprintf('RigidMC\n')
             % correct for motion (using selected ref channel)
             % shifts: [height, width, depth]
-            if pMC.refcha == 1
-                [~, shifts_pre, template_, ~, col_shift] = ...
-                    normcorre_batch(RedCha, options_r);          
-            else
-                [~, shifts_pre, template_, ~, col_shift] = ...
-                    normcorre_batch(GreenCha, options_r);           
+            
+            try
+                eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
+                    'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
+            catch
+                keyboard
             end
             
             % correlation with the mean (CM):
-            if pMC.refcha == 1
-                mcDat.CM(:, 1) = get_CM(template_, RedCha);
-            else
-                mcDat.CM(:, 1) = get_CM(template_, GreenCha);
+            if iter_i == 1
+                eval(['mcDat.CM(1, :) = get_CM(template_,', ...
+                    cha_str{pMC.refcha}, ');']);
             end
-            
+
             % shifts_g = struct('shifts',cell(T,1),'shifts_up',cell(T,1),'diff',cell(T,1));
-            
+
             % Edit shifts
             igate = 0;
-            if pMC.sgate == 1 % smooth shift and zero it if the delta is too big
+            if pMC.sgate(iter_i) == 1 % smooth shift and zero it if the delta is too big
                 fprintf('\n smoothing and zeroing if necessary\n')
                 [shifts_r, shifts_s, igate] = ...
                     checkshift(shifts_pre, pMC.span, pMC.shift_ths);
-            elseif pMC.sgate == 2 % just smooth shift
+            elseif pMC.sgate(iter_i) == 2 % just smooth shift
                 fprintf('\n smoothing\n');
                 shifts_r = smoothshift(shifts_pre, [], pMC.span);
-            elseif pMC.sgate == 3 % just zero shift
+            elseif pMC.sgate(iter_i) == 3 % just zero shift
                 fprintf('\n zeroing\n')
                 shifts_r = zeroshift(shifts_pre);
             else % use raw
                 fprintf('\n not editing\n');
                 shifts_r = shifts_pre;
             end
-            
-            if ~exist('shifts_s', 'var'); shifts_s = shifts_r; end
-            
-            if pMC.debug
-                
-                % plot shifts
-                figName = strrep(strrep(strrep(f2run{F2R_idx}, ...
-                    ['.', sep], ''), '_rawdata.mat', ''), '_', '-');
-                
-                if length(dgDim) == 4 
-                    figH = plot_NoRMCorr_shitfs(3, ...
-                        shifts_pre, shifts_s, shifts_r);
-                    %[figH, aH] = plot_NoRMCorr_shitfs(im_dim, varargin)
-                else
-                    figH = plot_NoRMCorr_shitfs(2, ...
-                        shifts_pre, shifts_s, shifts_r);
-                end
-                
-                figH.Name = figName;
-                
+
+            if ~exist('shifts_s', 'var')
+                shifts_s = shifts_r;
             end
-            
+
+            if pMC.debug
+
+                % plot shifts
+                figName = strrep(strrep(strrep(f2run, ...
+                    ['.', filesep], ''), '_rawdata.mat', ''), '_', '-');
+
+                if length(dgDim) == 4
+                    [figH, axH] = plot_NoRMCorr_shitfs(3, ...
+                         figH, axH, input_colors(iter_i, :), shifts_r);
+                    %[figH, aH] = plot_NoRMCorr_shitfs(im_dim, varargin)
+                    % shifts_pre, shifts_s,
+                else
+                    [figH, axH] = plot_NoRMCorr_shitfs(2, ...
+                         figH, axH, input_colors(iter_i, :), shifts_r);
+                end
+
+                figH.Name = figName;
+
+            end
+
             if pMC.debug
                 % Plot video of single plane                
                 %keyboard
                 %plot_2DoR(1, RedCha, GreenCha, [], 0.001, {'RedCha','GreenCha'})
                 %plot_2DoR(5, GreenCha, Ymr, [], 0.001, {'Raw','Corrected'})
+            end
+
+            % apply shifts to Y
+            eval([cha_str{pMC.refcha}, ' = apply_shifts(', cha_str{pMC.refcha}, ...
+                ', shifts_r, options_r, [], [], [], col_shift);']);
+
+            if eval(['~isempty(', cha_str{setdiff([1 2], pMC.refcha)}, ')'])
+                eval([cha_str{setdiff([1 2], pMC.refcha)}, ...
+                    ' = apply_shifts(', cha_str{setdiff([1 2], pMC.refcha)}, ...
+                    ', shifts_r, options_r, [], [], [], col_shift);']);
+            end
+
+            % find nan pixels per plane, and whole nan planes
+            floatIm = [];
+            if length(dgDim) == 4
+                nan_plane = sum(reshape(isnan(mean(GreenCha, length(dgDim))), ...
+                    [prod(dgDim([1 2])) dgDim(3)])) ~= prod(dgDim([1 2]));
+
+                % use non-nan planes
+                nan_mask = max(isnan(mean(GreenCha(:, :, nan_plane, :), ...
+                    length(dgDim))), [], 3);
+                template_ = template_(:, :, nan_plane);
+            else
+                nan_plane = [];
+                nan_mask = max(isnan(mean(GreenCha, length(dgDim))), [], 3);
+            end
+
+            % for pMC.iter_num > 1, remove nan pixels from red/green
+            %   channels
+            if pMC.iter_num > 1
+                
+                if length(dgDim) == 4
+                    
+                    % udpate iDat.FrameN and iDat.fstEn
+                    idx2del = [];
+                    for z2del = find(~nan_plane(:))'
+                        idx2del = [idx2del, ...
+                            z2del:iDat.FrameN:iDat.FrameN*iDat.StackN];
+                    end
+                    iDat.fstEn(idx2del, :) = [];
+                    iDat.FrameN = sum(nan_plane);
+                    clear idx2del z2del
+
+                    if ~isempty(RedCha)
+                        RedCha = pruneIm(RedCha(:, :, nan_plane, :), nan_mask);
+                    end
+                    if ~isempty(GreenCha)
+                        GreenCha = pruneIm(GreenCha(:, :, nan_plane, :), nan_mask);
+                    end
+
+                    if size(iDat.fstEn, 1) ~= prod([iDat.FrameN iDat.StackN])
+                        fprintf('Error fstEn and Data size dont match')
+                        keyboard
+                    end
+                    
+                else
+
+                    if ~isempty(RedCha)
+                        RedCha = pruneIm(RedCha, nan_mask);
+                    end
+                    if ~isempty(GreenCha)
+                        GreenCha = pruneIm(GreenCha, nan_mask);
+                    end
+
+                end
+
+                eval(['floatIm = ', cha_str{pMC.refcha}, ';']);
+
+            else
+                
+                if length(dgDim) == 4
+                    eval(['floatIm = pruneIm(', cha_str{pMC.refcha}, ...
+                        '(:, :, nan_plane, :), nan_mask);']);
+                else
+                    eval(['floatIm = pruneIm(', cha_str{pMC.refcha}, ...
+                        ', nan_mask);']);
+                end
                 
             end
-            
-            % apply shifts to Y           
-            if pMC.refcha == 1
-                RedCha = apply_shifts(RedCha, shifts_r, options_r, [], [], [], col_shift);
-            elseif pMC.refcha == 2
-                GreenCha = apply_shifts(GreenCha, shifts_r, options_r, [], [], [], col_shift);
-            end
-            
-            if pMC.refcha == 1 && ~isempty(GreenCha)
-                GreenCha = apply_shifts(GreenCha, shifts_r, options_r, [], [], [], col_shift);
-            elseif pMC.refcha == 2 && ~isempty(RedCha)
-                RedCha = apply_shifts(RedCha, shifts_r, options_r, [], [], [], col_shift);
-            end
-            
-        end
-        
-        % Run non rigid  still in progress
-%         if pMC.nrigidg
-%             
-%             fprintf('NonRigidMC\n')
-%             if pMC.refcha == 1
-%                 if length(dgDim) == 4
-%                     Y = RedCha(:, :, :, perm);
-%                 else
-%                     Y = RedCha(:, :, perm);
-%                 end
-%             else
-%                 if length(dgDim) == 4
-%                     Y = GreenCha(:, :, :, perm);
-%                 else
-%                     Y = GreenCha(:, :, perm);
-%                 end
-%             end
-%             
-%             [Y, shifts_nr, ~] = normcorre_batch(Y, options_nr);
-%             
-%             if pMC.refcha == 1 
-%                 if length(dgDim) == 4
-%                     RedCha(:, :, :, perm) = Y;
-%                 else
-%                     RedCha(:, :, perm) = Y;
-%                 end
-%             else
-%                 if length(dgDim) == 4
-%                     GreenCha(:, :, :, perm) = Y;
-%                 else
-%                     GreenCha(:, :, perm) = Y;
-%                 end
-%             end
-%             
-%             shifts_nr(perm)  = shifts_nr;
-%             
-%             if pMC.refcha == 1 && ~isempty(GreenCha)
-%                 GreenCha = apply_shifts(GreenCha, shifts_nr, options_nr);
-%             elseif pMC.refcha == 2 && ~isempty(RedCha)
-%                 RedCha = apply_shifts(RedCha, shifts_nr, options_nr);
-%             end
-%             
-%             clear Ymr
-%             
-%         end
-        
-        % Save metadata, avg image and save
-        fprintf('Saving ... ')
-        
-        % Get mean volumes
-        iDat.GreenChaMean = mean(GreenCha, length(dgDim));
-        iDat.RedChaMean = mean(RedCha, length(dgDim));
-        
-        % Get displacements
-        iDat.MotCorr = 1;
-        shifts = parseshift(shifts_r, shifts_pre, shifts_nr);
-        mcDat.axes = {'Y', 'X', 'Z'};
-        
-        if pMC.redo == 1 && ...
-                exist(strrep(f2run{F2R_idx}, '_rawdata', '_refdata'), 'file')
-            mcDat.rigid = mcDat.rigid + shifts{1};
-            mcDat.nonrigid = mcDat.nonrigid + shifts{3}; 
-            mcDat.rigids = mcDat.rigids + shifts{2};
-        else
-            mcDat.rigid = shifts{1};
-            mcDat.nonrigid = shifts{3};
-            mcDat.rigids = shifts{2};
-        end
-        mcDat.ergate = igate;
-        
-        % remove nan pixels and whole slices
-        nan_mask = max(isnan(iDat.GreenChaMean), [], 3);
-        floatIm = [];
-        
-        if length(dgDim) == 4
-            nan_plane = sum(reshape(isnan(iDat.GreenChaMean), ...
-                [prod(dgDim([1 2])) dgDim(3)])) ~= prod(dgDim([1 2]));
-            
-            % use non-nan planes
-            nan_mask = max(isnan(iDat.GreenChaMean(:, :, nan_plane)), [], 3);
-            template_ = template_(:, :, nan_plane);
-            
-            if pMC.refcha == 1
-                floatIm = pruneIm(RedCha(:, :, nan_plane, :), nan_mask);
+
+            % correlation after correction      
+            mcDat.CM(iter_i + 1, :) = ...
+                get_CM(pruneIm(template_, nan_mask), floatIm);
+
+            % crispness of the mean
+            mcDat.crisp(iter_i + 1, 1) = get_crisp_idx(floatIm);
+
+            clear floatIm
+
+            % add optic flow
+            % edit opticalFlowFarneback
+
+            % Get displacements
+            shifts = parseshift(shifts_r, shifts_pre, shifts_nr);
+            mcDat.axes = {'Y', 'X', 'Z'};
+
+            if pMC.redo == 1 && ...
+                    exist(strrep(f2run, '_rawdata', '_refdata'), 'file')
+                mcDat.rigid{iter_i, 1} = mcDat.rigid + shifts{1};
+                mcDat.nonrigid{iter_i, 1} = mcDat.nonrigid + shifts{3}; 
+                mcDat.rigids{iter_i, 1} = mcDat.rigids + shifts{2};
             else
-                floatIm = pruneIm(GreenCha(:, :, nan_plane, :), nan_mask);
+                mcDat.rigid{iter_i, 1} = shifts{1};
+                mcDat.nonrigid{iter_i, 1} = shifts{3};
+                mcDat.rigids{iter_i, 1} = shifts{2};
             end
-            
-        else
-            
-            if pMC.refcha == 1
-                floatIm = pruneIm(RedCha, nan_mask);
-            else
-                floatIm = pruneIm(GreenCha, nan_mask);
-            end            
-            
+            mcDat.ergate(iter_i, 1) = igate;
+
+            clear shifts
+            shifts_pre = [];
+            shifts_r = [];
+            shifts_nr = [];
+
+            % save max-df movie to asses motion
+            if pMC.plot_df_flag == 1 && iter_i == pMC.iter_num
+                video_name = strrep(f2run, ...
+                    '_rawdata', '_metadata');
+                plot_df_video(GreenCha, pMC.int_range, ...
+                    pMC.baseline_tp, pMC.oDir, ...
+                    [video_name, '_DF_iter_', num2str(iter_i)])
+            elseif pMC.plot_df_flag == 2
+                video_name = strrep(f2run, ...
+                    '_rawdata', '_metadata');
+                plot_df_video(GreenCha, pMC.int_range, ...
+                    pMC.baseline_tp, pMC.oDir, ...
+                    [video_name, '_DF_iter_', num2str(iter_i)])                
+            end
+
         end
-        template_ = pruneIm(template_, nan_mask);
-        
-        % correlation after correction      
-        mcDat.CM(:, 2) = get_CM(template_, floatIm);
-                
-        % crispness of the mean
-        mcDat.crisp(1, 2) = get_crisp_idx(floatIm);
-        
-        clear floatIm
-        
-        % add optic flow
-        % edit opticalFlowFarneback
-        
-        % saving processed video to .mat file
-        save(strrep(f2run{F2R_idx}, '_rawdata', '_metadata'), ...
-            'iDat', 'lStim', 'mcDat', '-append')
-        
-        Data = GreenCha;
-        save(f2run{F2R_idx}, 'Data', '-v7.3');
-        GreenCha = [];
-        
-        Data = RedCha;
-        if ~isempty(Data)
-            save(strrep(f2run{F2R_idx}, '_rawdata', '_refdata'), ...
-                'Data', '-v7.3');
-        end
-        RedCha = [];
-        
-        Data = [];
-        shifts_r = [];
-        shifts_nr = [];
-        
-        clear shifts_s;
-        fprintf('Done\n')
-        
-    else
-        
-        fprintf(' *already corrected*\n')
-        
+
     end
     
-    clear dDim iDat lStim fDat mcDat
-    
+    % Save metadata, avg image and save
+    fprintf('Saving ... ')
+
+    iDat.MotCorr = 1;
+
+    % Get mean volumes
+    iDat.GreenChaMean = mean(GreenCha, length(dgDim));
+    iDat.RedChaMean = mean(RedCha, length(dgDim));
+
+    % update size
+    iDat.FrameSize = [size(GreenCha, 1) size(GreenCha, 2)];
+
+    % saving processed video to .mat file
+    save(strrep(f2run, '_rawdata', '_metadata'), ...
+        'iDat', 'lStim', 'mcDat', '-append')
+
+    Data = GreenCha;
+    save(f2run, 'Data', '-v7.3');
+    GreenCha = [];
+
+    Data = RedCha;
+    if ~isempty(Data)
+        save(strrep(f2run, '_rawdata', '_refdata'), ...
+            'Data', '-v7.3');
+    end
+    RedCha = [];
+
+    Data = [];
+    fprintf('Done\n')
+
+else
+
+    fprintf(' *already corrected*\n')
+
 end
 
-fprintf('****** Done ******\n')
+clear dDim iDat lStim fDat mcDat
 
 end
+
+% ********************************************
+% ************* NormCore related *************
+% ********************************************
+
+function [options_r, options_nr] = ...
+    generate_normcore_params(siz, pMC)
+% generate_normcore_params: calculate correlation of 
+%   template to each frame of floating image
+%
+% Usage:
+%   [options_r, options_nr] = generate_normcore_params(siz, pMC)
+%
+% Args:
+%   siz: image dimensions
+%   pMC: floating image
+%
+% Returns:
+%   options_r & options_nr motion correction parameters (see NoRMCorreSetParms)
+
+% motion correction parameters
+if length(siz) == 4
+    d3 = siz(3);
+else
+    d3 = 1;
+    pMC.overlap_pre = pMC.overlap_pre(1);
+    pMC.overlap_post = pMC.overlap_post(1);
+    pMC.grid_size(3) = 1;
+end
+
+% rigid correction settings
+options_r = NoRMCorreSetParms(...
+    'd1', siz(1), 'd2', siz(2), 'd3', d3, ...
+    'grid_size', [siz(1:2) d3], 'bin_width', pMC.bin_width, ...
+    'mot_uf', pMC.mot_uf, 'us_fac', pMC.us_fac, ...
+    'overlap_pre', pMC.overlap_pre, 'overlap_post', pMC.overlap_post, ...
+    'use_parallel', pMC.use_parallel, 'max_shift', pMC.def_maxshift, ...
+    'phase_flag', pMC.phaseflag, 'boundary', pMC.boundary, ...
+    'shifts_method', pMC.shifts_method);
+options_r.correct_bidir = 0;
+
+% non-rigid correction settings
+options_nr = NoRMCorreSetParms(...
+    'd1', siz(1), 'd2', siz(2), 'd3', d3, ...
+    'grid_size', pMC.grid_size, 'bin_width', pMC.bin_width, ...
+    'mot_uf', pMC.mot_uf, 'us_fac', pMC.us_fac, ...
+    'overlap_pre', pMC.overlap_pre, 'overlap_post', pMC.overlap_post, ...
+    'min_patch_size', pMC.def_maxshift, 'use_parallel', pMC.use_parallel, ...
+    'max_shift', pMC.def_maxshift, 'phase_flag', pMC.phaseflag, ...
+    'boundary', pMC.boundary, 'shifts_method', pMC.shifts_method);
+options_nr.correct_bidir = 0;
+
+end
+
+% **********************************************************
+% ************* measure of correction goodness *************
+% **********************************************************
 
 function CM = get_CM(templateIm, floatIm)
 % get_CM: calculate correlation of template to each frame of floating image
@@ -526,6 +646,11 @@ crisp_idx = norm(pre_matrix, 'fro');
 
 end
 
+% *****************************************
+% ************* stack editing *************
+% *****************************************
+
+
 function iDat = deleteflybackframe(iDat, fDat, data_obj)
 % deleteflybackframe: delete deleting z frame and related time stamps (Piezzo fly back)
 %
@@ -550,10 +675,12 @@ if contains(fDat.DataType, '3DxT') && ~iDat.LEDCorr ...
     if contains(fDat.DataType, 'old')
         z2del = size(data_obj.Data, 3);
         % old, Chop Data and update iDat
-        iDat = rmfield(iDat, 'sstEn');
     else
         z2del = 1;
         % new, Chop Data and update iDat
+    end
+    
+    if isfield(iDat, 'sstEn')
         iDat = rmfield(iDat, 'sstEn');
     end
     
@@ -743,6 +870,10 @@ end
 
 end
 
+% ******************************************
+% ************* shifts-related *************
+% ******************************************
+
 function [shifts_i, shifts_s, igate] = ...
     checkshift(shifts_i, smooth_span, shift_ths)
 % checkshift: get all shifts and smooth the change over time
@@ -889,3 +1020,91 @@ for i = 1:numel(varargin)
 end
 
 end
+
+% ********************************************
+% ************* plotting related *************
+% ********************************************
+
+function plot_df_video(input_im, im_range, ...
+    baseline_tp, target_directory, filename)
+% plot_df_video: function that plots DF videos
+%
+% Usage:
+%   plot_df_video(input_im, im_range, ...
+%       baseline_tp, target_directory, filename)
+%
+% Args:
+%   input_im: input image
+%   im_range: range if intensities for plotting
+%   baseline_tp: baseline timepoints
+%   target_directory: taget directory
+%   filename: output file name
+
+% baseline substract and max-project on the Z axis
+if length(size(input_im)) == 4
+    %input_im = input_im - nanmean(input_im(:, :, :, baseline_tp), 4);
+    input_im = squeeze(nanmax(input_im, [], 3));
+else
+    %input_im = input_im - nanmean(input_im(:, :, baseline_tp), 3);
+end
+
+% scale to [0 1]
+input_im = input_im - prctile(input_im(:), 1);
+input_im = input_im/prctile(input_im(:), 99);
+
+pi.range = im_range;
+pi.vgate = 1;
+pi.vname = [target_directory, filesep, filename];
+pi.vquality = 100;
+pi.frate = 10;
+pi.cmap = parula;
+
+slice3Dmatrix(input_im, pi)
+
+end
+
+% Run non rigid still in progress
+% if pMC.nrigidg
+% 
+%     fprintf('NonRigidMC\n')
+%     if pMC.refcha == 1
+%         if length(dgDim) == 4
+%             Y = RedCha(:, :, :, perm);
+%         else
+%             Y = RedCha(:, :, perm);
+%         end
+%     else
+%         if length(dgDim) == 4
+%             Y = GreenCha(:, :, :, perm);
+%         else
+%             Y = GreenCha(:, :, perm);
+%         end
+%     end
+% 
+%     [Y, shifts_nr, ~] = normcorre_batch(Y, options_nr);
+% 
+%     if pMC.refcha == 1 
+%         if length(dgDim) == 4
+%             RedCha(:, :, :, perm) = Y;
+%         else
+%             RedCha(:, :, perm) = Y;
+%         end
+%     else
+%         if length(dgDim) == 4
+%             GreenCha(:, :, :, perm) = Y;
+%         else
+%             GreenCha(:, :, perm) = Y;
+%         end
+%     end
+% 
+%     shifts_nr(perm)  = shifts_nr;
+% 
+%     if pMC.refcha == 1 && ~isempty(GreenCha)
+%         GreenCha = apply_shifts(GreenCha, shifts_nr, options_nr);
+%     elseif pMC.refcha == 2 && ~isempty(RedCha)
+%         RedCha = apply_shifts(RedCha, shifts_nr, options_nr);
+%     end
+% 
+%     clear Ymr
+% 
+% end
