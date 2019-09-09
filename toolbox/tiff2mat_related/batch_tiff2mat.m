@@ -304,11 +304,18 @@ for tif_i = 1:tif_num
         
         if ImMeta.FrameNum == 1
             
-            if numel(siz) < 4; siz(4) = 1; end
+            if numel(siz) < 5; siz(5) = 1; end
            
             idx2use = ((dim2count + 1) : (dim2count + siz(4)));
-            dataObj.Data(1:siz(1), 1:siz(2), idx2use, 1:siz(5)) ...
-                = squeeze(single(tempdata));
+
+            if siz(5) > 1
+                dataObj.Data(1:siz(1), 1:siz(2), idx2use, 1:siz(5)) ...
+                    = squeeze(single(tempdata));
+            else
+                dataObj.Data(1:siz(1), 1:siz(2), idx2use) ...
+                    = squeeze(single(tempdata));
+            end
+            
             dim2count = dim2count + siz(4);
             
         else

@@ -14,6 +14,9 @@ function save_wDat(filename, datatype, ...
 %   bkgate: gate to do custom background substraction
 %   fshift: value to shift distribution
 %   blowcap: minimun pixel value (it replaces values less than this)
+%
+% Notes:
+% It assumes that iDat.Greenchannel is never empty
 
 mcDat = [];
 cDat = [];
@@ -81,32 +84,41 @@ wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
 % tag and remove whole nan-planes (3D data only)
 if contains(datatype, '3DxT')
     
-    siz = size(wDat.RedChaMean);
-    nan_pix = isnan(wDat.RedChaMean);
+    siz = size(wDat.GreenChaMean);
+    nan_pix = isnan(wDat.GreenChaMean);
     wDat.plane2keep = sum(reshape(nan_pix, ...
         [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
 
-    wDat.RedChaMean = wDat.RedChaMean(:, :, wDat.plane2keep);
+    if ~isempty(wDat.RedChaMean)
+        wDat.RedChaMean = wDat.RedChaMean(:, :, wDat.plane2keep);
+    end
+    
     wDat.GreenChaMean = wDat.GreenChaMean(:, :, wDat.plane2keep);
     
 end
 
 % tag and remove nan-xy pixels
-wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+if ~isempty(wDat.RedChaMean)
+    wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+else
+    wDat.mask = max(isnan(wDat.GreenChaMean), [], 3);
+end
 
-wDat.RedChaMean = pruneIm(wDat.RedChaMean, wDat.mask);
+if ~isempty(wDat.RedChaMean)
+    wDat.RedChaMean = pruneIm(wDat.RedChaMean, wDat.mask);
+end
 wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
 
 % bmask, use all pixels (2D data only)
 if contains(datatype, '2DxT')
-    wDat.bMask = ones(size(wDat.RedChaMean(:, :, 1)));
+    wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
 end
 
 % update size
-wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
+wDat.fSize = [size(wDat.GreenChaMean, 1), size(wDat.GreenChaMean, 2)];
 
 if contains(datatype, '3DxT')
-    wDat.vSize = [wDat.fSize, size(wDat.RedChaMean, 3)];
+    wDat.vSize = [wDat.fSize, size(wDat.GreenChaMean, 3)];
     wDat.vOrient = imdirection;
 else
     wDat.vSize = [wDat.fSize, 1];

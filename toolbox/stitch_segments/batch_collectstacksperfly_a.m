@@ -505,7 +505,7 @@ wDat.vOrient = cspfa.direction;
 
 if cspfa.plot_flag
     
-    fHandle = plot_NoRMCorr_shitfs(3, shifts_pr);
+    fHandle = plot_NoRMCorr_shitfs(3, [], [], [], shifts_pr);
     fHandle.Name = [strrep(fname, '_', ' '), ' shifts'];
     
 end

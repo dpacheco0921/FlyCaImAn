@@ -121,6 +121,17 @@ end
 % Collect motion related
 if ~isempty(mcDat)
     
+    if iscell(mcDat.rigid)
+        
+        rigid_temp = zeros(size(mcDat.rigid{1}));
+        for i = 1:numel(mcDat.rigid)
+            rigid_temp = mcDat.rigid{i} + rigid_temp;
+        end 
+        mcDat.rigid = [];
+        mcDat.rigid = rigid_temp;
+        
+    end  
+
     wDat.MotCor.sYshift(:, rep_i) = mcDat.rigid(1, :)';
     wDat.MotCor.sXshift(:, rep_i) = mcDat.rigid(2, :)';
     
