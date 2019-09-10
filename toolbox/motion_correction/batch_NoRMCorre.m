@@ -114,7 +114,7 @@ pMC.overlap_post = [16 16 3];
 pMC.use_parallel = true;
 pMC.min_patch_size = [64 64 4];
 pMC.plot_df_flag = 0;
-pMC.baseline_tp = [1:5];
+pMC.baseline_tp = 1:5;
 pMC.int_range = [0 1];
 pMC.oDir = pwd;
 pMC.shift_ths = [18, 0.7];
@@ -195,7 +195,9 @@ for F2R_idx = 1:numel(f2run)
     try
         runperfile(f2run{F2R_idx}, pMC)
     catch error
-        keyboard
+        if ispc
+            keyboard
+        end
         failedfiles{k, 1} = strrep(f2run{F2R_idx}, ...
             '_rawdata', '_refdata');
         k = k + 1;
@@ -317,7 +319,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                 eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
                     'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
             catch
-                keyboard
+                fprintf(['normcorre_batch failed at iteration ', num2str(iter_i), '\n'])
             end
             
             % correlation with the mean (CM):

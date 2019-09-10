@@ -205,6 +205,10 @@ for i = 1:numel(repnum)
         load(strrep(rep2run, '_rawdata', '_metadata'), 'cDat')
     end
     
+    % update Data size
+    iDat.FrameSize = [size(Data, 1), size(Data, 2)];
+    iDat.FrameN = size(Data, 3);
+    
     % remove unwanted stacks
     
     if ~isempty(spte.stack2del)
