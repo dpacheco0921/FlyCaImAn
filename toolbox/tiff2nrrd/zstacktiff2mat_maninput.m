@@ -29,7 +29,7 @@ slice3Dmatrix(avgim(:, :, planes2plot, 2), pi)
 
 %% 4) replace planes (using info from 2) and 3))
 
-plane2replace = [64:67];
-channel2use = 1;
+plane2replace = [1];
+channel2use = 2;
 avgim(:, :, :, channel2use) = ...
     framegapfill(plane2replace, avgim(:, :, :, channel2use));
