@@ -251,6 +251,10 @@ for rep_i = 1:numel(reps)
     % Detecting nan and choosing last plane (delete empty)
     fPlane(rep_i) = size(local(rep_i).RedChaMean, 3);
     
+    if iscell(mcDat.rigid)
+        mcDat.rigid = read_mcDat_shifts(mcDat.rigid, 1);
+    end
+    
     if abs(max(mcDat.rigid(3, :)) - min(mcDat.rigid(3, :))) >= cspfa.maxZshift
         fprintf('~');
         fPlane(rep_i) = fPlane(rep_i) - 1;

@@ -122,14 +122,7 @@ end
 if ~isempty(mcDat)
     
     if iscell(mcDat.rigid)
-        
-        rigid_temp = zeros(size(mcDat.rigid{1}));
-        for i = 1:numel(mcDat.rigid)
-            rigid_temp = mcDat.rigid{i} + rigid_temp;
-        end 
-        mcDat.rigid = [];
-        mcDat.rigid = rigid_temp;
-        
+        mcDat.rigid = read_mcDat_shifts(mcDat.rigid, 1);
     end  
 
     wDat.MotCor.sYshift(:, rep_i) = mcDat.rigid(1, :)';

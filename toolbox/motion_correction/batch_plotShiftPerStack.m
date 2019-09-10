@@ -208,6 +208,10 @@ for f2r = 1:numel(f2run)
         
         load(strrep(f2run{f2r}, motpar.fsuffix, motpar.metsuffix), 'mcDat', 'iDat')
         
+        if iscell(mcDat.rigid)
+            mcDat.rigid = read_mcDat_shifts(mcDat.rigid, 1);
+        end
+        
         if ~motpar.ctype || f2r == 1
             
             motpar.figH = figure('position', genfigpos(1, 'center', [578 700]), ...
@@ -226,6 +230,10 @@ for f2r = 1:numel(f2run)
         end
         
         if ~isempty(mcDat.rigids)
+            
+            if iscell(mcDat.rigids)
+                mcDat.rigids = mcDat.rigids{1};
+            end
             
             ploteachtrace_mc(mcDat.rigids(1, :)*iDat.MetaData{3}(1), ...
                 mcDat.rigids(2, :)*iDat.MetaData{3}(2), ...
