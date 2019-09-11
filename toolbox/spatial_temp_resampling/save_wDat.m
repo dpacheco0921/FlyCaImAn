@@ -43,18 +43,10 @@ wDat.MotCor.sYshift = [];
 
 % flip z-axis (3D data only)
 if contains(datatype, '3DxT')
-    
-    if exist('flip', 'builtin')
-        str2use = 'flip';
-    else
-        str2use = 'flipdim';
-    end
-    
     if contains(imdirection, 'invert')
-        eval(['iDat.RedChaMean = ', str2use, '(iDat.RedChaMean, 3);']);
-        eval(['iDat.GreenChaMean = ', str2use, '(iDat.GreenChaMean, 3);']);
+        iDat.RedChaMean = flip(iDat.RedChaMean, 3);
+        iDat.GreenChaMean = flip(iDat.GreenChaMean, 3);
     end
-    
 end
 
 % generate mean-channels
@@ -65,6 +57,12 @@ wDat.GreenChaMean = iDat.GreenChaMean;
 if bkgate
     wDat.RedChaMean = wDat.RedChaMean - iDat.bs(1); 
     wDat.GreenChaMean = wDat.GreenChaMean - iDat.bs(2); 
+end
+
+if isfield(iDat, 'bs')
+    wDat.bs = iDat.bs;
+else
+    wDat.bs = [];
 end
 
 wDat.RedChaMean = wDat.RedChaMean + fshift; 
