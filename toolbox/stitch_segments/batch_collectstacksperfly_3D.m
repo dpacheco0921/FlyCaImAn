@@ -18,6 +18,18 @@ function batch_collectstacksperfly_3D(FolderName, FileName, iparams)
 %       (fisuffix: suffix of files to load)
 %       (oDir: temporary folder to copy data to)
 %           (default, [])
+%       (idp_run_flag: flag to run each selected file independently)
+%           (default, 0)
+%       (green_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [1 1])
+%       (red_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
+%           (default, [0 1])
+%       (patch_z_size: dimension of patches to split whole matrix into)
+%           (default, [10])
+%       (patch_overlap: overlap across patches)
+%           (default, [0 0 0])
+%       (neighcor_flag: compute correlation of neighboring pixels acrosstime)
+%           (default, 0)
 %       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
 %       (bkgate: flag for background substraction)
 %           (default, 0)
@@ -30,12 +42,6 @@ function batch_collectstacksperfly_3D(FolderName, FileName, iparams)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
-%       (idp_run_flag: flag to run each selected file independently)
-%           (default, 0)
-%       (green_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
-%           (default, [1 1])
-%       (red_field2save: flag to save Data variable as [Y Yr], Yr is Y in 2D)
-%           (default, [0 1])
 
 cspf_3d = [];
 cspf_3d.cDir = pwd;
@@ -43,14 +49,17 @@ cspf_3d.fo2reject = {'.', '..', 'preprocessed', 'BData'};
 cspf_3d.fi2reject = {'Zstack'};
 cspf_3d.fisuffix = '_rawdata';
 cspf_3d.oDir = [];
+cspf_3d.idp_run_flag = 0;
+cspf_3d.green_field2save = [1 1];
+cspf_3d.red_field2save = [0 1];
+cspf_3d.patch_z_size = 10;
+cspf_3d.patch_overlap = [0 0 0];
+cspf_3d.neighcor_flag = 0;
 cspf_3d.bkgate = 0;
 cspf_3d.blowcap = 0;
 cspf_3d.fshift = 6;
 cspf_3d.serId = 'int';
 cspf_3d.corenum = 4;
-cspf_3d.idp_run_flag = 0;
-cspf_3d.green_field2save = [1 1];
-cspf_3d.red_field2save = [0 1];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -173,12 +182,6 @@ function fcompiler(fname, cspf_3d)
 %   fname: file name
 %   cspf_3d: parameter variable
 
-if exist('flip', 'builtin')
-    str2use = 'flip';
-else
-    str2use = 'flipdim';
-end
-
 % load previously generated wdat
 load([fname, '_metadata.mat'], 'wDat');
 wDat.cDir = pwd;
@@ -197,10 +200,10 @@ if isfield(wDat, 'cspf')
     if ~isempty(strfind(wDat.bSide, 'R'))
         
         % reset original order in frame width
-        eval(['wDat.mask = ', str2use, '(wDat.mask, 2);']);
-        eval(['wDat.bMask = ', str2use, '(wDat.bMask, 2);']);
-        eval(['wDat.RedChaMean = ', str2use, '(wDat.RedChaMean, 2);']);
-        eval(['wDat.GreenChaMean = ', str2use, '(wDat.GreenChaMean, 2);']);
+        wDat.mask = flip(wDat.mask, 2);
+        wDat.bMask = flip(wDat.bMask, 2);
+        wDat.RedChaMean = flip(wDat.RedChaMean, 2);
+        wDat.GreenChaMean = flip(wDat.GreenChaMean, 2);
         
     end
     
@@ -212,15 +215,19 @@ vList = whos('-file', [fname, '_rawdata']);
 if ~contains([vList.name], 'Y')
     
     % saves Y and Yr
-    wDat = savedata_per_cha(fname, 1, wDat, ...
+    wDat = savedata_per_cha(fname, 'green', wDat, ...
         cspf_3d.green_field2save, ...
-        cspf_3d.bkgate, cspf_3d.fshift, cspf_3d.blowcap);
+        cspf_3d.bkgate, cspf_3d.fshift, ...
+        cspf_3d.blowcap, cspf_3d.patch_z_size, ...
+        cspf_3d.patch_overlap);
     
     % only saves Yr
     try
-        wDat = savedata_per_cha(fname, 2, wDat, ...
+        wDat = savedata_per_cha(fname, 'red', wDat, ...
             cspf_3d.red_field2save, ...
-            cspf_3d.bkgate, cspf_3d.fshift, cspf_3d.blowcap);
+            cspf_3d.bkgate, cspf_3d.fshift, ...
+            cspf_3d.blowcap, cspf_3d.patch_z_size, ...
+            cspf_3d.patch_overlap);
     end
     
 end
@@ -231,15 +238,17 @@ dataObj = matfile([fname, '_rawdata.mat'], 'Writable', true);
 if ~isempty(strfind(wDat.bSide, 'R'))
     
     % Correct for side of the brain imaged
-    eval(['wDat.mask = ', str2use, '(wDat.mask, 2);']);
-    eval(['wDat.bMask = ', str2use, '(wDat.bMask, 2);']);
-    eval(['wDat.RedChaMean = ', str2use, '(wDat.RedChaMean, 2);']);
-    eval(['wDat.GreenChaMean = ', str2use, '(wDat.GreenChaMean, 2);']);
+    wDat.mask = flip(wDat.mask, 2);
+    wDat.bMask = flip(wDat.bMask, 2);
+    wDat.RedChaMean = flip(wDat.RedChaMean, 2);
+    wDat.GreenChaMean = flip(wDat.GreenChaMean, 2);
     
 end
 
 % perform 3D neighcorr
-wDat.lc3D = neighcorr_3D(dataObj);
+if cspf_3d.neighcor_flag
+    wDat.lc3D = neighcorr_3D(dataObj);
+end
 
 % compile field
 wDat.cspf = 1; 
@@ -247,14 +256,21 @@ save([fname, '_metadata.mat'], 'wDat', '-append');
 
 if ~isempty(cspf_3d.oDir)
     
+    tinit_i = tic;
     copyfile([fname, '_metadata.mat'], ...
         [cspf_3d.oDir, filesep, fname, '_metadata.mat']);
+    fprintf([num2str(toc(tinit_i)), ' seconds\n'])
+
+    tinit_i = tic;
     copyfile([fname, '_rawdata.mat'], ...
         [cspf_3d.oDir, filesep, fname, '_rawdata.mat']);
+    fprintf([num2str(toc(tinit_i)), ' seconds\n'])
     
     try
+        tinit_i = tic;
         copyfile([fname, '_refdata.mat'], ...
             [cspf_3d.oDir, filesep, fname, '_refdata.mat']);
+        fprintf([num2str(toc(tinit_i)), ' seconds\n'])
     end
     
 end
@@ -262,7 +278,8 @@ end
 end
 
 function wDat = savedata_per_cha(fname, cha2use, wDat, ...
-    format2save, bkgate_, fshift_, blowcap_)
+    format2save, bkgate_, fshift_, blowcap_, patch_z_size, ...
+    patch_overlap)
 % savedata_per_cha: compile variable Data and transform it to Y and Yr for
 % each channel selected, it also generates new wDat fields: GreenTrend, RedTrend
 %
@@ -271,7 +288,7 @@ function wDat = savedata_per_cha(fname, cha2use, wDat, ...
 %
 % Args:
 %   fname: file to load
-%   cha2use: channel to use (1 = *_rawdata or 2 = *_refdata)
+%   cha2use: channel to use (green = *_rawdata or red = *_refdata)
 %   wDat: metadata structure
 %   format2save: flag to save Y and/or Yr
 %   bkgate: flag for background substraction
@@ -280,98 +297,188 @@ function wDat = savedata_per_cha(fname, cha2use, wDat, ...
 %   	(default, 6)
 %   blowcap: fluorescence below which it is zerored
 %   	(default, 0)
+%   patch_z_size: dimension of patches to split whole matrix into
+%       (default, [10])
+%   patch_overlap: overlap across patches
+%       (default, [0 0 0])
+
+% generate 
+patches_ = construct_patches(wDat.vSize, ...
+    [wDat.vSize([1 2]), patch_z_size], ...
+    patch_overlap);
 
 tinit = tic;
-if exist('flip', 'builtin')
-    str2use = 'flip';
-else
-    str2use = 'flipdim';
-end
 
 % Load files
-load([fname, '_metadata.mat'], 'iDat');
-
-if cha2use == 1
+if contains(cha2use, 'green')
     
     % green channel
-    load([fname, '_rawdata.mat'], 'Data');
-    delete([fname, '_rawdata.mat'])
-    dataObj = matfile([fname, '_rawdata.mat'], 'Writable', true);
+    dataObj_in = matfile([fname, '_rawdata.mat'], 'Writable', true);
+    dataObj_out = matfile([fname, '_rawdata_temp.mat'], 'Writable', true);
     
-else
+elseif contains(cha2use, 'red')
     
     % red channel
-    load([fname, '_refdata.mat'], 'Data');
-    delete([fname, '_refdata.mat'])
-    dataObj = matfile([fname, '_refdata.mat'], 'Writable', true);
+    dataObj_in = matfile([fname, '_refdata.mat'], 'Writable', true);
+    dataObj_out = matfile([fname, '_refdata_temp.mat'], 'Writable', true);
     
 end
 
-% Correct for inverse z order
+% Compile stacks
+z_i = 0;
+p_i = 0;
+minval = zeros(numel(patches_), 1);
+
 if strcmp(wDat.vOrient, 'invert')
-    eval(['Data = ', str2use, '(Data, 3);']);
+    patches_i = sort(1:numel(patches_), 'descend');
+else
+    patches_i = sort(1:numel(patches_), 'ascend');
+end
+
+for i = 1:numel(patches_)
+    
+    % load, reshape, prune, flip on Z and X axis patches of data
+    tinit_i = tic;
+    if contains(cha2use, 'green')
+        [Y, wDat.GreenTrend(i, :), minval(i, 1)] = ...
+            load_reshape_data_patch(dataObj_in, ...
+            patches_{patches_i(i)}, wDat, bkgate_, ...
+            fshift_, blowcap_, cha2use);
+    elseif contains(cha2use, 'red')
+        [Y, wDat.RedTrend(i, :), minval(i, 1)] = ...
+            load_reshape_data_patch(dataObj_in, ...
+            patches_{patches_i(i)}, wDat, bkgate_, ...
+            fshift_, blowcap_, cha2use);
+    end
+    
+    % get relative depth
+    planes = 1:size(Y, 3);
+    planes = planes + z_i;
+    z_i = planes(end);
+    
+    % saving data using relative indexes
+    if format2save(1)
+        dataObj_out.Y(1:wDat.fSize(1), 1:wDat.fSize(2), ...
+            planes, 1:wDat.Tn) = Y;
+    end
+    Zn = size(Y, 3);
+
+    % indexes are sequential from plane to plane
+    pixelindex = 1:prod([wDat.fSize, Zn]);
+    pixelindex = pixelindex + p_i;
+    p_i = pixelindex(end);
+    if format2save(2)
+        dataObj_out.Yr(pixelindex, 1:wDat.Tn) = ...
+            reshape(Y, [prod([wDat.fSize, Zn]), wDat.Tn]);
+    end
+    fprintf([num2str(toc(tinit_i)), ' seconds\n'])
+    
+end
+fprintf('\n')
+
+dataObj_out.nY = min(minval);
+dataObj_out.sizY = [wDat.vSize, wDat.Tn];
+clear Y
+
+% delete original:
+if contains(cha2use, 'green')
+    delete([fname, '_rawdata.mat'])
+    movefile([fname, '_rawdata_temp.mat'], ...
+        [fname, '_rawdata.mat']);
+elseif contains(cha2use, 'red')
+    delete([fname, '_refdata.mat'])
+    movefile([fname, '_refdata_temp.mat'], ...
+        [fname, '_refdata.mat']);
+end
+% rename new:
+
+fprintf([num2str(toc(tinit)), ' seconds\n'])
+
+end
+
+function [Y, trend_over_time, minval] = ...
+    load_reshape_data_patch(dataObj, ...
+    patches_, wDat, bkgate_, fshift_, ...
+    blowcap_, cha2use)
+% load_reshape_data_patch: compile patches of 'dataObj.Data' matrix using 'patches_'
+%   it formats Y (flip in X and Z axis), and prune nan pixels, and
+%   generates trend_over_time (mean trend over time)
+%
+% Usage:
+%   [Y, trend_over_time, minval] = ...
+%       load_reshape_data_patch(dataObj, ...
+%       patches_, wDat, bkgate_, fshift_, ...
+%       blowcap_, cha2use)
+%
+% Args:
+%   dataObj: mat file object (looks for variable Data)
+%   patches_: edges of 'dataObj.Data' to use
+%   wDat: metadata structure
+%   bkgate: flag for background substraction
+%   	(default, 0)
+%   fshift: shift distribution of F to the positive side
+%   	(default, 6)
+%   blowcap: fluorescence below which it is zerored
+%   	(default, 0)
+%   cha2use: channel to use (green = *_rawdata or red = *_refdata)
+
+z_idx = patches_(5):patches_(6);
+
+% load patch
+Y = dataObj.Data(patches_(1):patches_(2), ...
+    patches_(3):patches_(4), ...
+    z_idx, :);
+
+% load brain mask (whole image)
+brainmask = wDat.bMask(patches_(1):patches_(2), ...
+    patches_(3):patches_(4), :);
+
+% Correct for inverse z order
+%  wDat.plane2keep & brainmask (wDat.bMask)
+if strcmp(wDat.vOrient, 'invert')
+    plane2keep = flip(wDat.plane2keep);
+    brainmask = flip(brainmask, 3);
+else
+    plane2keep = wDat.plane2keep;
+end
+brainmask = brainmask(:, :, z_idx);
+
+% remove whole nan-planes
+Y = Y(:, :, plane2keep(z_idx), :);
+brainmask = brainmask(:, :, plane2keep(z_idx));
+
+% get trend per patch
+trend_over_time = [];
+trend_over_time(1, :) = stacktrend(Y, brainmask);
+
+% Correct for inverse z order (Y)
+if strcmp(wDat.vOrient, 'invert')
+    Y = flip(Y, 3);
+end
+
+% Prune Data
+%   (wDat.mask generated by batch_SpaTemp_ResFilt_3D)
+Y = pruneIm(Y, wDat.mask);
+
+% correct for side of the brain imaged
+%   (wDat.bMask generated by batch_brainmaskgen)
+if ~isempty(strfind(wDat.bSide, 'R'))
+    Y = flip(Y, 2);
 end
 
 % background substract F
 if bkgate_
     if cha2use == 1
-        Data = Data - iDat.bs(end); 
+        Y = Y - wDat.bs(end); 
     else
-        Data = Data - iDat.bs(1);
+        Y = Y - wDat.bs(1);
     end
 end
 
-Data = Data + fshift_;
-Data(Data < blowcap_) = blowcap_;
+Y = Y + fshift_;
+Y(Y < blowcap_) = blowcap_;
 
-% remove whole nan-planes
-Data = Data(:, :, wDat.plane2keep, :);
-
-% Prune Data
-Data = pruneIm(Data, wDat.mask);
-
-% Correct for side of the brain imaged
-% saving Data
-if ~isempty(strfind(wDat.bSide, 'R'))
-    
-    eval(['Data = ', str2use, '(Data, 2);']);
-    
-    if cha2use == 1
-        eval(['wDat.GreenTrend(1, :) = ', ...
-            'stacktrend(Data, ', str2use, '(wDat.bMask, 2));'])
-    else
-        eval(['wDat.RedTrend(1, :) = ', ...
-            'stacktrend(Data, ', str2use, '(wDat.bMask, 2));'])
-    end
-    
-else
-    
-    if cha2use == 1
-        wDat.GreenTrend(1, :) = stacktrend(Data, wDat.bMask);
-    else
-        wDat.RedTrend(1, :) = stacktrend(Data, wDat.bMask);
-    end
-    
-end
-
-% saving data using relative indexes
-if format2save(1)
-    dataObj.Y(1:wDat.fSize(1), 1:wDat.fSize(2), ...
-        1:wDat.vSize(3), 1:wDat.Tn) = Data;
-end
-
-% indexes are sequential from plane to plane
-if format2save(2)
-    pixelindex = 1:prod(wDat.vSize);
-    dataObj.Yr(pixelindex, 1:wDat.Tn) = ...
-        reshape(Data, [prod(wDat.vSize), wDat.Tn]);
-end
-
-dataObj.nY = min(Data(:));
-dataObj.sizY = [wDat.vSize, wDat.Tn];
-clear iDat Data
-
-fprintf([num2str(toc(tinit)), ' seconds\n'])
+minval = min(Y(:));
 
 end
 

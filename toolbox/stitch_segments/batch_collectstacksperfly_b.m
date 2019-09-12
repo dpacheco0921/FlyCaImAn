@@ -161,12 +161,6 @@ function fcompiler(fname, reps, cspfb)
 %   reps: all repetitions to use
 %   cspfa: parameter variable
 
-if exist('flip', 'builtin')
-    str2use = 'flip';
-else
-    str2use = 'flipdim';
-end
-
 % write a memmap variable
 % green channel
 dataObj = matfile([cspfb.oDir, filesep, fname, '_prosdata.mat'], ...
@@ -177,9 +171,12 @@ dataObj_ref = matfile([cspfb.oDir, filesep, fname, '_prosref.mat'], ...
 
 % Load previously generated wdat (batch_collectstackperfly_b)
 load([fname, '_prosmetadata.mat'], 'wDat', 'shifts_pr');
+
 % add local folder
 wDat.cDir = pwd;
-if isfield(wDat, 'min_f'); wDat = rmfield(wDat, 'min_f'); end
+if isfield(wDat, 'min_f')
+    wDat = rmfield(wDat, 'min_f');
+end
 
 % Rerun already used metadata
 if isfield(wDat, 'cspf') % it has already being used to compile Data
@@ -187,10 +184,10 @@ if isfield(wDat, 'cspf') % it has already being used to compile Data
     fprintf('Reseting metadata to be reused\n')
     % reset original order in frame width
     if ~isempty(strfind(wDat.bSide, 'R'))
-        eval(['wDat.RedChaMean = ', str2use, '(wDat.RedChaMean, 2);']);
-        eval(['wDat.GreenChaMean = ', str2use, '(wDat.GreenChaMean, 2);']);
-        eval(['wDat.mask = ', str2use, '(wDat.mask, 2);']);
-        eval(['wDat.bMask = ', str2use, '(wDat.bMask, 2);']);
+        wDat.RedChaMean = flip(wDat.RedChaMean, 2);
+        wDat.GreenChaMean = flip(wDat.GreenChaMean, 2);
+        wDat.mask = flip(wDat.mask, 2);
+        wDat.bMask = flip(wDat.bMask, 2);
     end
     
 end
@@ -227,10 +224,10 @@ for rep_i = 1:numel(reps)
     % Correct for inverse z order
     if strcmp(wDat.vOrient, 'invert')
         
-        eval(['Data = ', str2use, '(ldata.Data, 3);']);
+        Data = flip(ldata.Data, 3);
         clear ldata
         if regchagate
-            eval(['rData = ', str2use, '(rdata.Data, 3);']);
+            rData = flip(rdata.Data, 3);
             clear rdata;
         end
         
@@ -316,9 +313,9 @@ for rep_i = 1:numel(reps)
     
     % Correct for side of the brain imaged
     if ~isempty(strfind(wDat.bSide, 'R'))
-        eval(['Data = ', str2use, '(Data, 2);']);
+        Data = flip(Data, 2);
         if regchagate
-            eval(['rData = ', str2use, '(rData, 2);']);
+            rData = flip(rData, 2);
         end
     end
     
@@ -332,17 +329,19 @@ for rep_i = 1:numel(reps)
         
         if ~isempty(strfind(wDat.bSide, 'R'))
             
-             eval(['wDat.GreenTrend(rep_i, :) = ', ...
-                 'stacktrend(Data, ', str2use, '(wDat.bMask(:, :, planes), 2));'])
+            wDat.GreenTrend(rep_i, :) = stacktrend(Data, ...
+                flip(wDat.bMask(:, :, planes), 2));
             if regchagate
-                eval(['wDat.RedTrend(rep_i, :) = ', ...
-                    'stacktrend(rData, ', str2use, '(wDat.bMask(:, :, planes), 2));'])
+                wDat.RedTrend(rep_i, :) = stacktrend(rData, ...
+                    flip(wDat.bMask(:, :, planes), 2));
             end
             
         else
-            wDat.GreenTrend(rep_i, :) = stacktrend(Data, wDat.bMask(:, :, planes));
+            wDat.GreenTrend(rep_i, :) = stacktrend(Data, ...
+                wDat.bMask(:, :, planes));
             if regchagate
-                wDat.RedTrend(rep_i, :) = stacktrend(rData, wDat.bMask(:, :, planes));
+                wDat.RedTrend(rep_i, :) = stacktrend(rData, ...
+                    wDat.bMask(:, :, planes));
             end
         end
         
@@ -374,10 +373,10 @@ end
 
 % Correct for side of the brain imaged
 if ~isempty(strfind(wDat.bSide, 'R'))
-    eval(['wDat.RedChaMean = ', str2use, '(wDat.RedChaMean, 2);']);
-    eval(['wDat.GreenChaMean = ', str2use, '(wDat.GreenChaMean, 2);']);
-    eval(['wDat.mask = ', str2use, '(wDat.mask, 2);']);
-    eval(['wDat.bMask = ', str2use, '(wDat.bMask, 2);']);
+    wDat.RedChaMean = flip(wDat.RedChaMean, 2);
+    wDat.GreenChaMean = flip(wDat.GreenChaMean, 2);
+    wDat.mask = flip(wDat.mask, 2);
+    wDat.bMask = flip(wDat.bMask, 2);
 end
 
 % final editing of variables

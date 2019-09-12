@@ -59,6 +59,9 @@ function batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
 % How to orient consecutive planes and stacks (particularly to match reference orientation: ventral-dorsal)
 %   Imaging from the central brain dorsal (need to be inverted to have a ventral-dorsal orientation)
 %   Imaging from the VNC from ventral side already has a ventral-dorsal orientation.
+% 
+% Update:
+% 20190911 - it preprocess green and red channel sequentially (reduces memory load by half)
 
 % default params
 spte = [];
@@ -185,7 +188,8 @@ spte
 lstEn = [];
 endT = spte.time(1):spte.newtimeres:spte.time(2);
 
-fprintf(['Running fly : ', strrep(strrep(f2run, ['.', filesep], ''), '_', ' '), '\n'])
+fprintf(['Running fly : ', strrep(strrep(f2run, ['.', filesep], ''), ...
+    '_', ' '), '\n'])
 
 for i = 1:numel(repnum)
     
@@ -194,8 +198,8 @@ for i = 1:numel(repnum)
     load(rep2run)
     
     if exist(strrep(rep2run, 'raw', 'ref'), 'file')
-        Data_ref = load(strrep(rep2run, 'raw', 'ref'), 'Data'); 
-        Data_ref = Data_ref.Data;
+        Data_ref = matfile(strrep(rep2run, 'raw', 'ref'), ...
+            'Writable', true);
     end
 
     load(strrep(rep2run, '_rawdata', '_metadata'), ...
@@ -205,15 +209,58 @@ for i = 1:numel(repnum)
         load(strrep(rep2run, '_rawdata', '_metadata'), 'cDat')
     end
     
+    % add extra metadata for Opto
+    if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
+        
+        if ~exist('cDat', 'var')
+            cDat.minInit = nan;
+            cDat.minEnd = nan;
+            cDat.CorType = 'LTM';
+            cDat.LTM = [];
+            fprintf('save empty cDat (opto without LED denoising)\n');
+            save(strrep(rep2run, '_rawdata', '_metadata'), 'cDat', '-append');
+        end
+        
+        lStim.sPars.led_mini = cDat.minInit;
+        lStim.sPars.led_mine = cDat.minEnd;
+        lStim.sPars.led_delta = eval(['median(cDat.', cDat.CorType, ')']);
+        
+    end
+    
     % update Data size
     iDat.FrameSize = [size(Data, 1), size(Data, 2)];
     iDat.FrameN = size(Data, 3);
     
     % remove unwanted stacks
-    
     if ~isempty(spte.stack2del)
-        [lStim, iDat, Data, Data_ref] =  ...
-            volumeprunner(lStim, iDat, spte.stack2del, Data, Data_ref);
+        [lStim, iDat, Data] =  ...
+            volumeprunner(lStim, iDat, ...
+            spte.stack2del, Data);
+    end
+    
+    % Get stim init-end
+    if ~isfield(iDat, 'lstEn')
+        
+        if repnum(i) == repnum(1)
+            
+            % single lstEn for all trials /reps per fly name
+            % convert from sampling points to seconds
+            
+            if ~isfield(lStim, 'lstEn') && contains(fDat.DataType, 'opto')
+                lStim.lstEn = optostim_init_end(lStim.trace, lStim)/lStim.fs;
+            end
+            
+            lstEn = (lStim.lstEn)/lStim.fs;
+            
+        end
+        
+        iDat.lstEn = lstEn - lstEn(1, 1);
+        
+    else
+        
+        lstEn = iDat.lstEn;
+        fprintf('Already added lstEn to iDat ')
+        
     end
     
     % match X and Y resolution
@@ -222,6 +269,9 @@ for i = 1:numel(repnum)
     if isempty(spte.newres)
         spte.newres = inpres;
     end
+    
+    % make a copy for red channel to replicate same preprocessing
+    iDat_red = iDat;
     
     if ~isfield(iDat, 'XYresmatch') || iDat.XYresmatch == 0
         
@@ -232,13 +282,6 @@ for i = 1:numel(repnum)
         [Data, nan_idx, nan_idx_2_i] = ...
             spa_temp_resamp_int(Data, spte.art_val, ...
             inpres, spte.newres, [], []);
-        
-        if exist('Data_ref', 'var')
-            fprintf('XY red ');
-            [Data_ref, ~, ~] = ...
-                spa_temp_resamp_int(Data_ref, spte.art_val, ...
-                inpres, spte.newres, nan_idx, nan_idx_2_i);
-        end
         
         % resample structural Data
         if ~isempty(iDat.RedChaMean)
@@ -258,7 +301,6 @@ for i = 1:numel(repnum)
         iDat.FrameSize = [size(Data, 1) size(Data, 2)];
         iDat.XYresmatch = 1;
         fprintf([' eVoxelsize: ', num2str(iDat.MetaData{3}(1:3)), ' ']);
-        clear nan_idx nan_idx_2_i
         
     else
         fprintf('Already XY resampled ')
@@ -273,13 +315,7 @@ for i = 1:numel(repnum)
         Data = imblur(Data, spte.sigma, spte.size, 2);
         % delete edges
         Data = Data(2:end-1, 2:end-1, :, :);
-        
-        if exist('Data_ref', 'var')
-            Data_ref = imblur(Data_ref, spte.sigma, spte.size, 2);
-            % delete edges
-            Data_ref = Data_ref(2:end-1, 2:end-1, :, :);
-        end
-        
+       
         % structural Data
         if ~isempty(iDat.RedChaMean)
             iDat.RedChaMean = iDat.RedChaMean(2:end-1, 2:end-1, :);
@@ -323,34 +359,7 @@ for i = 1:numel(repnum)
     
     clear nan_data
     
-    % Get stim init-end
-    if ~isfield(iDat, 'lstEn')
-        
-        if repnum(i) == repnum(1)
-            
-            % single lstEn for all trials /reps per fly name
-            % convert from sampling points to seconds
-            
-            if ~isfield(lStim, 'lstEn') && contains(fDat.DataType, 'opto')
-                lStim.lstEn = optostim_init_end(lStim.trace, lStim)/lStim.fs;
-            end
-            
-            lstEn = (lStim.lstEn)/lStim.fs;
-            
-        end
-        
-        iDat.lstEn = lstEn - lstEn(1, 1);
-        
-    else
-        
-        lstEn = iDat.lstEn;
-        fprintf('Already added lstEn to iDat ')
-        
-    end
-    
     % resample temporally green channel (from plane to plane)
-    iDatcopy = iDat;
-    
     if ~isfield(iDat, 'tResample') || iDat.tResample == 0
         
         % get new time stamps
@@ -368,7 +377,7 @@ for i = 1:numel(repnum)
         
         % show initial time and final re-slicing
         fprintf(['time_i: ', num2str([max(iniT(:, 1)), ...
-            min(iniT(:, end))]), ' time_e: ', num2str(endT([1 end])), ' '])
+            min(iniT(:, end))]), ' time_e: ', num2str(endT([1 end])), ' \n'])
         fprintf('Time green ');
         
         Data = interp3DxTixTj(Data, [1 1], [1 1], iniT, endT);
@@ -404,27 +413,75 @@ for i = 1:numel(repnum)
     end
     
     clear nan_data
-  
-    % save extra metadata for Opto
-    if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
-        
-        if ~exist('cDat', 'var')
-            cDat.minInit = nan;
-            cDat.minEnd = nan;
-            cDat.CorType = 'LTM';
-            cDat.LTM = [];
-            fprintf('save empty cDat (opto without LED denoising)\n');
-            save(strrep(rep2run, '_rawdata', '_metadata'), 'cDat', '-append');
-        end
-        
-        lStim.sPars.led_mini = cDat.minInit;
-        lStim.sPars.led_mine = cDat.minEnd;
-        lStim.sPars.led_delta = eval(['median(cDat.', cDat.CorType, ')']);
-        
-    end
     
     saveIm(Data, rep2run);
     clear Data
+    
+    % apply same preprocessing to red channel
+    % resample temporally ref channel (from plane to plane)
+    if exist('Data_ref', 'var')
+        
+        if isobject(Data_ref)
+            Data_ref = Data_ref.Data;
+        end
+        
+        % remove unwanted stacks
+        if ~isempty(spte.stack2del)
+            [~, ~, ~, Data_ref] =  ...
+                volumeprunner([], [], ...
+                spte.stack2del, [], Data_ref);
+        end
+        
+        if ~isfield(iDat_red, 'XYresmatch') || iDat_red.XYresmatch == 0
+        
+            % resample functional data
+            % (it removes nans prior to resampling and then puts them back)
+            fprintf(['iVoxelsize: ', num2str(iDat_red.MetaData{3}(1:3)), ...
+                ' XY red ']);
+            
+            [Data_ref, ~, ~] = ...
+                spa_temp_resamp_int(Data_ref, spte.art_val, ...
+                inpres, spte.newres, nan_idx, nan_idx_2_i);
+
+            fprintf([' eVoxelsize: ', num2str(iDat.MetaData{3}(1:3)), ' ']);
+            clear nan_idx nan_idx_2_i
+            
+        else
+            fprintf('Already XY resampled ')
+        end
+    
+        % do spatial smoothing
+        if ~isempty(spte.sigma) && ~isempty(spte.size) && iDat_red.sSmooth == 0
+
+            fprintf('XY smoothing ')
+
+            % structural Data
+            Data_ref = imblur(Data_ref, spte.sigma, spte.size, 2);
+            % delete edges
+            Data_ref = Data_ref(2:end-1, 2:end-1, :, :);          
+            fprintf('\n')
+
+        else
+        
+            if isempty(spte.sigma) || isempty(spte.size)
+                fprintf('Not XY-smoothing data ')
+            else 
+                fprintf('Already XY-smoothed ')
+            end
+
+        end
+
+        % resample temporally green channel (from plane to plane)
+        if ~isfield(iDat_red, 'tResample') || iDat_red.tResample == 0
+            fprintf('Time red ');
+            Data_ref = interp3DxTixTj(Data_ref, [1 1], [1 1], iniT, endT);
+        end
+        
+        Data_ref = single(Data_ref);
+        saveIm(Data_ref, strrep(rep2run, 'raw', 'ref'));
+        clear iDat_red Data_ref
+        
+    end
     
     % update iDat and lStim
     save(strrep(rep2run, '_rawdata', '_metadata'), 'iDat', 'lStim', '-append');
@@ -433,20 +490,6 @@ for i = 1:numel(repnum)
     if spte.wDat_gen
         save_wDat(strrep(rep2run, '_rawdata', '_metadata'), '3DxT', ...
             spte.direction, spte.bkgate, spte.fshift, spte.blowcap);
-    end
-    
-    % resample temporally ref channel (from plane to plane)
-    if exist('Data_ref', 'var')
-        
-        if ~isfield(iDatcopy, 'tResample') || iDatcopy.tResample == 0
-            fprintf('Time red ');
-            Data_ref = interp3DxTixTj(Data_ref, [1 1], [1 1], iniT, endT);
-        end
-        
-        Data_ref = single(Data_ref);
-        saveIm(Data_ref, strrep(rep2run, 'raw', 'ref'));
-        clear iDatcopy Data_ref
-        
     end
     
     fprintf('\n')
@@ -540,6 +583,13 @@ function [iIm, nan_idx, nan_idx_2_i] = ...
 %   nan_idx: nan pixels before resampling
 %   nan_idx_2_i: nan pixels after resampling
 
+% iIm is a memory map variable, load data
+iobj = [];
+if isobject(iIm)
+    iobj = iIm;
+    iIm = iIm.Data;
+end
+
 % get original size
 Im_siz_i = size(iIm);
 
@@ -579,6 +629,13 @@ iIm(nan_idx_2_i, :) = nan;
 % from RT --> XYZT
 iIm = reshape(iIm, Im_siz_o);
 
+% update raw memory mapped variable
+if isobject(iobj)
+    iobj.Data = iIm;
+    clear iIm
+    iIm = iobj;
+end
+
 end
 
 function [lStim, iDat, Y1, Y2] = ...
@@ -605,55 +662,100 @@ if ~isempty(stack2del)
     % load data    
     if iDat.StackN > 1
         
-        if ~isempty(Y1)
-            Y1(:, :, :, stack2del, :) = [];
+        if isobject(Y1)
+            data = Y1.Data;
+            data(:, :, :, stack2del, :) = [];
+            Y1.Data = data;
+            clear data
+        else
+            if ~isempty(Y1)
+                Y1(:, :, :, stack2del, :) = [];
+            end
         end
         
-        if ~isempty(Y2)
-            Y2(:, :, :, stack2del, :) = [];
+        if isobject(Y2)
+            data = Y2.Data;
+            data(:, :, :, stack2del, :) = [];
+            Y2.Data = data;
+            clear data
+        else
+            if ~isempty(Y2)
+                Y2(:, :, :, stack2del, :) = [];
+            end
+        end
+
+    else
+        
+        if isobject(Y1)
+            data = Y1.Data;
+            data(:, :, stack2del, :) = [];
+            Y1.Data = data;
+            clear data
+        else
+            if ~isempty(Y1)
+                Y1(:, :, stack2del, :) = [];
+            end
+        end
+        
+        if isobject(Y2)
+            data = Y2.Data;
+            data(:, :, stack2del, :) = [];
+            Y2.Data = data;
+            clear data
+        else
+            if ~isempty(Y2)
+                Y2(:, :, stack2del, :) = [];
+            end
+        end
+        
+    end
+    
+    if exist('iDat', 'var') && exist('lStim', 'var')
+        
+        % Rechape fsTen
+        initF = reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]);
+        initF(:, stack2del) = [];
+        initF = initF(:);
+
+        endF = reshape(iDat.fstEn(:, 2), [iDat.FrameN, iDat.StackN]);
+        endF(:, stack2del) = [];
+        endF = endF(:);
+
+        iDat.fstEn = [];
+        iDat.fstEn(:, 1) = initF;
+        iDat.fstEn(:, 2) = endF;
+
+        % Prune lStim
+        lStim.trace = lStim.trace(iDat.fstEn(1, 1):iDat.fstEn(end, 2));
+        lStim.lstEn = lStim.lstEn - iDat.fstEn(1, 1) + 1;
+
+        % Zero frame init
+        iDat.fstEn = iDat.fstEn - iDat.fstEn(1, 1) + 1;
+
+        % Get frame times and prune them too
+        iDat.StackN = iDat.StackN - numel(stack2del);
+
+        % Update sstEn
+        if iDat.StackN > 1
+            preInit = min(reshape(iDat.fstEn(:, 1), ...
+                [iDat.FrameN, iDat.StackN]), [], 1)';
+            preEnd =  max(reshape(iDat.fstEn(:, 1), ...
+                [iDat.FrameN, iDat.StackN]), [], 1)';
+            iDat.sstEn = [preInit, preEnd];
+            clear preInit preEnd
+        end
+
+        % Update PMT_fscore
+        if isfield(iDat, 'PMT_fscore') && ~isempty(iDat.PMT_fscore)
+            iDat.PMT_fscore(:, stack2del) = [];
         end
         
     else
         
-        if ~isempty(Y1)
-            Y1(:, :, :, stack2del) = [];
-        end
+        fprintf('no iDat and lStim input provided')
+        iDat = [];
+        lStim = [];
         
-        if ~isempty(Y2)
-            Y2(:, :, :, stack2del) = [];
-        end
-        
-    end
-
-    % Rechape fsTen
-    initF = reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]);
-    initF(:, stack2del) = [];
-    initF = initF(:);
-    
-    endF = reshape(iDat.fstEn(:, 2), [iDat.FrameN, iDat.StackN]);
-    endF(:, stack2del) = [];
-    endF = endF(:);
-    
-    iDat.fstEn = [];
-    iDat.fstEn(:, 1) = initF;
-    iDat.fstEn(:, 2) = endF;
-    
-    % Prune lStim
-    lStim.trace = lStim.trace(iDat.fstEn(1, 1):iDat.fstEn(end, 2));
-    lStim.lstEn = lStim.lstEn - iDat.fstEn(1, 1) + 1;
-    
-    % Zero frame init
-    iDat.fstEn = iDat.fstEn - iDat.fstEn(1, 1) + 1;
-    
-    % Get frame times and prune them too
-    iDat.StackN = iDat.StackN - numel(stack2del);
-    
-    % Update sstEn
-    if iDat.StackN > 1
-        preInit = min(reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]), [], 1)';
-        preEnd =  max(reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]), [], 1)';
-        iDat.sstEn = [preInit, preEnd];
-        clear preInit preEnd
     end
     
 end
