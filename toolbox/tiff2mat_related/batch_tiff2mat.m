@@ -28,6 +28,9 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (0, asymmetric)
 %           (1, symmetric)
 %       (fStrain: append animal strain to metadata)
+%           ([])
+%       (region2crop: Y and X coordinates to use from whole FOV)
+%           ([])
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -85,6 +88,7 @@ tifpars.SpMode = [];
 tifpars.Zres = 1;
 tifpars.pixelsym = 0;
 tifpars.fStrain = [];
+tifpars.region2crop = [];
 
 % internal variables
 tifpars.fName = [];
@@ -260,6 +264,18 @@ for tif_i = 1:tif_num
         [tempdata, ImMeta] = ...
             tiff2mat_scanimage(tifpars.fName{1, tif_i}, tifpars.SpMode, 1);
         
+        % crop region
+        if ~isempty(tifpars.region2crop)
+            y_ = tifpars.region2crop(1):...
+                tifpars.region2crop(2);
+            x_ = tifpars.region2crop(3):...
+                tifpars.region2crop(4);
+            ImMeta.X = numel(x_);
+            ImMeta.Y = numel(y_);
+            tempdata = tempdata(y_, x_, :, :);
+            clear y_ x_
+        end
+        
         % selecting Channel(s) to save
         pmtNum = size(tempdata, 4);
 
@@ -337,6 +353,8 @@ for tif_i = 1:tif_num
         end
         
         clear tempdata;
+    catch
+        keyboard
     end
     
     if tif_i == 1
@@ -359,7 +377,6 @@ ImMeta.DelFrames = [];
 fprintf(['Data final size: ', num2str(size(dataObj.Data)), '\n'])
 
 % generate metadata
-eval(['Data = ', ImMeta.Imclass, '(Data);'])
 [fDat, iDat] = generatemetadata(repname_tif(1:(end-6)), ImMeta,  ...
     tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
     tifpars.pixelsym, tifpars.Zres, tifpars.sres, ...
