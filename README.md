@@ -10,11 +10,11 @@ To process either 3DxT or 2DxT datasets:
 - 3) Do motion correction
 - 4) Optional (do spatial and/or temporal resampling (this includes re-slicing for volumetric datasets and aligment relative to stimuli delivery))
 - 5) Optional (stitch imaged volumes along the z-axes)
-- 6) ROI segmentation
-- 7) Detect stimulus-modulated ROIs
+- 6) ROI segmentation (in progress)
+- 7) Detect stimulus-modulated ROIs (in progress)
 
 To register image segments to local whole brain and to in vivo atlas
-- **
+- (in progress)
 
 # Dependencies
 
