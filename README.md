@@ -9,7 +9,7 @@ To process either 3DxT or 2DxT datasets:
 - 2) Pull extra information from metadata files ('.bin', '_vDat.mat', or '.mat' (LEDcontroler))
 - 3) Do motion correction
 - 4) Optional (do spatial and/or temporal resampling (this includes re-slicing for volumetric datasets and aligment relative to stimuli delivery))
-- 5) Optional (stitch imaged volumes along the z-axes)
+- 5) Optional (stitch imaged volumes along the z-axes) (in progress)
 - 6) ROI segmentation (in progress)
 - 7) Detect stimulus-modulated ROIs (in progress)
 
