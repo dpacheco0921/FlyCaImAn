@@ -270,7 +270,12 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             lStim = [];
         end
 
-        [lStim, iDat] = volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
+        % prune timepoints
+        if ~isfield(iDat, 'timepointsdel')
+            [lStim, iDat] = ...
+                volumeprunner(lStim, iDat, data_obj, pMC.stack2del);
+        end
+        
         % update lStim and iDat
         save(strrep(f2run, '_rawdata', '_metadata'), ...
             'iDat', 'lStim', '-append')
@@ -824,6 +829,9 @@ if ~isempty(stack2del)
     if isfield(iDat, 'PMT_fscore') && ~isempty(iDat.PMT_fscore)
         iDat.PMT_fscore(:, stack2del) = [];
     end
+    
+    % update metadata
+    iDat.timepointsdel = stack2del;
     
 end
 
