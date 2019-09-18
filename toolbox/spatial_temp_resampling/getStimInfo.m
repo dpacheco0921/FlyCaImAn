@@ -1,10 +1,13 @@
-function wDat = getStimInfo(wDat, iDat, fDat, lStim, ...
-    cDat, mcDat, fname, rep_i, reps, shifts_align, zlength)
-% getStimInfo: compiles all relevant stimuli parameters into wDat structure
+function wDat = getStimInfo(wDat, iDat, ...
+    fDat, lStim, cDat, mcDat, fname, ...
+    rep_i, reps, shifts_align, zlength)
+% getStimInfo: compiles all relevant stimuli 
+%   parameters into wDat structure
 %
 % Usage:
-%   Dat = getStimInfo(wDat, iDat, fDat, lStim, ...
-%       cDat, mcDat, fname, rep_i, reps, shifts_align, zlength)
+%   Dat = getStimInfo(wDat, iDat, ...
+%    fDat, lStim, cDat, mcDat, fname, ...
+%    rep_i, reps, shifts_align, zlength)
 %
 % Args:
 %   filename: file name
@@ -21,7 +24,8 @@ function wDat = getStimInfo(wDat, iDat, fDat, lStim, ...
 %   zlength: index of planes
 %
 % Notes:
-% Input lStim.basPre and lStim.basPro are in ms, so it applies the right scaling
+% Input lStim.basPre and lStim.basPro are in ms, 
+%   so it applies the right scaling (unit_cor_factor)
 
 % initial unit is ms, final unit is seconds
 unit_cor_factor = 10^3;
@@ -114,7 +118,8 @@ if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
     
     wDat.sPars.led_mini(rep_i, 1) = cDat.minInit;
     wDat.sPars.led_mine(rep_i, 1) = cDat.minEnd;
-    wDat.sPars.led_delta(rep_i, 1) = eval(['median(cDat.', cDat.CorType, ')']);
+    wDat.sPars.led_delta(rep_i, 1) = ...
+        eval(['median(cDat.', cDat.CorType, ')']);
     
 end
 
@@ -131,7 +136,8 @@ if ~isempty(mcDat)
     if size(mcDat.rigid, 1) == 3
         wDat.MotCor.Zshift(:, rep_i) = mcDat.rigid(3, :)';
     else
-        wDat.MotCor.Zshift(:, rep_i) = zeros(size(wDat.MotCor.sYshift, 1), 1);
+        wDat.MotCor.Zshift(:, rep_i) = ...
+            zeros(size(wDat.MotCor.sYshift, 1), 1);
     end
     
 end
@@ -144,7 +150,9 @@ if rep_i > 1
 end
 
 % save substracted background
-if isfield(iDat, 'bs'); wDat.bF(rep_i, :) = iDat.bs(:); end 
+if isfield(iDat, 'bs')
+    wDat.bF(rep_i, :) = iDat.bs(:);
+end 
 
 % collect PMT_fscore (RedChannel)
 if isfield(iDat, 'PMT_fscore')

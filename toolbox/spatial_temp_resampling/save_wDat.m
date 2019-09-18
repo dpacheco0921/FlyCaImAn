@@ -1,7 +1,8 @@
 function save_wDat(filename, datatype, ...
     imdirection, bkgate, fshift, blowcap)
-% save_wDat: load all metadata variables and pass relevant fields to wDat 
-%   and save wDat(for compatibility with postprocessing steps like ROIseg)
+% save_wDat: load all metadata variables and
+%   pass relevant fields to wDat and save 
+%   wDat(for compatibility with postprocessing steps like ROIseg)
 %
 % Usage:
 %   save_wDat(ffilename, datatype, ...
@@ -16,7 +17,7 @@ function save_wDat(filename, datatype, ...
 %   blowcap: minimun pixel value (it replaces values less than this)
 %
 % Notes:
-% It assumes that iDat.Greenchannel is never empty
+% It assumes that either Greenchannel or Redchannel exist and is not empty
 
 mcDat = [];
 cDat = [];
@@ -25,7 +26,8 @@ wDat = [];
 % load all metadata variables
 load(filename, 'iDat', 'fDat', 'mcDat', 'lStim');
 
-if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
+if contains(fDat.DataType, 'opto') && ...
+        ~contains(fDat.DataType, 'prv')
     load(filename, 'cDat');
 end
 
@@ -50,8 +52,25 @@ if contains(datatype, '3DxT')
 end
 
 % generate mean-channels
-wDat.RedChaMean = iDat.RedChaMean;
-wDat.GreenChaMean = iDat.GreenChaMean;
+try
+    wDat.RedChaMean = iDat.RedChaMean;
+catch
+    wDat.RedChaMean = [];
+end
+
+try
+    wDat.GreenChaMean = iDat.GreenChaMean;
+catch
+    wDat.GreenChaMean = [];
+end
+
+if isempty(wDat.GreenChaMean) ...
+        && isempty(wDat.RedChaMean)
+    fprintf('***********************************************************************\n')
+    fprintf('File failed at motion correction (did not generate mean fields (RedChaMean GreenChaMean) in iDat)\n')
+    fprintf('***********************************************************************\n')
+    return
+end
 
 % background correction
 if bkgate
@@ -82,16 +101,26 @@ wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
 % tag and remove whole nan-planes (3D data only)
 if contains(datatype, '3DxT')
     
-    siz = size(wDat.GreenChaMean);
-    nan_pix = isnan(wDat.GreenChaMean);
+    try
+        siz = size(wDat.GreenChaMean);
+        nan_pix = isnan(wDat.GreenChaMean);
+    catch
+        siz = size(wDat.RedChaMean);
+        nan_pix = isnan(wDat.RedChaMean);        
+    end
+    
     wDat.plane2keep = sum(reshape(nan_pix, ...
         [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
 
     if ~isempty(wDat.RedChaMean)
-        wDat.RedChaMean = wDat.RedChaMean(:, :, wDat.plane2keep);
+        wDat.RedChaMean = ...
+            wDat.RedChaMean(:, :, wDat.plane2keep);
     end
     
-    wDat.GreenChaMean = wDat.GreenChaMean(:, :, wDat.plane2keep);
+    if ~isempty(wDat.GreenChaMean)
+        wDat.GreenChaMean = ...
+            wDat.GreenChaMean(:, :, wDat.plane2keep);
+    end
     
 end
 
@@ -105,22 +134,37 @@ end
 if ~isempty(wDat.RedChaMean)
     wDat.RedChaMean = pruneIm(wDat.RedChaMean, wDat.mask);
 end
-wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
+
+if ~isempty(wDat.RedChaMean)
+    wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
+end
 
 % bmask, use all pixels (2D data only)
-if contains(datatype, '2DxT')
+if iDat.FrameN == 1
     wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
 end
 
 % update size
-wDat.fSize = [size(wDat.GreenChaMean, 1), size(wDat.GreenChaMean, 2)];
-
-if contains(datatype, '3DxT')
-    wDat.vSize = [wDat.fSize, size(wDat.GreenChaMean, 3)];
-    wDat.vOrient = imdirection;
+if ~isempty(wDat.RedChaMean)
+    wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
 else
+    wDat.fSize = [size(wDat.GreenChaMean, 1), size(wDat.GreenChaMean, 2)];
+end
+
+if iDat.FrameN > 1
+    
+    if ~isempty(wDat.RedChaMean)
+        wDat.vSize = [wDat.fSize, size(wDat.RedChaMean, 3)];
+    else
+        wDat.vSize = [wDat.fSize, size(wDat.GreenChaMean, 3)];
+    end    
+    wDat.vOrient = imdirection;
+    
+else
+    
     wDat.vSize = [wDat.fSize, 1];
     wDat.vOrient = [];
+    
 end
 
 save(filename, 'wDat', '-append');

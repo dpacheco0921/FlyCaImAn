@@ -1,9 +1,10 @@
-function batch_collectstacksperfly_a(FolderName, FileName, iparams)
-% batch_collectstacksperfly_a: compiles sub-stacks to whole brain (or stack) and
-%   saves variables in a ROIseg-compatible way
+function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
+% batch_stitch_format_stacks_a: compiles and stitches sub-stacks
+%   to whole brain (or stack) and saves variables in a 
+%   ROIseg-compatible way
 %
 % Usage:
-%   batch_collectstacksperfly_a(FolderName, FileName, iparams)
+%   batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: name of folders to load
@@ -69,8 +70,10 @@ function batch_collectstacksperfly_a(FolderName, FileName, iparams)
 % Notes:
 % Interpreting max correlated planes:
 %   For all z resolution: high correlation means contiguous plane.
-% How to orient consecutive planes and stacks (particularly to match reference orientation: ventral-dorsal)
-%   Imaging from the central brain dorsal (need to be inverted to have a ventral-dorsal orientation)
+% How to orient consecutive planes and stacks 
+%   (particularly to match reference orientation: ventral-dorsal)
+%   Imaging from the central brain dorsal
+%      (need to be inverted to have a ventral-dorsal orientation)
 %   Imaging from the VNC from ventral side already has a ventral-dorsal orientation.
 
 cspfa = [];
@@ -145,12 +148,15 @@ function runperfolder(fname, cspfa)
     rdir_namesplit(fname, '.mat', ...
     cspfa.fsuffix, cspfa.fi2reject, [], 1);
 f2plot = unique(f2plot);
-fprintf(['Compiling stacks from ', num2str(numel(f2plot)), ' flies\n'])
+
+fprintf(['Compiling stacks from ', ...
+    num2str(numel(f2plot)), ' flies\n'])
 
 for file_i = 1:numel(f2plot)
     
     % Compiling all stacks per fly
     fprintf(['Running fly ', f2plot{file_i}, '\n'])
+    
     [filename, ~, repnum] = ...
         rdir_namesplit(f2plot{file_i}, '.mat', ...
         cspfa.fsuffix, cspfa.fi2reject, [], 1); 
@@ -182,7 +188,8 @@ end
 end
 
 function fcompiler(fname, reps, cspfa)
-% fcompiler: for each filename compile all sub-stacks in the right order
+% fcompiler: for each filename compile 
+%   all sub-stacks in the right order
 %
 % Usage:
 %   fcompiler(fname)
@@ -485,7 +492,8 @@ for rep_i = 1:numel(reps)
     % get stim metadata
     try
         wDat = getStimInfo(wDat, iDat, fDat, ...
-            lStim, cDat, mcDat, [fname, '_', num2str(reps(rep_i))], ...
+            lStim, cDat, mcDat, [fname, '_', ...
+            num2str(reps(rep_i))], ...
             rep_i, reps, shifts_align, zlength);
     catch
         keyboard
@@ -493,7 +501,9 @@ for rep_i = 1:numel(reps)
     
     clear shifts_align zlength
     
-    if cspfa.bkgate; wDat.prepros.bsSubs = 1; end
+    if cspfa.bkgate
+        wDat.prepros.bsSubs = 1;
+    end
     
     % get Z idx for each subvolume
     clear iDat cDat fDat mcDat lStim

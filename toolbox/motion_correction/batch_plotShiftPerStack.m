@@ -5,7 +5,6 @@ function batch_plotShiftPerStack(FolderName, FileName, iparams)
 %   batch_plotShiftPerStack(iparams)
 %
 % Args:
-% Args:
 %   FolderName: name of folders to load
 %   FileName: name of files to load
 %   iparams: parameters to update

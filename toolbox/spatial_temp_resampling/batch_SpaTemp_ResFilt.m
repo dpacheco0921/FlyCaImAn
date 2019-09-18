@@ -1,10 +1,10 @@
-function batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
-% batch_SpaTemp_ResFilt_3D: function to perform spatial and temporal
+function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
+% batch_SpaTemp_ResFilt: function to perform spatial and temporal
 %   resampling for all files per folder. For segments of the same fly 
 %   (based on flyname) it aligns them all to stimulus start. 
 %
 % Usage:
-%   batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
+%   batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: Folder name to load
@@ -53,7 +53,7 @@ function batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
 %           (default, 0)
 %
 % Notes:
-% Works specifically for 3DxT
+% Works for 3DxT and 2DxT
 % Assumes original data does not have negative values below "art_val".
 % FileName means strictly file name (minus '.mat')
 % How to orient consecutive planes and stacks (particularly to match reference orientation: ventral-dorsal)
@@ -62,6 +62,7 @@ function batch_SpaTemp_ResFilt_3D(FolderName, FileName, iparams)
 % 
 % Update:
 % 20190911 - it preprocess green and red channel sequentially (reduces memory load by half)
+% 20190917 - generalized to 3DxT and 2DxT
 
 % default params
 spte = [];
@@ -77,7 +78,7 @@ spte.size = [];
 spte.newres = [1.2 1.2 1];
 spte.fres = 10^4;
 spte.art_val = -1*10^3;
-spte.wDat_gen = 0;
+spte.wDat_gen = 1;
 spte.direction = 'invert';
 spte.bkgate = 0;
 spte.blowcap = 0;
@@ -194,7 +195,7 @@ fprintf(['Running fly : ', strrep(strrep(f2run, ['.', filesep], ''), ...
 for i = 1:numel(repnum)
     
     % load metadata & data
-    rep2run = [f2run, '_', num2str(repnum(i)), '_rawdata.mat']; 
+    rep2run = [f2run, '_', num2str(repnum(i)), '_rawdata.mat'];
     load(rep2run)
     
     if exist(strrep(rep2run, 'raw', 'ref'), 'file')
@@ -281,19 +282,37 @@ for i = 1:numel(repnum)
         fprintf('XY green ');
         [Data, nan_idx, nan_idx_2_i] = ...
             spa_temp_resamp_int(Data, spte.art_val, ...
-            inpres, spte.newres, [], []);
+            inpres, spte.newres, [], [], iDat.FrameN);
         
         % resample structural Data
-        if ~isempty(iDat.RedChaMean)
+        if isfield(iDat, 'RedChaMean') && ~isempty(iDat.RedChaMean)
+            
             fprintf('XY redmean ');
-            iDat.RedChaMean = interp3DxT(iDat.RedChaMean, ...
-                inpres, spte.newres, 2);
+            if iDat.FrameN > 1
+                iDat.RedChaMean = interp3DxT(iDat.RedChaMean, ...
+                    inpres, spte.newres, 2);
+            else
+            	iDat.RedChaMean = interp2DxT(iDat.RedChaMean, ...
+                    inpres, spte.newres); 
+            end
+            
+        else
+            iDat.RedChaMean = [];
         end
         
-        if ~isempty(iDat.GreenChaMean)
+        if isfield(iDat, 'GreenChaMean') && ~isempty(iDat.GreenChaMean)
+            
             fprintf('XY greenmean ');
-            iDat.GreenChaMean = interp3DxT(iDat.GreenChaMean, ...
-                inpres, spte.newres, 2);
+            if iDat.FrameN > 1
+                iDat.GreenChaMean = interp3DxT(iDat.GreenChaMean, ...
+                    inpres, spte.newres, 2);
+            else
+            	iDat.GreenChaMean = interp2DxT(iDat.GreenChaMean, ...
+                    inpres, spte.newres); 
+            end
+            
+        else
+            iDat.GreenChaMean = [];
         end
         
         % update metadata
@@ -317,11 +336,11 @@ for i = 1:numel(repnum)
         Data = Data(2:end-1, 2:end-1, :, :);
        
         % structural Data
-        if ~isempty(iDat.RedChaMean)
+        if isfield(iDat, 'RedChaMean') && ~isempty(iDat.RedChaMean)
             iDat.RedChaMean = iDat.RedChaMean(2:end-1, 2:end-1, :);
         end
         
-        if ~isempty(iDat.GreenChaMean)
+        if isfield(iDat, 'GreenChaMean') && ~isempty(iDat.GreenChaMean)
             iDat.GreenChaMean = iDat.GreenChaMean(2:end-1, 2:end-1, :);
         end
         
@@ -392,30 +411,33 @@ for i = 1:numel(repnum)
         iniT = [];
         
     end
-    
-    Data = single(Data);
-    
+        
     % Report when whole volumes are nan
-    nan_data = isnan(Data);
-    nan_data = squeeze(sum(sum(sum(nan_data, 1), 2), 3)) ...
-        == size(Data, 1)*size(Data, 2)*size(Data, 3);
-    
-    if sum(nan_data(:) == 1) ~= 0
-        
-        fprintf([' ', num2str(sum(nan_data(:) == 1)), ...
-            ' whole volumes are nan\n'])
-        if spte.debug == 1
-            figure();
-            plot(nan_data);
-            keyboard;
+    if iDat.FrameN > 1
+        nan_data = isnan(Data);
+        nan_data = squeeze(sum(sum(sum(nan_data, 1), 2), 3)) ...
+            == size(Data, 1)*size(Data, 2)*size(Data, 3);
+
+        if sum(nan_data(:) == 1) ~= 0
+
+            fprintf([' ', num2str(sum(nan_data(:) == 1)), ...
+                ' whole volumes are nan\n'])
+            if spte.debug == 1
+                figure();
+                plot(nan_data);
+                keyboard;
+            end
+
         end
-        
+
+        clear nan_data
     end
     
-    clear nan_data
-    
-    saveIm(Data, rep2run);
-    clear Data
+    obj_ = matfile(rep2run, 'Writable', true);
+    obj_.Data = [];
+    obj_.Data = single(Data);
+
+    clear Data obj_
     
     % apply same preprocessing to red channel
     % resample temporally ref channel (from plane to plane)
@@ -441,7 +463,8 @@ for i = 1:numel(repnum)
             
             [Data_ref, ~, ~] = ...
                 spa_temp_resamp_int(Data_ref, spte.art_val, ...
-                inpres, spte.newres, nan_idx, nan_idx_2_i);
+                inpres, spte.newres, nan_idx, nan_idx_2_i, ...
+                iDat.FrameN);
 
             fprintf([' eVoxelsize: ', num2str(iDat.MetaData{3}(1:3)), ' ']);
             clear nan_idx nan_idx_2_i
@@ -477,9 +500,12 @@ for i = 1:numel(repnum)
             Data_ref = interp3DxTixTj(Data_ref, [1 1], [1 1], iniT, endT);
         end
         
-        Data_ref = single(Data_ref);
-        saveIm(Data_ref, strrep(rep2run, 'raw', 'ref'));
-        clear iDat_red Data_ref
+        % make file
+        obj_ = matfile(strrep(rep2run, 'raw', 'ref'), 'Writable', true);
+        obj_.Data = [];
+        obj_.Data = single(Data_ref);
+        
+        clear iDat_red Data_ref obj_
         
     end
     
@@ -496,20 +522,6 @@ for i = 1:numel(repnum)
     clear iDat lStim iniT Data inpres nantest rep2run
     
 end
-
-end
-
-function saveIm(Data, filename)
-% saveIm: function for saving 3DxT data
-%
-% Usage:
-%   saveIm(Data, filename)
-%
-% Args:
-%   Data: 3DxT matrix
-%   filename: name to use for saving
-
-save(filename, 'Data', '-v7.3');
 
 end
 
@@ -566,7 +578,8 @@ end
 
 function [iIm, nan_idx, nan_idx_2_i] = ...
     spa_temp_resamp_int(iIm, nan2val, ...
-    oldres, newres, nan_idx, nan_idx_2_i)
+    oldres, newres, nan_idx, nan_idx_2_i, ...
+    z_length)
 % spa_temp_resamp_int: internal function that performs the resampling, 
 % it replaces all nans by negative values then it puts them back
 %
@@ -576,12 +589,13 @@ function [iIm, nan_idx, nan_idx_2_i] = ...
 %       oldres, newres, nan_idx, nan_idx_2_i)
 %
 % Args:
-%   iIm: 3DxT matrix
+%   iIm: 3DxT and 2DxT matrix
 %   nan2val: value to replace nans
 %   oldres: resolution of input data
 %   newres: target resolution of data
 %   nan_idx: nan pixels before resampling
 %   nan_idx_2_i: nan pixels after resampling
+%   z_length: length on z
 
 % iIm is a memory map variable, load data
 iobj = [];
@@ -611,7 +625,11 @@ iIm(nan_idx, :) = nan2val;
 iIm = reshape(iIm, Im_siz_i);
 
 % interpolate XY
-iIm = interp3DxT(iIm, oldres, newres, 2);
+if z_length > 1
+    iIm = interp3DxT(iIm, oldres, newres, 2);
+else
+    iIm = interp2DxT(iIm, oldres, newres);
+end
 
 % gt new size
 Im_siz_o = size(iIm);
@@ -650,8 +668,8 @@ function [lStim, iDat, Y1, Y2] = ...
 %   lStim: stimuli metadata variable
 %   iDat: image metadata variable
 %   stack2del: timepoints to delete
-%   Y1: 3DxT data
-%   Y2: 3DxT data (another channel)
+%   Y1: 3DxT or 2DxT data
+%   Y2: 3DxT or 2DxT data (another channel)
 
 if ~exist('Y1', 'var'); Y1 = []; end
 if ~exist('Y2', 'var'); Y2 = []; end
@@ -660,7 +678,7 @@ if ~exist('Y2', 'var'); Y2 = []; end
 if ~isempty(stack2del)
     
     % load data    
-    if iDat.StackN > 1
+    if iDat.FrameN > 1
         
         if isobject(Y1)
             data = Y1.Data;
@@ -736,7 +754,7 @@ if ~isempty(stack2del)
         iDat.StackN = iDat.StackN - numel(stack2del);
 
         % Update sstEn
-        if iDat.StackN > 1
+        if iDat.FrameN > 1
             preInit = min(reshape(iDat.fstEn(:, 1), ...
                 [iDat.FrameN, iDat.StackN]), [], 1)';
             preEnd =  max(reshape(iDat.fstEn(:, 1), ...
@@ -746,7 +764,8 @@ if ~isempty(stack2del)
         end
 
         % Update PMT_fscore
-        if isfield(iDat, 'PMT_fscore') && ~isempty(iDat.PMT_fscore)
+        if isfield(iDat, 'PMT_fscore') && ...
+                ~isempty(iDat.PMT_fscore)
             iDat.PMT_fscore(:, stack2del) = [];
         end
         
