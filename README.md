@@ -5,13 +5,17 @@ Calcium Imaging Processing Pipeline of 3D time series
 
 # Pipeline
 To process either 3DxT or 2DxT datasets:
-- 1) Convert tiffs to mat files (generate image data variable 'Data', and image metadata variable 'iDat')
-- 2) Pull extra information from metadata files ('.bin', '_vDat.mat', or '.mat' (LEDcontroler))
-- 3) Do motion correction
-- 4) Optional (do spatial and/or temporal resampling (this includes re-slicing for volumetric datasets and aligment relative to stimuli delivery))
-- 5) Optional (stitch imaged volumes along the z-axes) (in progress)
-- 6) ROI segmentation (in progress)
-- 7) Detect stimulus-modulated ROIs (in progress)
+- 1) Convert tiffs to mat files (generate image data variable 'Data', and image metadata variable 'iDat').
+- 2) Pull extra information from metadata files ('.bin', '_vDat.mat', or '.mat' (LEDcontroler)).
+- 3) Do motion correction (using [NoRMCorre](https://github.com/flatironinstitute/NoRMCorre)).
+- 4) Do spatial and/or temporal resampling
+    - this includes re-slicing for volumetric datasets and aligment relative to stimuli delivery.
+    - generates main metadata variable used for ROI segmentation (wDat).
+- 5) select brain pixels (generate a binary mask).
+- 6.1) format stacks for ROI segmentation.
+- 6.2) stitch (along z axis) and format stacks for ROI segmentation.
+- 7) ROI segmentation (in progress)
+- 8) Detect stimulus-modulated ROIs (in progress)
 
 To register image segments to local whole brain and to in vivo atlas
 - (in progress)
