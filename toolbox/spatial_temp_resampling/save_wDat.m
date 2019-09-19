@@ -2,7 +2,7 @@ function save_wDat(filename, datatype, ...
     imdirection, bkgate, fshift, blowcap)
 % save_wDat: load all metadata variables and
 %   pass relevant fields to wDat and save 
-%   wDat(for compatibility with postprocessing steps like ROIseg)
+%   wDat (for compatibility with postprocessing steps like ROIseg)
 %
 % Usage:
 %   save_wDat(ffilename, datatype, ...

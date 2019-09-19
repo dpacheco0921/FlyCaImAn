@@ -114,7 +114,7 @@ function runperfolder(fname, cspf)
 %
 % Args:
 %   fname: file name pattern
-%   cspf: parameter variable
+%   cspf: internal parameters structure
 
 % determine if fname narrows down to just one file
 [f2plot, ~, rep2plot] = rdir_namesplit(...
@@ -179,7 +179,7 @@ function fcompiler(fname, cspf)
 %
 % Args:
 %   fname: file name
-%   cspf: parameter variable
+%   cspf: internal parameters structure
 
 % load previously generated wDat
 load([fname, '_metadata.mat'], 'wDat');
