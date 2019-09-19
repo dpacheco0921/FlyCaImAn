@@ -12,8 +12,8 @@ To process either 3DxT or 2DxT datasets:
     - this includes re-slicing for volumetric datasets and aligment relative to stimuli delivery.
     - generates main metadata variable used for ROI segmentation (wDat).
 - 5) select brain pixels (generate a binary mask).
-- 6.1) format stacks for ROI segmentation.
-- 6.2) stitch (along z axis) and format stacks for ROI segmentation.
+- 6) i) format stacks for ROI segmentation.
+- 6) ii) stitch (along z axis) and format stacks for ROI segmentation.
 - 7) ROI segmentation (in progress)
 - 8) Detect stimulus-modulated ROIs (in progress)
 
