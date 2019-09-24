@@ -31,6 +31,9 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (green channel, 2)
 %       (iter_num: number of iterations)
 %           (1, default)
+%       (keepsize_flag: flag to keep original size of each axis 
+%           after motion correction, pads wit nans)
+%           (0, default)
 %       %%%%%%%%%%%% internal NoRMCorre params %%%%%%%%%%%%
 %       (def_maxshift: max shift allowed from frame-to-frame)
 %           (default, [5 5 2])
@@ -101,6 +104,7 @@ pMC.rigidg = 1;
 pMC.nrigidg = 0;
 pMC.refcha = 1;
 pMC.iter_num = 1;
+pMC.keepsize_flag = 0;
 pMC.def_maxshift = [5 5 2];
 pMC.phaseflag = 1;
 pMC.shifts_method = 'linear';
@@ -285,6 +289,8 @@ if iDat.MotCorr == 0 || pMC.redo == 1
 
     end
 
+    orig_siz = size(GreenCha);
+    
     % fill in gaps in RedCha if it is opto data
     %   (when opto stim is overlapping with red PMT)
     fillgaps_redcha(fDat, iDat, pMC.debug)
@@ -410,6 +416,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
 
             % for pMC.iter_num > 1, remove nan pixels from red/green
             %   channels
+            
             if pMC.iter_num > 1
                 
                 if length(dgDim) == 4
@@ -460,7 +467,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                 end
                 
             end
-
+                
             % correlation after correction      
             mcDat.CM(iter_i + 1, :) = ...
                 get_CM(pruneIm(template_, nan_mask), floatIm);
@@ -512,19 +519,40 @@ if iDat.MotCorr == 0 || pMC.redo == 1
         end
 
     end
-    
+        
+    % keep original size
+    if pMC.keepsize_flag
+        
+        delta_siz = abs(size(GreenCha) - orig_siz);
+        delta_siz = delta_siz(1:(length(delta_siz)-1));
+        
+        fprintf('padding image to match original size ')
+             
+        if ~isempty(RedCha)
+            RedCha = padarray(RedCha, delta_siz, nan, 'pre');
+        end
+        if ~isempty(GreenCha)
+            GreenCha = padarray(GreenCha, delta_siz, nan, 'pre');
+        end
+                    
+    end
+
     % Save metadata, avg image and save
     fprintf('Saving ... ')
 
     iDat.MotCorr = 1;
-
+    
     % Get mean volumes
     iDat.GreenChaMean = mean(GreenCha, length(dgDim));
     iDat.RedChaMean = mean(RedCha, length(dgDim));
 
     % update size
     iDat.FrameSize = [size(GreenCha, 1) size(GreenCha, 2)];
-
+    
+    if length(dgDim) == 4
+        iDat.FrameN = size(GreenCha, 3);
+    end
+    
     % saving processed video to .mat file
     save(strrep(f2run, '_rawdata', '_metadata'), ...
         'iDat', 'lStim', 'mcDat', '-append')

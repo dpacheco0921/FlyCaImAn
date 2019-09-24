@@ -10,7 +10,7 @@ function [chunks, nchunks, chunk_idx] = ...
 %       vect_length, vect_init)
 %
 % Args:
-%   chunksiz: size of chunks to split the inputc vector into
+%   chunksiz: size of chunks to split the input vector into
 %   corenum: number of cores available
 %   vect_length: length of vector to split
 %   vect_init: first index of this vector
