@@ -31,7 +31,7 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (green channel, 2)
 %       (iter_num: number of iterations)
 %           (1, default)
-%       (keepsize_flag: flag to keep original size of each axis 
+%       (keepsize_flag: flag to keep original size across dimensions 
 %           after motion correction, pads wit nans)
 %           (0, default)
 %       %%%%%%%%%%%% internal NoRMCorre params %%%%%%%%%%%%
@@ -520,9 +520,10 @@ if iDat.MotCorr == 0 || pMC.redo == 1
 
     end
         
-    % keep original size
+    % keep original X and Y size
     if pMC.keepsize_flag
         
+        % pad volume
         delta_siz = abs(size(GreenCha) - orig_siz);
         delta_siz = delta_siz(1:(length(delta_siz)-1));
         
@@ -534,6 +535,18 @@ if iDat.MotCorr == 0 || pMC.redo == 1
         if ~isempty(GreenCha)
             GreenCha = padarray(GreenCha, delta_siz, nan, 'pre');
         end
+               
+        % reconstitute deleted timestamps (copy last frame)
+        init_temp = reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]);
+        end_temp = reshape(iDat.fstEn(:, 2), [iDat.FrameN, iDat.StackN]);
+
+        for l = 1:delta_siz(3)
+            init_temp(end + 1, :) = init_temp(end, :);
+            end_temp(end + 1, :) = end_temp(end, :);
+        end
+        
+        iDat.fstEn = [init_temp(:)' end_temp(:)'];
+        clear init_temp end_temp delta_siz
                     
     end
 
