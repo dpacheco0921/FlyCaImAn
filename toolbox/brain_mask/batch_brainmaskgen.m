@@ -146,8 +146,7 @@ if pbm.redo || (~isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask'))
         lnbis = wDat_get_stackedges(wDat);
         wDat = fitgauss_to_fluohist(wDat, lnbis, ...
             'gauss5', [2 5], 1, bGreen, ...
-            pbm.blurgate, figH, ...
-            axH(2), 1);
+            figH, axH(2), 1);
         
         pi.figpos = genfigpos(1, 'nw', [1156 510]);
         
