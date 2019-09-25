@@ -523,11 +523,12 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     % keep original X and Y size
     if pMC.keepsize_flag
         
+        fprintf(['padding image to match original size ', ...
+            num2str(orig_siz), '\n'])
+
         % pad volume
         delta_siz = abs(size(GreenCha) - orig_siz);
         delta_siz = delta_siz(1:(length(delta_siz)-1));
-        
-        fprintf('padding image to match original size ')
              
         if ~isempty(RedCha)
             RedCha = padarray(RedCha, delta_siz, nan, 'pre');
