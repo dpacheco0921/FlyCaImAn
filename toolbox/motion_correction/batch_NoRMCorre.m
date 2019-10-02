@@ -546,7 +546,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             end_temp(end + 1, :) = end_temp(end, :);
         end
         
-        iDat.fstEn = [init_temp(:)' end_temp(:)'];
+        iDat.fstEn = [init_temp(:) end_temp(:)];
         clear init_temp end_temp delta_siz
                     
     end
