@@ -27,14 +27,12 @@ try
     info = imfinfo(fullfile([tifname, '.tif']));
     Imclass = getClass(info);
     
-    switch datatype
-        case {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', ...
-                '3DxT_opto',  '3DxT_opto_prv'}
-            [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info);
-        case {'2DxT_single', '3D', '3DxT_opto_old', '3DxT_song_old'}
-            [Y, X, Channels, Zoom, Power, Z] = TiffMetadataOld(info);
+    if contains(datatype, {'2DxT_single', 'old'})
+        [Y, X, Channels, Zoom, Power, Z] = TiffMetadataOld(info);
+    else
+        [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info);
     end
-
+    
     % getting frame offset
     StartOffset = cell2mat({info.StripOffsets}');
     StartOffset = StartOffset(:, 1);

@@ -193,16 +193,26 @@ function loadertype(NameRoot, tifpars)
 %   NameRoot: basic name of file to load
 %   tifpars: parameters
 
-switch tifpars.SpMode
+if contains(tifpars.SpMode, 'old')
+    
+    % collapsing files with the same animal and trial number to one mat
+    % files (old)
+	trialcollapser(NameRoot, tifpars);
+    
+elseif contains(tifpars.SpMode, ...
+            {'2DxT_single'})
+    
+    % saving each file independently
+    singleacqcollapser(NameRoot, tifpars);
+    
+else
+    
     % collapsing files with the same animal and trial number to one mat files
-    case {'3DxT_opto_old', '3DxT_song_old'}
-        trialcollapser(NameRoot, tifpars);
-    case {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', '3DxT_opto', ...
-            '3DxT_opto_prv'}
-        trialcollapsernew(NameRoot, tifpars)
-    % saving each file independently, '2DxT' or single '3D'
-    case {'2DxT_single', '3D'}
-        singleacqcollapser(NameRoot, tifpars);
+    % for example {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', '3DxT_opto', ...
+    %   '3DxT_opto_prv'}
+
+    trialcollapsernew(NameRoot, tifpars)
+                
 end
 
 end
