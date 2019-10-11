@@ -31,6 +31,8 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           ([])
 %       (region2crop: Y and X coordinates to use from whole FOV)
 %           ([])
+%       (fs_stim: sampling rate of stimuli related traces)
+%           (10^4)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -89,6 +91,7 @@ tifpars.Zres = 1;
 tifpars.pixelsym = 0;
 tifpars.fStrain = [];
 tifpars.region2crop = [];
+tifpars.fs_stim = 10^4;
 
 % internal variables
 tifpars.fName = [];
@@ -414,14 +417,14 @@ if contains(tifpars.SpMode, 'song') || ...
     % all prv (for song or opto)
     SavingDataNew([], fDat, iDat, 3, ...
         tifpars.cDir, tifpars.Folder2Run, ...
-        tifpars.fStrain)
+        tifpars.fStrain, tifpars.fs_stim)
     
 elseif ~contains(tifpars.SpMode, 'prv')
     
     % old opto using LEDcontroler
     SavingDataNew([], fDat, iDat, 1, ...
         tifpars.cDir, tifpars.Folder2Run, ...
-        tifpars.fStrain)
+        tifpars.fStrain, tifpars.fs_stim)
     
 end
 
@@ -561,7 +564,7 @@ end
 
 SavingDataNew(Data, fDat, iDat, 2, ...
         tifpars.cDir, tifpars.Folder2Run, ...
-        tifpars.fStrain)
+        tifpars.fStrain, tifpars.fs_stim)
     
 clear X Y FrameNum Channels Zoom Data iDat fDat
 
@@ -688,7 +691,7 @@ end
 end
 
 function SavingDataNew(Data, fDat, iDat, saveType, ...
-    cDir, Folder2Run, ifStrain)
+    cDir, Folder2Run, ifStrain, fs_stim)
 % SavingDataNew: saving both dataand metadata in current folder
 %
 % Usage:
@@ -703,6 +706,7 @@ function SavingDataNew(Data, fDat, iDat, saveType, ...
 %   cDir: current directory
 %   Folder2Run: file directory
 %   ifStrain: input fStrain
+%   fs_stim: sampling rate of stimuli related traces
 
 o_file_name_preffix = [cDir, filesep, ...
     Folder2Run, filesep, fDat.FileName];
@@ -758,8 +762,13 @@ if ~isempty(ifStrain)
     lStim.fStrain = ifStrain;
 end
 
+if ~isempty(lStim.fs)
+    lStim.fs = fs_stim;
+end
+
 % update and save metadata
-save([o_file_name_preffix, '_metadata.mat'], 'fDat', 'iDat', 'lStim')
+save([o_file_name_preffix, '_metadata.mat'], ...
+    'fDat', 'iDat', 'lStim')
 
 end
 
