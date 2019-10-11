@@ -27,7 +27,8 @@ if size(stimuli_onset_offset, 1) > 1
     
     while k == 0
         
-        if (stimuli_onset_offset(i + 1, 1) - stimuli_onset_offset(i, 2) < minwidth) ...
+        if (stimuli_onset_offset(i + 1, 1) - ...
+                stimuli_onset_offset(i, 2) < minwidth) ...
                 && (i < size(stimuli_onset_offset, 1))
             
             % update upper limit

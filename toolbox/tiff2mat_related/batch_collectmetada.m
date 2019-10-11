@@ -36,6 +36,8 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %           (default, 0)
 %       (minwidth: minimun width of stimuli (ms))
 %           (default, [])
+%       (stimths: voltage threshold to find stimuli)
+%           (default, 0)      
 % 
 % Notes
 % this function updates: lStim and iDat
@@ -84,6 +86,7 @@ metpars.mode = 1;
 metpars.minframet = 900;
 metpars.findstim = 0;
 metpars.minwidth = [];
+metpars.stimths = 0;
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -163,263 +166,303 @@ function runperfile(filename, metpars)
 
 % Load main variables 'lStim', 'iDat', 'fDat'
 display(['Running file : ', filename])
-load(['.', filesep, filename, '_metadata.mat'], 'lStim', 'iDat', 'fDat')
+load(['.', filesep, filename, '_metadata.mat'], ...
+    'lStim', 'iDat', 'fDat')
 
 % copy datatype (2D or 4D)
 datatype = fDat.DataType;
 
 % input data to load
 stim_file2load = [];
-if contains(datatype, 'song') || contains(datatype, 'prv') && ~contains(datatype, 'fict')
+if contains(datatype, 'song') || contains(datatype, 'prv') ...
+        && ~contains(datatype, 'fict')
     stim_file2load = 'prv';
-elseif contains(datatype, 'opto') && ~contains(datatype, 'prv') && ~contains(datatype, 'fict')
+elseif contains(datatype, 'opto') && ~contains(datatype, 'prv') ...
+        && ~contains(datatype, 'fict')
     stim_file2load = 'LEDcontroler';
 elseif contains(datatype, 'fict')
     stim_file2load = 'fict';
 end
 
-switch datatype
+% Notes:
+% cases for 3DxT new data, sometimes the Y movement stops, giving you a
+%   wrong frame end for the last frame, which is then deleted
+
+if contains(stim_file2load, 'prv')
+    % stimuli delivered using prv code
+
+    if contains(datatype, 'prv') && contains(datatype, 'opto')
+        %ip.frameCh = 3; ip.lstimCh = 4; ip.lstimrDat = 2;
+        metpars.frameCh = 2;
+        metpars.lstimCh = 1;
+        metpars.lstimrDat = 2;
+    else
+        metpars.frameCh = 2;
+        metpars.lstimCh = 1;
+    end
+
+    bin_file_name = ['.', filesep, filename, '_bin.mat'];
+
+    if exist(bin_file_name, 'file')
+
+        load(bin_file_name, 'data', 'dataScalingFactor')
+        Ch = data';
+        Ch = double(Ch)/dataScalingFactor;
+        clear data
+
+    else
+
+        fprintf('No stimulus & timestamp-related bin file found\n')
+        Ch = [];
+
+    end
+
+elseif contains(stim_file2load, 'LEDcontroler')
+
+    % stimuli delivered using LEDcontroler (old setup)
+    Ch = local_binread(lStim);
+
+elseif contains(stim_file2load, 'fict')
+
+    % stimuli delivered using **
+    data = h5load(['.', filesep, filename, '.h5']);
+    eval(['Ch = ', 'data.input.samples(:,3);']);
+    Ch = double(Ch)';
+    clear data
+
+    metpars.frameCh = 1;
     
-    case {'2DxT', '3DxT', '2DxT_song', '3DxT_song', ...
-            '2DxT_song_prv', '3DxT_song_prv', ...
-            '2DxT_opto', '3DxT_opto'...
-            '2DxT_opto_prv', '3DxT_opto_prv'}
-        
-        % Notes:
-        % cases for 3DxT new data, sometimes the Y movement stops, giving you a
-        %   wrong frame end for the last frame, which is then deleted
-                
-        if contains(stim_file2load, 'prv')
-            % stimuli delivered using prv code
-            
-            if contains(datatype, 'prv') && contains(datatype, 'opto')
-                %ip.frameCh = 3; ip.lstimCh = 4; ip.lstimrDat = 2;
-                metpars.frameCh = 2;
-                metpars.lstimCh = 1;
-                metpars.lstimrDat = 2;
-            else
-                metpars.frameCh = 2;
-                metpars.lstimCh = 1;
-            end
-            
-            bin_file_name = ['.', filesep, filename, '_bin.mat'];
-            
-            if exist(bin_file_name, 'file')
-                
-                load(bin_file_name, 'data', 'dataScalingFactor')
-                Ch = data';
-                Ch = double(Ch)/dataScalingFactor;
-                clear data
-                
-            else
-                
-                fprintf('No stimulus & timestamp-related bin file found\n')
-                Ch = [];
-                
-            end
-            
-        elseif contains(stim_file2load, 'LEDcontroler')
-            
-            % stimuli delivered using LEDcontroler (old setup)
-            Ch = local_binread(lStim);
-            
-        elseif contains(stim_file2load, 'fict')
-            
-            % stimuli delivered using **
-            data = h5load(['.', filesep, filename, '.h5']);
-            eval('Ch = ', 'data.input.samples(:,3);');
-            Ch = double(Ch)';
-            clear data
-            
-            metpars.frameCh = 1;
-            
-        else
-            
-            fprintf('No stimulus & timestamp-related bin file found\n')
-            Ch = [];
-            
-        end
-        
-        % collect timestamps
-        FrameN = iDat.FrameN*iDat.StackN;
-        
-        if ~isempty(Ch)
-            [FrameInit, FrameEnd] = ...
-                colecttimestamp(Ch(metpars.frameCh, :), ...
-                FrameN, metpars.minframet, stim_file2load);
-        else
-            
-            % generate arbitrary timestamps
-            FrameInit = (0:(FrameN-1))*10^3;
-            FrameInit(1) = 1;
-            FrameEnd = FrameInit + 900;
-            
-        end
-        
-        iDat.fstEn = [FrameInit' FrameEnd'];
-        clear FrameInit FrameEnd
-        
-        % plot stim trace
-        if metpars.pgates == 1 && ~isempty(Ch)
-            
-            figure('Name', filename);
-            AxHs = subplot(1, 1, 1);
-            plot(Ch(metpars.frameCh, :), 'Parent', AxHs);
-            hold(AxHs, 'on');
-            plot(iDat.fstEn(:, 1), ...
-                Ch(metpars.frameCh, iDat.fstEn(:, 1)), ...
-                'o', 'Parent', AxHs)
-            plot(iDat.fstEn(:, 2), ...
-                Ch(metpars.frameCh, iDat.fstEn(:, 2)), ...
-                'go', 'Parent', AxHs)
-            xlabel(AxHs, 'Time 0.1 ms');
-            ylabel(AxHs, 'V')
-            
-        end
-                
-        % update lStim field 'fName'
-        if contains(datatype, 'song') || contains(datatype, 'prv')
-            lStim.fName = [lStim.fName, '_bin.mat'];
-        elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
-            lStim.fName = [lStim.fName, '.bin'];
-        else
-            lStim.fName = 'no stimulus file';
-        end
-                
-        fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
-            ' second ', num2str(iDat.fstEn(2, :)), '\n'])
-        
-        % homogenize frames and frametimes
-        %   edits iDat fields iDat.fstEn, iDat.FrameN & iDat.StackN
-        iDat = homogenize_frame_frametime(...
-            filename, FrameN, iDat, datatype, metpars.mode);
-        
-        % plot frame-diff
-        if metpars.pgate == 1
-            
-            plot(iDat.fstEn(:, 2) - iDat.fstEn(:, 1), ...
-                'parent', metpars.AxH);
-            hold(metpars.AxH,'on')
-            xlabel(metpars.AxH, 'Frame');
-            ylabel(metpars.AxH, 'Frame width 0.1 ms')
-            
-        end
-        
-        % chopping stim trace to start and end of imaging + buffer time
-        start_end = [iDat.fstEn(1, 1) - metpars.buffer*lStim.fs, ...
-            (iDat.fstEn(end, 2) + metpars.buffer*lStim.fs)];
-        
-        % chop and pass Ch (stimuli trace) to lStim.trace
-        if ~isempty(Ch)
-            Ch = Ch(metpars.lstimCh, :);
+    if contains(datatype, 'opto')
 
-            if start_end(2) > numel(Ch)
-                lStim.trace = Ch(start_end(1):end);
-                lStim.trace = [lStim.trace, zeros(1, start_end(2)-numel(Ch))];
-            else
-                lStim.trace = Ch(start_end(1):start_end(2));
-            end
-            
-        else
-            lStim.trace = zeros(1, iDat.fstEn(end, 2));          
-        end
+        % read stimulus from *.h5 file
+        data = h5load(['.', filesep, filename, '.h5']);
+        eval(['Ch(2, :) = ', 'data.input.samples(:, 2);']);
+        clear data
+                
+    else
         
-        % set first frame start to index 1
-        iDat.fstEn = iDat.fstEn - start_end(1) + 1;
+        Ch(2, :) = zeros(size(Ch));
         
-        % generate sstEn (volume time)
-        if iDat.FrameN > 1 && metpars.mode
-            
-            preInit = min(reshape(iDat.fstEn(:, 1), ...
-                [iDat.FrameN, iDat.StackN]), [], 1)';
-            preEnd =  max(reshape(iDat.fstEn(:, 1), ...
-                [iDat.FrameN, iDat.StackN]), [], 1)';
-            iDat.sstEn = [preInit, preEnd];
-            clear preInit preEnd
-            
-        end
-        
-        % get stim onset and offset and extra metadata
-        if contains(stim_file2load, 'prv')
-            
-            % load rDat
-            load(['.', filesep, filename, '_vDat.mat'], 'rDat')
-            
-            [lStim.lstEn, lStim.trace] = ...
-                songstim_init_end_rDat(rDat, start_end, ...
-                metpars.lstimrDat, metpars.findstim, ...
-                metpars.minwidth);
-            
-            % collect extra metadata
-            lStim.sPars.order = rDat.stimOrder;
-            lStim.sPars.name = rDat.ctrl.stimFileName;
+    end
 
-            all_int = cell2mat(rDat.ctrl.intensity(:, 1));
+    metpars.lstimCh = 2;
+    
+else
 
-            if contains(datatype, 'song')
-                lStim.sPars.int = all_int(:, 1);
-            elseif contains(datatype, 'opto')
-                lStim.sPars.int = all_int(:, 2);
-            end
-
-            lStim.sPars.sr = rDat.ctrl.rate;
-            lStim.sPars.basPre = rDat.ctrl.silencePre;
-            lStim.sPars.basPost = rDat.ctrl.silencePost;
-            clear rDat
-            
-        elseif contains(stim_file2load, 'LEDcontroler')
-            
-            load(['.', filesep, filename, '.mat'], 'sDat');
-            lStim.lstEn = optostim_init_end(lStim.trace, sDat);
-            
-            % collect extra metadata
-            lStim.sPars.freq = ...
-                repmat(sDat.freq, [size(lStim.lstEn, 1), 1]); 
-            lStim.sPars.width = ...
-                repmat(sDat.width, [size(lStim.lstEn, 1), 1]); 
-            lStim.sPars.int = ...
-                repmat(sDat.intensity, [size(lStim.lstEn, 1), 1]); 
-            lStim.sPars.sr = ...
-                repmat(sDat.fs, [size(lStim.lstEn, 1), 1]); 
-            lStim.sPars.basPre = ...
-                repmat(sDat.silencePre, [size(lStim.lstEn, 1), 1]); 
-            lStim.sPars.basPost = ...
-                repmat(sDat.silencePost, [size(lStim.lstEn, 1), 1]);
-            
-            lStim.sPars.order = 1:size(lStim.lstEn, 1);
-            
-            if isfield(sDat, 'stimFileName')
-                lStim.sPars.name = ...
-                    repmat({sDat.stimFileName}, [size(lStim.lstEn, 1), 1]);
-            else
-                lStim.sPars.name = ...
-                    repmat({'OPTO'}, [size(lStim.lstEn, 1), 1]);                
-            end
-            
-            clear sDat
-            
-        else
-            
-            % generate arbitrary stimulus information
-            lStim.sPars.freq = 1;
-            lStim.sPars.width = 1; 
-            lStim.sPars.int = 0; 
-            lStim.sPars.sr = 10^4; 
-            lStim.sPars.basPre = 0; 
-            lStim.sPars.basPost = 0;
-            lStim.sPars.order = 1;
-            lStim.sPars.name = {'nostim'};
-            lStim.lstEn = [1 2];
-            
-        end
-
-        if metpars.mode
-            save(['.', filesep, filename, '_metadata.mat'], 'iDat', 'lStim', '-append')
-        end
-
-        clear FrameInit FrameEnd order2chop Data NewStart lStim
+    fprintf('No stimulus & timestamp-related bin file found\n')
+    Ch = [];
 
 end
+
+% collect timestamps
+FrameN = iDat.FrameN*iDat.StackN;
+
+if ~isempty(Ch)
+    [FrameInit, FrameEnd] = ...
+        colecttimestamp(Ch(metpars.frameCh, :), ...
+        FrameN, metpars.minframet, stim_file2load);
+else
+
+    % generate arbitrary timestamps
+    %   (in case you dont have a readout of the Y galvo)
+    FrameInit = (0:(FrameN-1))*10^3;
+    FrameInit(1) = 1;
+    FrameEnd = FrameInit + 900;
+
+end
+
+iDat.fstEn = [FrameInit' FrameEnd'];
+clear FrameInit FrameEnd
+
+% plot stim trace
+if metpars.pgates == 1 && ~isempty(Ch)
+
+    figure('Name', filename);
+    AxHs = subplot(1, 1, 1);
+    plot(Ch(metpars.frameCh, :), 'Parent', AxHs);
+    hold(AxHs, 'on');
+    plot(iDat.fstEn(:, 1), ...
+        Ch(metpars.frameCh, iDat.fstEn(:, 1)), ...
+        'o', 'Parent', AxHs)
+    plot(iDat.fstEn(:, 2), ...
+        Ch(metpars.frameCh, iDat.fstEn(:, 2)), ...
+        'go', 'Parent', AxHs)
+    xlabel(AxHs, 'Time 0.1 ms');
+    ylabel(AxHs, 'V')
+
+end
+
+% update lStim field 'fName'
+if contains(datatype, 'song') || contains(datatype, 'prv')
+    lStim.fName = [lStim.fName, '_bin.mat'];
+elseif contains(datatype, 'opto') && ~contains(datatype, 'prv')
+    lStim.fName = [lStim.fName, '.bin'];
+else
+    lStim.fName = 'no stimulus file';
+end
+
+fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
+    ' second ', num2str(iDat.fstEn(2, :)), '\n'])
+
+% homogenize frames and frametimes
+%   edits iDat fields iDat.fstEn, iDat.FrameN & iDat.StackN
+iDat = homogenize_frame_frametime(...
+    filename, FrameN, iDat, datatype, metpars.mode);
+
+% plot frame-diff
+if metpars.pgate == 1
+
+    plot(iDat.fstEn(:, 2) - iDat.fstEn(:, 1), ...
+        'parent', metpars.AxH);
+    hold(metpars.AxH,'on')
+    xlabel(metpars.AxH, 'Frame');
+    ylabel(metpars.AxH, 'Frame width 0.1 ms')
+
+end
+
+% chopping stim trace to start and end of imaging + buffer time
+start_end = [iDat.fstEn(1, 1) - metpars.buffer*lStim.fs, ...
+    (iDat.fstEn(end, 2) + metpars.buffer*lStim.fs)];
+
+% chop and pass Ch (stimuli trace) to lStim.trace
+if ~isempty(Ch)
+    Ch = Ch(metpars.lstimCh, :);
+
+    if start_end(2) > numel(Ch)
+        lStim.trace = Ch(start_end(1):end);
+        lStim.trace = [lStim.trace, zeros(1, start_end(2)-numel(Ch))];
+    else
+        lStim.trace = Ch(start_end(1):start_end(2));
+    end
+
+else
+    lStim.trace = zeros(1, iDat.fstEn(end, 2));          
+end
+
+% set first frame start to index 1
+iDat.fstEn = iDat.fstEn - start_end(1) + 1;
+
+% generate sstEn (volume time)
+if iDat.FrameN > 1 && metpars.mode
+
+    preInit = min(reshape(iDat.fstEn(:, 1), ...
+        [iDat.FrameN, iDat.StackN]), [], 1)';
+    preEnd =  max(reshape(iDat.fstEn(:, 1), ...
+        [iDat.FrameN, iDat.StackN]), [], 1)';
+    iDat.sstEn = [preInit, preEnd];
+    clear preInit preEnd
+
+end
+
+% get stim onset and offset and extra metadata
+if contains(stim_file2load, 'prv')
+
+    % load rDat
+    load(['.', filesep, filename, '_vDat.mat'], 'rDat')
+
+    [lStim.lstEn, lStim.trace] = ...
+        songstim_init_end_rDat(rDat, start_end, ...
+        metpars.lstimrDat, metpars.findstim, ...
+        metpars.minwidth, metpars.stimths);
+
+    % collect extra metadata
+    lStim.sPars.order = rDat.stimOrder;
+    lStim.sPars.name = rDat.ctrl.stimFileName;
+
+    all_int = cell2mat(rDat.ctrl.intensity(:, 1));
+
+    if contains(datatype, 'song')
+        lStim.sPars.int = all_int(:, 1);
+    elseif contains(datatype, 'opto')
+        lStim.sPars.int = all_int(:, 2);
+    end
+
+    lStim.sPars.sr = rDat.ctrl.rate;
+    lStim.sPars.basPre = rDat.ctrl.silencePre;
+    lStim.sPars.basPost = rDat.ctrl.silencePost;
+    clear rDat
+
+elseif contains(stim_file2load, 'LEDcontroler')
+
+    load(['.', filesep, filename, '.mat'], 'sDat');
+    lStim.lstEn = optostim_init_end(lStim.trace, ...
+        sDat);
+
+    % collect extra metadata
+    lStim.sPars.freq = ...
+        repmat(sDat.freq, [size(lStim.lstEn, 1), 1]); 
+    lStim.sPars.width = ...
+        repmat(sDat.width, [size(lStim.lstEn, 1), 1]); 
+    lStim.sPars.int = ...
+        repmat(sDat.intensity, [size(lStim.lstEn, 1), 1]); 
+    lStim.sPars.sr = ...
+        repmat(sDat.fs, [size(lStim.lstEn, 1), 1]); 
+    lStim.sPars.basPre = ...
+        repmat(sDat.silencePre, [size(lStim.lstEn, 1), 1]); 
+    lStim.sPars.basPost = ...
+        repmat(sDat.silencePost, [size(lStim.lstEn, 1), 1]);
+
+    lStim.sPars.order = 1:size(lStim.lstEn, 1);
+
+    if isfield(sDat, 'stimFileName')
+        lStim.sPars.name = ...
+            repmat({sDat.stimFileName}, [size(lStim.lstEn, 1), 1]);
+    else
+        lStim.sPars.name = ...
+            repmat({'OPTO'}, [size(lStim.lstEn, 1), 1]);                
+    end
+
+    clear sDat
+    
+elseif contains(stim_file2load, 'fict')
+    
+    % read text file with stimulus info
+    sDat = parse_opto_fictrac_txtfile(...
+        ['.', filesep, filename, '.txt']);
+    
+    lStim.lstEn = find_stim_int(lStim.trace, ...
+        metpars.minwidth, metpars.stimths);
+        
+    % collect extra metadata
+    lStim.sPars.freq = []; 
+    lStim.sPars.width = []; 
+    lStim.sPars.int = sDat.intensity(1:size(lStim.lstEn, 1)); 
+    lStim.sPars.sr = sDat.rate(1:size(lStim.lstEn, 1)); 
+    lStim.sPars.basPre = sDat.silencePre(1:size(lStim.lstEn, 1)); 
+    lStim.sPars.basPost = sDat.silencePost(1:size(lStim.lstEn, 1));
+    lStim.sPars.order = 1:size(lStim.lstEn, 1);
+
+    if isfield(sDat, 'stimFileName')
+        lStim.sPars.name = ...
+            sDat.stimFileName(1:size(lStim.lstEn, 1));
+    else
+        lStim.sPars.name = ...
+            repmat({'OPTO'}, [size(lStim.lstEn, 1), 1]);                
+    end
+
+    clear sDat
+    
+else
+
+    % generate arbitrary stimulus information
+    lStim.sPars.freq = 1;
+    lStim.sPars.width = 1; 
+    lStim.sPars.int = 0; 
+    lStim.sPars.sr = 10^4; 
+    lStim.sPars.basPre = 0; 
+    lStim.sPars.basPost = 0;
+    lStim.sPars.order = 1;
+    lStim.sPars.name = {'nostim'};
+    lStim.lstEn = [1 2];
+
+end
+
+if metpars.mode
+    save(['.', filesep, filename, '_metadata.mat'], ...
+        'iDat', 'lStim', '-append')
+end
+
+clear FrameInit FrameEnd order2chop Data NewStart lStim
 
 clear iDat fDat Ch lStim ROI lStim
 

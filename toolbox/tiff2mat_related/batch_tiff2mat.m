@@ -762,7 +762,7 @@ if ~isempty(ifStrain)
     lStim.fStrain = ifStrain;
 end
 
-if ~isempty(lStim.fs)
+if isempty(lStim.fs)
     lStim.fs = fs_stim;
 end
 
