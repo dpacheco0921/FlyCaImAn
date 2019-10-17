@@ -99,12 +99,16 @@ cspfa.plot_flag = 0;
 cspfa.plot_stitch_flag = 0;
 cspfa.range = [0 1];
 cspfa.refcha = 1;
-cspfa.oDir = [];
+cspfa.oDir = [pwd, filesep, 'stitch'];
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 cspfa = loparam_updater(cspfa, iparams);
+
+if ~exist(cspfa.oDir, 'dir')
+   mkdir(cspfa.oDir)
+end
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(cspfa.serId, cspfa.corenum);

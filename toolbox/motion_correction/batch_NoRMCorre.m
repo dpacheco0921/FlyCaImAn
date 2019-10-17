@@ -81,10 +81,25 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (0 = raw)
 %       (readextfile_flag: flag to read shifts from another matfile and apply those to this file)
 %       (readextfile_dir: input directory)
+%       %%%%%%%%%%%% find saturated frames %%%%%%%%%%%%
+%       (PMT_sat_flag: find saturated frames)
+%           (default, 0)
+%       (PMT_cha: channel to use)
+%           (default, 1)
+%       (f_threshold: fluorescence value beyond which a frame is considered saturated)
+%           (default, 1000)
+%       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
+%       (shift_f_flag: substract the minimun F value)
 %
 % Notes:
 % This function uses NoRMCorre (https://github.com/flatironinstitute/NoRMCorre)
 % see NoRMCorre functions: NoRMCorreSetParms, normcorre_batch
+% 20191015:
+%   1) added option to shift fluorescence distribution for both
+%   channels (substract the min, so all values are positive)
+%   2) added option to find saturated frames defined by a threshold
+%   fluorescence intensity 'f_threshold'. This frames are replaced by the
+%   nearby frame/volume or by the mean of preceding and following frames/volumes
 %
 % ToDo:
 % add optical flow
@@ -120,18 +135,26 @@ pMC.min_patch_size = [64 64 4];
 pMC.plot_df_flag = 0;
 pMC.baseline_tp = 1:5;
 pMC.int_range = [0 1];
-pMC.oDir = pwd;
+pMC.oDir = [pwd, filesep, 'motcor'];
 pMC.shift_ths = [18, 0.7];
 pMC.span = 10;
 pMC.sgate = 1;
 pMC.readextfile_flag = 0;
 pMC.readextfile_dir = [];
+pMC.PMT_sat_flag = 0;
+pMC.PMT_cha = 1;
+pMC.f_threshold = 10;
+pMC.shift_f_flag = 0;
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pMC = loparam_updater(pMC, iparams);
+
+if ~exist(pMC.oDir, 'dir')
+   mkdir(pMC.oDir)
+end
 
 if pMC.iter_num ~= numel(pMC.sgate)
     pMC.sgate = pMC.sgate*ones(1, pMC.iter_num);
@@ -267,6 +290,13 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     else
 
         data_obj = matfile(f2run, 'Writable', true);
+        
+        % Find saturated frames to remove from estimation of mean channel
+        if pMC.PMT_sat_flag
+            iDat = gen_PMT_score(iDat, data_obj, ...
+                pMC.PMT_cha, pMC.f_threshold);
+        end
+        
         % Delete frame during flyback / update frameN / RedChaMean
         iDat = deleteflybackframe(iDat, fDat, data_obj);
 
@@ -285,7 +315,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             'iDat', 'lStim', '-append')
 
         siz = size(data_obj.Data);
-        ChannelSplitter(siz, data_obj)
+        ChannelSplitter(siz, pMC.shift_f_flag, data_obj)
 
     end
 
@@ -293,11 +323,11 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     
     % fill in gaps in RedCha if it is opto data
     %   (when opto stim is overlapping with red PMT)
-    fillgaps_redcha(fDat, iDat, pMC.debug)
+    fillgaps_redcha(fDat, iDat, pMC.PMT_cha, pMC.debug)
 
     % save max-df movie to asses motion
     if pMC.plot_df_flag
-        video_name = strrep(f2run, '_rawdata', '_metadata');
+        video_name = strrep(f2run, '_rawdata.mat', '');
         plot_df_video(GreenCha, pMC.int_range, ...
             pMC.baseline_tp, pMC.oDir, [video_name, '_DF_iter_0'])
     end
@@ -504,13 +534,13 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             % save max-df movie to asses motion
             if pMC.plot_df_flag == 1 && iter_i == pMC.iter_num
                 video_name = strrep(f2run, ...
-                    '_rawdata', '_metadata');
+                     '_rawdata.mat', '');
                 plot_df_video(GreenCha, pMC.int_range, ...
                     pMC.baseline_tp, pMC.oDir, ...
                     [video_name, '_DF_iter_', num2str(iter_i)])
             elseif pMC.plot_df_flag == 2
                 video_name = strrep(f2run, ...
-                    '_rawdata', '_metadata');
+                     '_rawdata.mat', '');
                 plot_df_video(GreenCha, pMC.int_range, ...
                     pMC.baseline_tp, pMC.oDir, ...
                     [video_name, '_DF_iter_', num2str(iter_i)])                
@@ -768,7 +798,44 @@ fprintf([num2str(iDat.FrameN), '\n'])
 
 end
 
-function ChannelSplitter(siz, data_obj)
+function iDat = gen_PMT_score(iDat, data_obj, ...
+    PMT_cha, f_ths)
+% gen_PMT_score: find frames that saturate
+%
+% Usage:
+%   iDat = gen_PMT_score(iDat, data_obj, PMT_cha)
+%
+% Args:
+%   iDat: image metadata variable
+%   data_obj: memmap data object
+%   PMT_cha: channel to use
+%   f_ths: intensity threshold
+%
+% Returns:
+%   iDat: updated image metadata variable
+
+% load data
+data = data_obj.Data;
+
+if iDat.FrameN > 1
+    data = data(:, :, :, :, PMT_cha);
+else
+    data = data(:, :, :, PMT_cha);
+end
+
+iDat.PMT_fscore = ...
+    squeeze(max(max(data, [], 1), [], 2));
+
+% flag frames above f_ths
+if size(iDat.PMT_fscore, 1) == 1
+    iDat.PMT_fscore = iDat.PMT_fscore < f_ths;
+else
+    iDat.PMT_fscore = sum(iDat.PMT_fscore < f_ths, 1);
+end
+
+end
+
+function ChannelSplitter(siz, shift_f_flag, data_obj)
 % ChannelSplitter: splits data_obj.Data variable into channels that
 %   comprise it.
 %
@@ -777,6 +844,7 @@ function ChannelSplitter(siz, data_obj)
 %
 % Args:
 %   siz: image size
+%   shift_f_flag: substract the minimun of F
 %   data_obj: memmap data object
 
 global RedCha GreenCha
@@ -793,6 +861,11 @@ elseif length(siz) == 5 && siz(end) == 2
     
 else
     GreenCha = single(data_obj.Data);
+end
+
+if shift_f_flag
+    RedCha = RedCha - min(RedCha(:));
+    GreenCha = GreenCha - min(GreenCha(:));
 end
 
 end
@@ -879,8 +952,9 @@ end
 
 end
 
-function fillgaps_redcha(fDat, iDat, idebug)
-% fillgaps_redcha: fill gaps in red channel for opto data from LEDcontroler
+function fillgaps_redcha(fDat, iDat, channel2fill, idebug)
+% fillgaps_redcha: fill saturated frames/volumes in red channel
+%   (for cases where opto stimuli is used and bleeds through red/green channel)
 %
 % Usage:
 %   fillgaps_redcha(fDat, iDat, idebug)
@@ -888,9 +962,10 @@ function fillgaps_redcha(fDat, iDat, idebug)
 % Args:
 %   fDat: stimuli metadata variable
 %   iDat: image metadata variable
+%   channel2fill: channel to fill saturated frames
 %   idebug: debug gate
 
-global RedCha
+global RedCha GreenCha
 
 if contains(fDat.DataType, 'opto') && ~isempty(RedCha)
     
@@ -909,7 +984,11 @@ if contains(fDat.DataType, 'opto') && ~isempty(RedCha)
         title('Red_input')
     end
     
-    RedCha = framegapfill(tp2fill, RedCha);
+    if channel2fill == 1
+        RedCha = framegapfill(tp2fill, RedCha);
+    else
+        GreenCha = framegapfill(tp2fill, GreenCha);
+    end
     
     if idebug
         Data4display = squeeze(max(max(RedCha, [], 1), [], 2));
