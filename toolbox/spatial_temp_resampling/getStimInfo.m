@@ -130,11 +130,26 @@ if ~isempty(mcDat)
         mcDat.rigid = read_mcDat_shifts(mcDat.rigid, 1);
     end  
 
-    wDat.MotCor.sYshift(:, rep_i) = mcDat.rigid(1, :)';
-    wDat.MotCor.sXshift(:, rep_i) = mcDat.rigid(2, :)';
+    if ~isfield(wDat.MotCor, 'sYshift') || ...
+            isempty(wDat.MotCor.sYshift)
+        wDat.MotCor.sYshift(:, rep_i) = mcDat.rigid(1, :)';
+        wDat.MotCor.sXshift(:, rep_i) = mcDat.rigid(2, :)';
+    else
+        wDat.MotCor.sYshift(:, rep_i) = mcDat.rigid(1, ...
+            1:size(wDat.MotCor.sYshift, 1))';
+        wDat.MotCor.sXshift(:, rep_i) = mcDat.rigid(2, ...
+            1:size(wDat.MotCor.sYshift, 1))';
+    end
     
     if size(mcDat.rigid, 1) == 3
-        wDat.MotCor.Zshift(:, rep_i) = mcDat.rigid(3, :)';
+        if ~isfield(wDat.MotCor, 'sYshift') || ...
+            isempty(wDat.MotCor.sYshift)       
+            wDat.MotCor.Zshift(:, rep_i) = mcDat.rigid(3, :)';
+        else
+            wDat.MotCor.Zshift(:, rep_i) = mcDat.rigid(3, ...
+                1:size(wDat.MotCor.sYshift, 1))';
+        end
+        
     else
         wDat.MotCor.Zshift(:, rep_i) = ...
             zeros(size(wDat.MotCor.sYshift, 1), 1);

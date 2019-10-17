@@ -114,7 +114,9 @@ emptyf = 1;
 while emptyf == 1
     
     t_idx = t_idx + 1;
-    if sum(vol2fill == t_idx) == 0; emptyf = 0; end
+    if sum(vol2fill == t_idx) == 0
+        emptyf = 0;
+    end
     
 end
 
@@ -136,7 +138,9 @@ emptyf = 1;
 while emptyf == 1
     
     t_idx = t_idx - 1;
-    if sum(vol2fill == t_idx) == 0; emptyf = 0; end
+    if sum(vol2fill == t_idx) == 0
+        emptyf = 0;
+    end
     
 end
 

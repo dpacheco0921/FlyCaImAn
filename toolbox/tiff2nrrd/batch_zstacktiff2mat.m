@@ -20,7 +20,7 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %       (redo: gate to overwrite old files)
 %       (zres: resolution in z axis (1))
 %       (pixelsym: pixel size is symmetric or not, 0 = asymmetric, 1 = symmetric)
-%       (integrate_flag: number of timepoints to intergate as single timepoint)
+%       (integrate_flag: number of timepoints to integrate as single timepoint)
 %
 % Notes:
 % FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
