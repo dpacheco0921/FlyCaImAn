@@ -193,8 +193,14 @@ switch (encoding)
          status_ = fwrite(fidIn, tmp, 'uint8');
 
          fclose(fidTmpRaw);
-         system(['rm -f ' tmpFile]);
-         system(['rm -f ' tmpBase]);
+         
+         try
+            system(['rm -f ' tmpFile]);
+            system(['rm -f ' tmpBase]);
+         catch
+            system(['del -f ' tmpFile]);
+            system(['del -f ' tmpBase]);             
+         end
          
     case {'ascii'}
         

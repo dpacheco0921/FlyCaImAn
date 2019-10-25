@@ -3,6 +3,7 @@ function [ppobj, ppprofile] = setup_parpool(deviceID, corenum)
 % 
 % Usage:
 %   pphandle = setup_parpool(deviceID, corenum)
+%
 % Args:
 %   deviceID: 'int', internal, 'spock' or 
 %       'della' or other names it assumes they are clusters
@@ -14,10 +15,16 @@ function [ppobj, ppprofile] = setup_parpool(deviceID, corenum)
 % 
 % See also: parcluster parpool
 
-if ~exist('deviceID', 'var') || isempty(deviceID); deviceID = []; end
-if ~exist('corenum', 'var') || isempty(corenum); corenum = 1; end
+if ~exist('deviceID', 'var') || isempty(deviceID)
+    deviceID = [];
+end
 
-ppobj = []; ppprofile = [];
+if ~exist('corenum', 'var') || isempty(corenum)
+    corenum = 1;
+end
+
+ppobj = [];
+ppprofile = [];
 
 if ispc || ismac || contains(deviceID, 'int')
     
@@ -29,7 +36,8 @@ if ispc || ismac || contains(deviceID, 'int')
 else
     
     ppprofile = parcluster('local');
-    ppprofile.JobStorageLocation = strcat('/tmp/', getenv('USER'), ...
+    ppprofile.JobStorageLocation = ...
+        strcat('/tmp/', getenv('USER'), ...
         '-', getenv('SLURM_JOB_ID'));
     ppobj = parpool(ppprofile, corenum);
     
