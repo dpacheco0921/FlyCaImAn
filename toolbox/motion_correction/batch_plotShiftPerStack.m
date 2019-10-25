@@ -1,8 +1,12 @@
-function batch_plotShiftPerStack(FolderName, FileName, iparams)
-% batch_plotShiftPerStack: plots shifts for timeseries and stitching
+function batch_plotShiftPerStack(...
+    FolderName, FileName, iparams)
+% batch_plotShiftPerStack: plots shifts
+%   for timeseries and stitching across
+%   stacks
 %
 % Usage:
-%   batch_plotShiftPerStack(iparams)
+%   batch_plotShiftPerStack(...
+%       FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: name of folders to load
@@ -34,12 +38,12 @@ function batch_plotShiftPerStack(FolderName, FileName, iparams)
 % Notes:
 %
 % ToDo:
-% add legends
+%   add legends to pull plots and stitch ones
 
 motpar = [];
 motpar.fsuffix = '_rawdata.mat';
 motpar.metsuffix = '_metadata.mat';
-motpar.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+motpar.fo2reject = {'.', '..'};
 motpar.fi2reject = []; 
 motpar.colorm = [1 0 0; 0 0 0; 0 0 1; 0 0.5 0];
 motpar.cgate = 1;
@@ -49,8 +53,14 @@ motpar.stype = 1;
 motpar.screen = 1;
 motpar.oDir = [];
 
-if ~exist('FileName', 'var'); FileName = []; end
-if ~exist('FolderName', 'var'); FolderName = []; end
+if ~exist('FileName', 'var')
+    FileName = [];
+end
+
+if ~exist('FolderName', 'var')
+    FolderName = [];
+end
+
 if ~exist('iparams', 'var'); iparams = []; end
 motpar = loparam_updater(motpar, iparams);
 
@@ -64,7 +74,7 @@ f2run = {f2run.name};
 fprintf('Reading motion from metadata files\n')
 fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
 
-% plot
+% plot motion correction across timepoints
 if motpar.cgate
     for i = 1:numel(f2run)
         
@@ -76,6 +86,7 @@ if motpar.cgate
     end
 end
 
+% plot motion correction across stitched stacks
 if motpar.sgate
     runperfly_st(FolderName, FileName, motpar);
 end
@@ -87,9 +98,11 @@ end
 function runperfolder(FileName, motpar)
 
 % Plot all flies per folder
-[f2plot, ~] = suffixgen(FileName, motpar.fsuffix, motpar.fi2reject);
+[f2plot, ~] = suffixgen(FileName, ...
+    motpar.fsuffix, motpar.fi2reject);
 f2plot = unique(f2plot);
-fprintf(['Plotting n-flies : ', num2str(numel(f2plot)), '\n'])
+fprintf(['Plotting n-flies : ', ...
+    num2str(numel(f2plot)), '\n'])
 
 for fly_i = 1:numel(f2plot)
 	runperfly_mc(f2plot{fly_i}, motpar)
@@ -97,11 +110,13 @@ end
 
 end
 
-function [filename, repnum] = suffixgen(basename, fsuffix, fi2reject)
+function [filename, repnum] = ...
+    suffixgen(basename, fsuffix, fi2reject)
 % suffixgen: select input files
 % 
 % Usage:
-%   [filename, repnum] = suffixgen(basename, fsuffix, fi2reject)
+%   [filename, repnum] = ...
+%       suffixgen(basename, fsuffix, fi2reject)
 %
 % Args:
 %   basename: pattern to select input files
@@ -123,65 +138,6 @@ for FNum = 1:numel(f2run)
     repnum(1, FNum) = str2double(TempS{3});
     
 end
-
-end
-
-function runperfly_st(FolderName, FileName, motpar)
-% runperfly_mc: plot stitching motion per inputfile
-% 
-% Usage:
-%   runperfly_st(motpar)
-%
-% Args:
-%   FolderName: pattern to select input files
-%   FileName: pattern to select input files
-%   motpar: parameters
-
-f2run = rdir(['.', filesep, '*', filesep, '*', motpar.fsuffix]);
-f2run = str2rm(motpar.fi2reject, f2run);
-f2run = str2match(FolderName, f2run);
-f2run = str2match(FileName, f2run);
-f2run = {f2run.name};
-
-if motpar.stype
-    
-    motpar.figH = figure('position', genfigpos(1, 'center', [578 700]));
-    motpar.AxH(1) = subplot(311);
-    motpar.AxH(2) = subplot(312);
-    motpar.AxH(3) = subplot(313);
-    motpar.colorm = jet(numel(f2run));
-    
-end
-
-for i = 1:numel(f2run)
-    
-    fprintf('*')
-    
-    if ~isempty(strfind(motpar.fsuffix, 'prosdata'))
-        
-        load(strrep(f2run{i}, motpar.fsuffix, motpar.metsuffix), 'wDat')
-        
-        if ~motpar.stype
-            
-            motpar.figH = figure('position', genfigpos(1, 'center', [578 700]), ...
-                'Name', strrep(strrep(f2run{f2r}, '_rawdata', ''), ['.', filesep], ''));
-            motpar.AxH(1) = subplot(311);
-            motpar.AxH(2) = subplot(312);
-            motpar.AxH(3) = subplot(313);
-            motpar.colorm(i, :) = [0 0 0];
-            
-        end
-        
-        ploteachtrace_st(wDat.Zstitch.Xshift*wDat.XYZres{2}(1), ...
-            wDat.Zstitch.Yshift*wDat.XYZres{2}(2), ...
-            wDat.Zstitch.Zshift(:, 1)*wDat.XYZres{2}(3), ...
-            motpar.colorm(i, :), motpar.AxH)
-    
-    end
-    
-end
-
-fprintf('Done\n')
 
 end
 
@@ -207,10 +163,12 @@ for f2r = 1:numel(f2run)
         
         load(strrep(f2run{f2r}, motpar.fsuffix, motpar.metsuffix), 'mcDat', 'iDat')
         
+        % read shifts
         if iscell(mcDat.rigid)
             mcDat.rigid = read_mcDat_shifts(mcDat.rigid, 1);
         end
         
+        % generate figure of shifts
         if ~motpar.ctype || f2r == 1
             
             motpar.figH = figure('position', genfigpos(1, 'center', [578 700]), ...
@@ -228,22 +186,51 @@ for f2r = 1:numel(f2run)
             
         end
         
+        % generate figure of correlations to template
+        if isfield(mcDat, 'CM') || f2r == 1
+            
+            motpar.figH_ = figure('position', genfigpos(1, 'center', [500 300]), ...
+                'Name', strrep(strrep(strrep(f2run{f2r}, '_rawdata', ''), ...
+                    ['.', filesep], ''), '.mat', ''));
+            motpar.AxH_(1) = subplot(211);
+            motpar.AxH_(1).Position = [0.13 0.4 0.8 0.55];
+            colorvect = jet(size(mcDat.CM, 1));
+            
+            for i = 1:size(mcDat.CM, 1)
+                str_{i} = ['Iteration ', num2str(i-1)];
+                lineH_(i) = plot(mcDat.CM(i, :), 'Color', ...
+                    colorvect(i, :), 'Parent', ...
+                    motpar.AxH_(1));
+                hold(motpar.AxH_(1), 'on')
+            end
+            motpar.AxH_(1).YLim = [0 1];
+            ylabel(motpar.AxH_(1), ...
+                'Correlation Coef [0-1]')
+            xlabel(motpar.AxH_(1), ...
+                'Time (stacks)');
+            legH = legend(motpar.AxH_(1), lineH_, str_);
+            legH.Position = [0.75 0.08 0.2 0.15];
+            
+        end
+        
         if ~isempty(mcDat.rigids)
             
             if iscell(mcDat.rigids)
                 mcDat.rigids = mcDat.rigids{1};
             end
             
-            ploteachtrace_mc(mcDat.rigids(1, :)*iDat.MetaData{3}(1), ...
+            lineH(1) = ploteachtrace_mc(mcDat.rigids(1, :)*iDat.MetaData{3}(1), ...
                 mcDat.rigids(2, :)*iDat.MetaData{3}(2), ...
                 mcDat.rigids(3, :)*iDat.MetaData{3}(3), ...
-                motpar.colorm(2, :), motpar.AxH)
+                motpar.colorm(2, :), motpar.AxH);
         end
         
-        ploteachtrace_mc(mcDat.rigid(1, :)*iDat.MetaData{3}(1), ...
+        lineH(2) = ploteachtrace_mc(mcDat.rigid(1, :)*iDat.MetaData{3}(1), ...
             mcDat.rigid(2, :)*iDat.MetaData{3}(2), ...
             mcDat.rigid(3, :)*iDat.MetaData{3}(3), ...
-            motpar.colorm(1, :), motpar.AxH)
+            motpar.colorm(1, :), motpar.AxH);
+        
+        legend(motpar.AxH(1), lineH, {'Raw Motion', 'Motion Corrected'})
     
     elseif ~isempty(strfind(motpar.fsuffix, 'prosdata'))
         
@@ -312,12 +299,21 @@ for f2r = 1:numel(f2run)
             mkdir(motpar.oDir)
         end
         
-        figname = strrep(strrep(f2run{f2r}, motpar.fsuffix, ''), ['.', filesep], '');
+        figname = strrep(strrep(f2run{f2r}, motpar.fsuffix, ''), ...
+            ['.', filesep], '');
         figformat = [0 0 0 0 0 0 0 0 1];
         resolution_ = '-r300';
         
-        savefig_int(motpar.figH, motpar.oDir, figname, figformat, resolution_);
+        savefig_int(motpar.figH, motpar.oDir, ...
+            [figname, '_shifts'], figformat, resolution_);
         close(motpar.figH)
+        
+        if isfield(motpar, 'figH_')
+            figEdit(motpar.AxH_, motpar.figH_);
+            savefig_int(motpar.figH_, motpar.oDir, ...
+                [figname, '_CM'], figformat, resolution_);
+            close(motpar.figH_)            
+        end
         
     end
     
@@ -327,11 +323,16 @@ fprintf('\n')
 
 end
 
-function ploteachtrace_mc(shifts_x, shifts_y, shifts_z, intCorvect, axH)
-% ploteachtrace_st: plots timeseries shifts_x, shifts_y, shifts_z on axes axH
+function lineH = ploteachtrace_mc(...
+    shifts_x, shifts_y, shifts_z, ...
+    intCorvect, axH)
+% ploteachtrace_st: plots timeseries 
+%   shifts_x, shifts_y, shifts_z on axes axH
 % 
 % Usage:
-%   ploteachtrace_st(shifts_x, shifts_y, shifts_z, intCorvect, ax)
+%   ploteachtrace_mc(...
+%      shifts_x, shifts_y, shifts_z, ...
+%      intCorvect, axH)
 %
 % Args:
 %   shifts_*: shifts on X, Y or Z axis
@@ -343,21 +344,89 @@ axS = {'X', 'Y', 'Z'};
 
 for i = 1:numel(axH)
     
-    eval(['plot(', ivect{i},', ''color'', intCorvect, ''linewidth'', 2, ''Parent'', axH(i));']);
+    eval(['lineH = plot(', ivect{i}, ...
+        ', ''color'', intCorvect, ''linewidth'', 2, ''Parent'', axH(i));']);
     hold(axH(i), 'on');
-    title(axH(i), ['displacements along ', axS{i}]);
-    xlabel(axH(i), 'time (stacks)');
-    ylabel(axH(i), 'motion um')
+    ylabel(axH(i), ['motion um (', axS{i},')'])
+    
+    if i == numel(axH)
+        xlabel(axH(i), 'time (stacks)');
+    end
     
 end
 
 end
 
-function ploteachtrace_st(shifts_x, shifts_y, shifts_z, intCorvect, axH)
-% ploteachtrace_st: plots stitching shifts_x, shifts_y, shifts_z on axes axH
+function runperfly_st(FolderName, FileName, motpar)
+% runperfly_mc: plot stitching motion per inputfile
 % 
 % Usage:
-%   ploteachtrace_st(shifts_x, shifts_y, shifts_z, intCorvect, ax)
+%   runperfly_st(FolderName, FileName, motpar)
+%
+% Args:
+%   FolderName: pattern to select input files
+%   FileName: pattern to select input files
+%   motpar: parameters
+
+f2run = rdir(['.', filesep, '*', ...
+    filesep, '*', motpar.fsuffix]);
+f2run = str2rm(motpar.fi2reject, f2run);
+f2run = str2match(FolderName, f2run);
+f2run = str2match(FileName, f2run);
+f2run = {f2run.name};
+
+if motpar.stype
+    
+    motpar.figH = figure('position', genfigpos(1, 'center', [578 700]));
+    motpar.AxH(1) = subplot(311);
+    motpar.AxH(2) = subplot(312);
+    motpar.AxH(3) = subplot(313);
+    motpar.colorm = jet(numel(f2run));
+    
+end
+
+for i = 1:numel(f2run)
+    
+    fprintf('*')
+    
+    if ~isempty(strfind(motpar.fsuffix, 'prosdata'))
+        
+        load(strrep(f2run{i}, motpar.fsuffix, motpar.metsuffix), 'wDat')
+        
+        if ~motpar.stype
+            
+            motpar.figH = figure('position', genfigpos(1, 'center', [578 700]), ...
+                'Name', strrep(strrep(f2run{f2r}, '_rawdata', ''), ['.', filesep], ''));
+            motpar.AxH(1) = subplot(311);
+            motpar.AxH(2) = subplot(312);
+            motpar.AxH(3) = subplot(313);
+            motpar.colorm(i, :) = [0 0 0];
+            
+        end
+        
+        ploteachtrace_st(wDat.Zstitch.Xshift*wDat.XYZres{2}(1), ...
+            wDat.Zstitch.Yshift*wDat.XYZres{2}(2), ...
+            wDat.Zstitch.Zshift(:, 1)*wDat.XYZres{2}(3), ...
+            motpar.colorm(i, :), motpar.AxH)
+    
+    end
+    
+end
+
+fprintf('Done\n')
+
+end
+
+function lineH = ploteachtrace_st(...
+    shifts_x, shifts_y, shifts_z, ...
+    intCorvect, axH)
+% ploteachtrace_st: plots stitching
+%   shifts_x, shifts_y, shifts_z on axes axH
+% 
+% Usage:
+%   ploteachtrace_st(...
+%      shifts_x, shifts_y, shifts_z, ...
+%      intCorvect, axH)
 %
 % Args:
 %   shifts_*: shifts on X, Y or Z axis
@@ -369,12 +438,15 @@ axS = {'X', 'Y', 'Z'};
 
 for i = 1:numel(axH)
     
-    eval(['plot(', ivect{i},', ''color'', intCorvect, ''linewidth'', 2, ''Parent'', axH(i));']);
+    eval(['lineH = plot(', ivect{i}, ...
+        ', ''color'', intCorvect, ''linewidth'', 2, ''Parent'', axH(i));']);
     hold(axH(i), 'on');
-    title(axH(i), ['displacements along ', axS{i}]);
-    xlabel(axH(i), 'Z (stacks)');
-    ylabel(axH(i), 'motion um')
+    ylabel(axH(i), ['motion um (', axS{i},')'])
     
+    if i == numel(axH)
+        xlabel(axH(i), 'Z (stacks)');    
+    end
+   
 end
 
 end

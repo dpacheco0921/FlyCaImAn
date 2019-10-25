@@ -72,7 +72,7 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %       %%%%%%%%%%%% extra editing %%%%%%%%%%%%
 %       (shift_ths: max cumulative motion or delta from fram-to-frame (assummes smoothness))
 %           (default, [18, 0.7])
-%       (span: number of frames to smooth)
+%       (span: number of timepoints (frames | volumes) to smooth)
 %           (penalizes fast motion, assumes it is mostly slow motion == drift))
 %           (default, 10)
 %       (sgate: type of editing)
@@ -371,21 +371,34 @@ if iDat.MotCorr == 0 || pMC.redo == 1
 
             % shifts_g = struct('shifts',cell(T,1),'shifts_up',cell(T,1),'diff',cell(T,1));
 
-            % Edit shifts
+            % Edit shifts (use raw, smooth, or zero shifts)
             igate = 0;
-            if pMC.sgate(iter_i) == 1 % smooth shift and zero it if the delta is too big
+            
+            if pMC.sgate(iter_i) == 1
+                
+                % smooth shift and zero it if the delta is too big
                 fprintf('\n smoothing and zeroing if necessary\n')
                 [shifts_r, shifts_s, igate] = ...
                     checkshift(shifts_pre, pMC.span, pMC.shift_ths);
-            elseif pMC.sgate(iter_i) == 2 % just smooth shift
+                
+            elseif pMC.sgate(iter_i) == 2
+                
+                % just smooth shift
                 fprintf('\n smoothing\n');
                 shifts_r = smoothshift(shifts_pre, [], pMC.span);
-            elseif pMC.sgate(iter_i) == 3 % just zero shift
+                
+            elseif pMC.sgate(iter_i) == 3
+                
+                % just zero shift
                 fprintf('\n zeroing\n')
                 shifts_r = zeroshift(shifts_pre);
-            else % use raw
+                
+            else
+                
+                % use raw
                 fprintf('\n not editing\n');
                 shifts_r = shifts_pre;
+                
             end
 
             if ~exist('shifts_s', 'var')
@@ -613,6 +626,14 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     RedCha = [];
 
     Data = [];
+    
+    % plot corrections
+    if pMC.plot_df_flag ~= 0
+        motpar.oDir = pMC.oDir;
+        batch_plotShiftPerStack(...
+            [], f2run, motpar);
+    end
+        
     fprintf('Done\n')
 
 else
