@@ -66,7 +66,8 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, 1)
 %       (oDir: target directory to save figures)
 %           (default, [])
-%
+%       (debug_flag: flag to debug stitching of a particular stack)
+%           (default, [])
 % Notes:
 % Interpreting max correlated planes:
 %   For all z resolution: high correlation means contiguous plane.
@@ -91,7 +92,7 @@ cspfa.maxshift = 8;
 cspfa.maxZshift = 0.3;
 cspfa.maxshift_xy = [15 15];
 cspfa.direction = 'invert';
-cspfa.phaseflag = 1;
+cspfa.phaseflag = 0;
 cspfa.planeshift = 0;
 cspfa.stack2rem = [];
 cspfa.zend_man = [];
@@ -100,6 +101,7 @@ cspfa.plot_stitch_flag = 1;
 cspfa.range = [0 1];
 cspfa.refcha = 1;
 cspfa.oDir = [pwd, filesep, 'stitch'];
+cspfa.debug_flag = 0;
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -344,7 +346,7 @@ wDat.MotCor.sYshift = [];
 shifts_align = [];
 
 for rep_i = 1:numel(reps)
-    
+        
     % Load files
     fprintf('#')
     load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
@@ -452,12 +454,23 @@ for rep_i = 1:numel(reps)
         
         % do motion correction
         [~, shifts_align, ~] = normcorre(floatIm, options_align, refIm);
-        clear floatIm refIm
-        
+             
         shifts_align = shifts_align(1);
         shifts_align.shifts(1, 1, 1, 3) = 0;
         shifts_align.shifts_up(1, 1, 1, 3) = 0;
+        
+        if sum(ismember(cspfa.debug_flag, reps(rep_i)))
+            keyboard
+        end
+        
         shifts_pr(rep_i-1) = shifts_align;       
+                
+        if sum(ismember(cspfa.debug_flag, reps(rep_i)))
+            plot_pair_of_shifted_planes(...
+                floatIm, refIm, shifts_align(1), options_align)
+        end
+        
+        clear floatIm refIm
         
         % Align Red- and Green-ChaMean
         % update 3rd dimention
@@ -547,6 +560,49 @@ if cspfa.plot_stitch_flag
     plot_stitch_results(wDat, fname, cspfa.oDir, cspfa)
     
 end
+
+end
+
+function plot_pair_of_shifted_planes(...
+    floatIm, refIm, shifts_align, options_align)
+% plot_pair_of_shifted_planes: function that plots shifted planes relative
+%   to reference plane (useful for debuging)
+%
+% Usage:
+%   plot_pair_of_shifted_planes(...
+%       floatIm, refIm, shifts_align, options_align)
+%
+% Args:
+%   floatIm: floating image
+%   refIm: reference image
+%   shifts_align: X, Y, Z shifts
+%   options_align: NoRMCorre params
+
+ip.range = [0 1];
+ip.refcha = 1;
+
+% 1) plot overlay of edges
+floatIm(isnan(floatIm)) = min(floatIm(:));
+floatIm = apply_shifts(floatIm, shifts_align, options_align);
+
+im = double(floatIm);
+im = im - prctile(im(:), 1);
+im = im/prctile(im(:), 99);
+
+im_ = double(refIm);
+im_ = im_ - prctile(im_(:), 1);
+im_ = im_/prctile(im_(:), 99);
+
+im_1 = mat2gray(im(:, :, 1), ip.range);
+im_2 = mat2gray(im_(:, :, 1), ip.range);
+
+figH = figure();
+axH = subplot(1, 1, 1);
+C = imfuse(im_1, im_2, ...
+   'falsecolor', 'Scaling', ...
+   'joint', 'ColorChannels', ...
+   [1 2 0]);
+imshow(C, 'Parent', axH)
 
 end
 
