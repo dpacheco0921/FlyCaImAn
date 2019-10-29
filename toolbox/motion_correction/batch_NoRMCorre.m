@@ -90,20 +90,30 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (default, 1000)
 %       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
 %       (shift_f_flag: substract the minimun F value)
+%       %%%%%%%%%%%% smooth data before correction %%%%%%%%%%%%
+%       (smooth_sig: std of gaussian kernel)
+%           (default, [])
+%       (smooth_siz: size of kernel)
+%           (default, [])
 %
 % Notes:
 % This function uses NoRMCorre (https://github.com/flatironinstitute/NoRMCorre)
 % see NoRMCorre functions: NoRMCorreSetParms, normcorre_batch
+%
 % 20191015:
 %   1) added option to shift fluorescence distribution for both
-%   channels (substract the min, so all values are positive)
+%       channels (substract the min, so all values are positive)
 %   2) added option to find saturated frames defined by a threshold
-%   fluorescence intensity 'f_threshold'. This frames are replaced by the
-%   nearby frame/volume or by the mean of preceding and following frames/volumes
+%       fluorescence intensity 'f_threshold'. This frames are replaced by the
+%       nearby frame/volume or by the mean of preceding and following frames/volumes
+% 20191028:
+%   1) it plots shifts and correlation to template
+%   2) option to provide smoothed data to estimate shifts (for low SNR stacks)
 %
 % ToDo:
 % add optical flow
 % re-run old correction readextfile_flag/readextfile_dir
+% reduce memory load
 
 % default params
 pMC = [];
@@ -145,6 +155,8 @@ pMC.PMT_sat_flag = 0;
 pMC.PMT_cha = 1;
 pMC.f_threshold = 10;
 pMC.shift_f_flag = 0;
+pMC.smooth_sig = [];
+pMC.smooth_siz = [];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -178,6 +190,13 @@ for i = 1:numel(f2run)
     cd(f2run{i});
     runperfolder(FileName, pMC);
     cd(pMC.cDir)
+    
+    % plot corrections
+    if pMC.plot_df_flag ~= 0
+        motpar.oDir = pMC.oDir;
+        batch_plot_shifts_over_time(...
+            f2run{i}, FileName, motpar);
+    end
     
 end
 
@@ -357,10 +376,18 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             % shifts: [height, width, depth]
             
             try
-                eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
-                    'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
+                if ~isempty(pMC.smooth_siz) && ...
+                        isempty(pMC.smooth_sig)
+                    eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
+                        'normcorre_batch(imblur(', cha_str{pMC.refcha}, ...
+                        ', pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
+                else
+                    eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
+                        'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
+                end
             catch
-                fprintf(['normcorre_batch failed at iteration ', num2str(iter_i), '\n'])
+                fprintf(['normcorre_batch failed', ...
+                    ' at iteration ', num2str(iter_i), '\n'])
             end
             
             % correlation with the mean (CM):
@@ -626,14 +653,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     RedCha = [];
 
     Data = [];
-    
-    % plot corrections
-    if pMC.plot_df_flag ~= 0
-        motpar.oDir = pMC.oDir;
-        batch_plotShiftPerStack(...
-            [], f2run, motpar);
-    end
-        
+            
     fprintf('Done\n')
 
 else
@@ -725,7 +745,8 @@ CM = corr(templateIm, floatIm)';
 end
 
 function crisp_idx = get_crisp_idx(Y)
-% get_crisp_idx: calculate crispness index as in (http://dx.doi.org/10.1016/j.jneumeth.2017.07.031)
+% get_crisp_idx: calculate crispness index as in
+%   (http://dx.doi.org/10.1016/j.jneumeth.2017.07.031)
 %
 % Usage:
 %   crisp_idx = get_crisp_idx(Y)
