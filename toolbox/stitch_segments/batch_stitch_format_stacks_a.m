@@ -466,8 +466,13 @@ for rep_i = 1:numel(reps)
         shifts_pr(rep_i-1) = shifts_align;       
                 
         if sum(ismember(cspfa.debug_flag, reps(rep_i)))
+            
+            % Plot shifts (use to vizualize correction along the Z axis)
+            %   if change is not as expected manually edit
+            %   'shifts_align.shifts' [X, Y, Z] [rows, columns, planes]
             plot_pair_of_shifted_planes(...
                 floatIm, refIm, shifts_align(1), options_align)
+            
         end
         
         clear floatIm refIm
@@ -565,7 +570,8 @@ end
 
 function plot_pair_of_shifted_planes(...
     floatIm, refIm, shifts_align, options_align)
-% plot_pair_of_shifted_planes: function that plots shifted planes relative
+% plot_pair_of_shifted_planes: function that 
+%   plots shifted planes relative
 %   to reference plane (useful for debuging)
 %
 % Usage:
