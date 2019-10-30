@@ -15,13 +15,19 @@ function [LN_pcor, LN_filter_mean, ...
 %       rperm_tIdx, ifilter, filterebound)
 %
 % Args:
-%   train_idx: indexes of train timepoints [1, T], train arragements, T: time
+%   train_idx: indexes of train timepoints [1, T],
+%       train arragements, T: time
 %   Y: time traces [1, T]
-%   stimM: stimuli to use for prediction (at different lags) [T, m], m: number of weights
-%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
-%   rperm_tIdx: set of permutations to apply to Y [n, T], n: permutations
-%   ifilter: input filter to use for prediction (LN_pcor) [m, 1], m: number of weights
-%   filterebound: filter error bounds (get filter for shuffle data, only collects mean, median and sd)
+%   stimM: stimuli to use for prediction (at different lags)
+%       [T, m], m: number of weights
+%   stimSiz: stimuli size
+%       (in case stimM is composed of many stimuli types)
+%   rperm_tIdx: set of permutations to apply to Y [n, T],
+%       n: permutations
+%   ifilter: input filter to use for prediction (LN_pcor) [m, 1],
+%       m: number of weights
+%   filterebound: filter error bounds 
+%       (get filter for shuffle data, only collects mean, median and sd)
 %
 % Outputs:
 %   LN_pcor: pearson correlation predicted vs raw for test indecex
@@ -29,7 +35,10 @@ function [LN_pcor, LN_filter_mean, ...
 %   LN_filter_med: median estimated filter
 %   LN_filter_sd: std of estimated filters
 
-if ~exist('filterebound', 'var') || isempty(filterebound); filterebound = 0; end
+if ~exist('filterebound', 'var') || ...
+        isempty(filterebound)
+    filterebound = 0;
+end
 
 T = size(Y, 2);
 
@@ -58,15 +67,20 @@ LN_filter_shuffle = zeros(stimSiz, perm_n);
 % estimate filters and calculate LN_pcor of shuffle to input filter
 for i = 1:perm_n
     
+    % get filter
     if filterebound
         LN_filter_shuffle(:, i) = ...
-            runRidgeOnly(zs_stim_train, zs_Y_shuffle_train(:, i), stimSiz, 1);
+            runRidgeOnly(zs_stim_train, ...
+            zs_Y_shuffle_train(:, i), stimSiz, 1);
     end
     
-    LN_pcor(i) = corr(zs_Y_shuffle_test(:, i), (zs_stim_test*ifilter));
+    % get correlation coefficient
+    LN_pcor(i) = corr(zs_Y_shuffle_test(:, i), ...
+        (zs_stim_test*ifilter));
     
 end
 
+% collect filter stats
 LN_filter_mean = mean(LN_filter_shuffle, 2);
 LN_filter_med = prctile(LN_filter_shuffle, 50, 2);
 LN_filter_sd = std(LN_filter_shuffle, [], 2);

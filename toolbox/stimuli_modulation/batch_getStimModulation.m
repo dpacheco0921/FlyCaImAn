@@ -253,7 +253,7 @@ end
 
 % 5) Build matrix of stimuli used for model with all lags
 
-% stimuli to use
+% collect stimuli to use
 StimE_M = [];
 
 if stim_ntype ~= 1
@@ -266,7 +266,7 @@ else
     StimE(1, :) = sMod.stim;
 end
 
-% build matrix with different lags
+% build matrix with different lags (to match filter length)
 for i = 1:size(StimE, 1)
     [StimE_temp{i, 1}, ~] = ...
         buffer(StimE(i,:), filterlength_tp, filterlength_tp - 1);
@@ -285,8 +285,8 @@ display(['Variable name to use: ', num2str(pSM.varname)])
 stim_trial_idx = getTrialVect(wDat, pSM.stim2use, ...
     pSM.customtrial_init, pSM.customtrial_end, pSM.trials2use);
 
-% get the minimum number of trials of pSM.stim2use to determine number of
-% trials for training data
+% get the minimum number of trials of pSM.stim2use
+%   to determine number of trials for training data
 if exist('stim_count', 'var')
     
     min_ntrial = min(stim_count(pSM.stim2use));
@@ -295,8 +295,8 @@ if exist('stim_count', 'var')
     % update sMod.tidx2use
     idx2change = unique(stim_trial_idx, 'stable');
     idx2change(idx2change == 0) = [];
-    stim_trial_idx_b = changem(stim_trial_idx, 1:numel(idx2change), ...
-        idx2change);
+    stim_trial_idx_b = changem(stim_trial_idx, ...
+        1:numel(idx2change), idx2change);
     
     sMod.tidx2use = find(stim_trial_idx ~= 0 & ...
         stim_trial_idx_b <= min_ntrial);
@@ -345,7 +345,7 @@ stim_bin = sMod.stim(1, sMod.tidx2use);
 
 stocf(t0, 'Time consumed so far: ')
 
-% 6) using LN model to fit the traces, 
+% 9) using LN model to fit the traces, 
 %   find the pearson correlation to modeled
 %   trace and bootstrap the pearson correlation
 
@@ -364,7 +364,8 @@ if ~tgate || pSM.redo(2)
     
     % calculate filters and pearson correlations for raw data
     [pcor_raw, lFilter] = runridgeraw_chunks(...
-        train_idx, catrace_in, stim_in, stimSiz, K);
+        train_idx, catrace_in, stim_in, stimSiz, ...
+        pSM.chunksiz, pSM.corenum);
     save([strrep(filename, ...
         [pSM.fsuffix, '.mat'], ''), ...
         '_temp.mat'], 'pcor_raw', 'lFilter', '-v7.3')
@@ -379,29 +380,33 @@ end
 
 stocf(t0, 'Time consumed so far: ')
 
+% name of temporary file
+filename_temp = [strrep(filename, [pSM.fsuffix, '.mat'], ''), ...
+    '_temp.mat'];
+
 % Run (as) Random Shuffle
 if pSM.type2run(1)
+    
     iFilter = squeeze(mean(lFilter, 2));
     
     fprintf('Running Phase # 1: Random shuffle\n'); 
     lgate = 1;
     
     if tgate
-        vList = whos('-file', ...
-            [strrep(filename, [pSM.fsuffix, '.mat'], ''), ...
-            '_temp.mat']);
+        vList = whos('-file', filename_temp);
         lgate = ~sum(contains({vList.name}, 'pcor_as'));
     end
     
-    [pcor_as, lFilter_as_mean, lFilter_as_med, lFilter_as_sd] = ...
-        runridgeshuffle(train_idx(1, :), catrace_in, stim_in, stimSiz, ...
-        iFilter, lgate, stim_bin, pSM.redo(3), filename, pSM.febgate);
-    %[pcor_as, lFilter_as_mean, lFilter_as_med, lFilter_as_sd] = ...
-    %    runridgeshuffle(train_idx, catrace_in, stim_in, ...
-    %     stimSiz, iFilter, lgate, stim_bin, redo)
+    [pcor_as, lFilter_as_mean, ...
+        lFilter_as_med, lFilter_as_sd] = ...
+        runridgeshuffle(train_idx(1, :), ...
+        catrace_in, stim_in, stimSiz, ...
+        iFilter, lgate, stim_bin, pSM.redo(3), ...
+        filename_temp, pSM.febgate, ...
+        pSM.chunksiz, pSM.corenum, pSM.btn);
+    % edit runridgeshuffle
 
-    save([strrep(filename, [pSM.fsuffix, '.mat'], ''), '_temp.mat'], ...
-        'pcor_as', 'lFilter_as_mean', ...
+    save(filename_temp, 'pcor_as', 'lFilter_as_mean', ...
         'lFilter_as_med', 'lFilter_as_sd', '-append')
     
 end
@@ -409,53 +414,57 @@ stocf(t0, 'Time consumed so far: ')
 
 % Run (af) Amplitude Adjusted Fourier Transform
 if pSM.type2run(2)
+    
     iFilter = squeeze(mean(lFilter, 2));
     
     fprintf('Running Phase # 2: Random Phases\n');
     lgate = 1;
     
     if tgate
-        vList = whos('-file', ...
-            [strrep(filename, [pSM.fsuffix, '.mat'], ''), ...
-            '_temp.mat']);
+        vList = whos('-file', filename_temp);
         lgate = ~sum(contains({vList.name}, 'pcor_afs'));
     end
     
     [pcor_afs, lFilter_afs_mean, ...
         lFilter_afs_med, lFilter_afs_sd] = ...
         runridgeshuffle_af(train_idx(1, :), ...
-        catrace_in, stim_in, stimSiz, ...
-        iFilter, lgate, stim_bin, ...
-        pSM.redo(3), filename, pSM.febgate);
-    % [pcor_afs, lFilter_afs_mean, lFilter_afs_med, lFilter_afs_sd] = ...
-    % runridgeshuffle_af(train_idx, catrace_in, stim_in, stimSiz, iFilter, lgate, stim_bin, redo)
+        catrace_in, stim_in, stimSiz, iFilter, ...
+        lgate, stim_bin, pSM.redo(3), filename_temp, ...
+        pSM.febgate, pSM.chunksiz, pSM.corenum, pSM.btn);
+    % edit runridgeshuffle_af
 
-    save([strrep(filename, [pSM.fsuffix, '.mat'], ''), '_temp.mat'], ...
-        'pcor_afs', 'lFilter_afs_mean', 'lFilter_afs_med', 'lFilter_afs_sd', '-append')
+    save(filename_temp, 'pcor_afs', 'lFilter_afs_mean', ...
+        'lFilter_afs_med', 'lFilter_afs_sd', '-append')
+    
 end
 stocf(t0, 'Time consumed so far: ')
 
 % Run (cs) Random chunk Shuffle
 if pSM.type2run(3)
+    
     iFilter = squeeze(mean(lFilter, 2));
 
     fprintf('Running Phase # 3: Random shuffle in chunks\n')
     lgate = 1;
     
     if tgate
-        vList = whos('-file', [strrep(filename, [pSM.fsuffix, '.mat'], ''), '_temp.mat']);
+        vList = whos('-file', filename_temp);
         lgate = ~sum(contains({vList.name}, 'pcor_cs'));
     end
     
-    [pcor_cs, lFilter_cs_mean, lFilter_cs_med, lFilter_cs_sd] = ...
-        runridgeshuffle_chunks(train_idx(1, :), catrace_in, stim_in, ...
-        stimSiz, iFilter, lgate, stim_bin, pSM.redo(3), filename, ...
-        pSM.febgate, chunk_minsize, chunk_splitn);
-    % [pcor_cs, lFilter_cs_mean, lFilter_cs_med, lFilter_cs_sd] = ...
-    % runridgeshuffle_chunks(train_idx, catrace_in, stim_in, stimSiz, iFilter, lgate, stim_bin, redo)
-
-    save([strrep(filename, [pSM.fsuffix, '.mat'], ''), '_temp.mat'], ...
-        'pcor_cs', 'lFilter_cs_mean', 'lFilter_cs_med', 'lFilter_cs_sd', '-append')
+    [pcor_cs, lFilter_cs_mean, ...
+        lFilter_cs_med, lFilter_cs_sd] = ...
+        runridgeshuffle_chunks(train_idx(1, :), ...
+        catrace_in, stim_in, stimSiz, iFilter, ...
+        lgate, stim_bin, pSM.redo(3), filename_temp, ...
+        pSM.febgate, chunk_minsize, chunk_splitn, ...
+        pSM.chunksiz, pSM.corenum, pSM.btn);
+    % edit runridgeshuffle_chunks
+    
+    save(filename_temp, 'pcor_cs', ...
+        'lFilter_cs_mean', 'lFilter_cs_med', ...
+        'lFilter_cs_sd', '-append')
+    
 end
 stocf(t0, 'Time consumed so far: ')
 
@@ -473,21 +482,27 @@ sMod.CC_raw = pcor_raw;
 sMod.lFilter = lFilter;
 
 if pSM.type2run(1)
-    sMod.CC_as = pcor_as; sMod.lFilter_as_mean = lFilter_as_mean; 
-    sMod.lFilter_as_med = lFilter_as_med; sMod.lFilter_as_sd = lFilter_as_sd; 
+    sMod.CC_as = pcor_as;
+    sMod.lFilter_as_mean = lFilter_as_mean; 
+    sMod.lFilter_as_med = lFilter_as_med;
+    sMod.lFilter_as_sd = lFilter_as_sd; 
 end
 
 if pSM.type2run(2)
-    sMod.CC_afs = pcor_afs; sMod.lFilter_afs_mean = lFilter_afs_mean; 
-    sMod.lFilter_afs_med = lFilter_afs_med; sMod.lFilter_afs_sd = lFilter_afs_sd;
+    sMod.CC_afs = pcor_afs;
+    sMod.lFilter_afs_mean = lFilter_afs_mean; 
+    sMod.lFilter_afs_med = lFilter_afs_med;
+    sMod.lFilter_afs_sd = lFilter_afs_sd;
 end
 
 if pSM.type2run(3)
-    sMod.CC_cs = pcor_cs; sMod.lFilter_cs_mean = lFilter_cs_mean; 
-    sMod.lFilter_cs_med = lFilter_cs_med; sMod.lFilter_cs_sd = lFilter_cs_sd;
+    sMod.CC_cs = pcor_cs;
+    sMod.lFilter_cs_mean = lFilter_cs_mean; 
+    sMod.lFilter_cs_med = lFilter_cs_med;
+    sMod.lFilter_cs_sd = lFilter_cs_sd;
 end 
 
-%sMod.snr = std(CaPred, [], 2).^2./std(CaRaw - CaPred, [], 2).^2;
+% sMod.snr = std(CaPred, [], 2).^2./std(CaRaw - CaPred, [], 2).^2;
 
 % save variable with the custom name
 eval([pSM.varname, ' = sMod']);
@@ -495,63 +510,61 @@ save(filename, pSM.varname, '-append')
 
 end
 
-function rperm_tIdx = genShuffleTime(timepoints_n, perm_n, stim)
-% rperm_tIdx = genShuffleTime(timepoints_n, perm_n)
-% timepoints_n: # of timepoints
-% perm_n: # of permutations
-% stim: vector with stimuli information
-% Permutes indexces, excluding the arragements that are the same as the
-% original or have similar stim structure as stim
-
-if ~exist('stim', 'var') || isempty(stim); stim = []; end
-
-rng('shuffle'); rperm_tIdx = zeros(perm_n, timepoints_n);
-
-for s_i = 1:perm_n 
-    i_gate = 0;
-    while i_gate == 0
-        rperm_tIdx(s_i, :) = randperm(timepoints_n);
-        if ~isempty(stim)
-            if ~ismember(rperm_tIdx(s_i, :), 1:timepoints_n, 'rows') && ~ismember(stim(s_i), stim, 'rows')
-                i_gate = 1; 
-            end
-        else
-            if ~ismember(rperm_tIdx(s_i, :), 1:timepoints_n, 'rows')
-                i_gate = 1; 
-            end
-        end
-    end
-end
-
-end
-
 function [pcor_raw, lFilter] = runridgeraw_chunks(...
-    train_idx, catrace_in, stim_in, stimSiz, K)
+    train_idx, catrace_in, stim_in, stimSiz, ...
+    chunksiz, corenum)
+% runridgeraw_chunks: Run Ridge regression to all 
+%   the possible combinations of train and test data
+%
+% Usage:
+%   [pcor_raw, lFilter] = runridgeraw_chunks(...
+%       train_idx, catrace_in, stim_in, stimSiz, K, ...
+%       chunksiz, corenum)
+%
+% Args:
+%   train_idx: indexes of train timepoints [n, T]
+%       n: different train arragaments, T: time.
+%   catrace_in: time traces [n, T]
+%   stim_in: stimuli to use for prediction (at different lags) [T, m]
+%       m: number of weights.
+%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
+%   chunksiz: number of chunks for parpool
+%   corenum: number of cores
+%
+% Outputs:
+%   pcor_raw: pearson correlation predicted vs raw for test indeces
+%   lFilter: filter per train arragement
 
-global pSM
+siz1 = size(catrace_in, 1);
 
 [~, ~, chunk_idx] = ppool_makechunks(...
-    pSM.chunksiz, pSM.corenum, K);
-chunksiz = pSM.chunksiz;
+    chunksiz, corenum, siz1);
 
 for i = 1:numel(chunk_idx)
+    
     batch2run = chunk_idx{i};
     
     parfor ii = 1:numel(batch2run)
         
-        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii) + chunksiz - 1, K));
-        k = 1; t_lFilter = []; t_pcor_raw = [];
+        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii) ...
+            + chunksiz - 1, siz1));
+        k = 1;
+        t_lFilter = [];
+        t_pcor_raw = [];
         
         for iii = roi_i_l{ii, 1}
             
-            if i == 1 && ii == 1 && k == 1; t0_ = stic; end
+            if i == 1 && ii == 1 && k == 1
+                t0_ = stic;
+            end
             
             [t_pcor_raw(k, :), t_lFilter(:, :, k)] = ...
                 getsMod_ridgeperiter_raw(train_idx, ...
                 catrace_in(iii, :), stim_in, stimSiz);
 
             if i == 1 && ii == 1 && k == 1
-                fprintf(['time per roi ', num2str(stoc(t0_)), ' seconds\n']); 
+                fprintf(['time per roi ', ...
+                    num2str(stoc(t0_)), ' seconds\n']); 
             end
             
             k = k + 1;
@@ -579,17 +592,56 @@ end
 
 end
 
-function [pcor_cs, lFilter_cs_mean, lFilter_cs_med, lFilter_cs_sd] = ...
-    runridgeshuffle_chunks(train_idx, catrace_in, stim_in, stimSiz, ...
-    iFilter, lgate, stim_bin, redo, filename, filterebound, ...
-    chunk_minsize, chunk_splitn)
+function [pcor_cs, lFilter_cs_mean, ...
+    lFilter_cs_med, lFilter_cs_sd] = ...
+    runridgeshuffle_chunks(train_idx, ...
+    catrace_in, stim_in, stimSiz, ...
+    iFilter, lgate, stim_bin, redo, ...
+    filename, filterebound, chunk_minsize, ...
+    chunk_splitn, chunksiz, corenum, btn)
+% runridgeshuffle_chunks: Run Ridge regression to all 
+%   the possible combinations of train and test data
+%
+% Usage:
+%   [pcor_cs, lFilter_cs_mean, ...
+%       lFilter_cs_med, lFilter_cs_sd] = ...
+%       runridgeshuffle_chunks(train_idx, ...
+%       catrace_in, stim_in, stimSiz, ...
+%       iFilter, lgate, stim_bin, redo, ...
+%       filename, filterebound, ...
+%       chunk_minsize, chunk_splitn)
+%
+% Args:
+%   train_idx: indexes of train timepoints [n, T]
+%       n: different train arragaments, T: time.
+%   catrace_in: time traces [n, T]
+%   stim_in: stimuli to use for prediction (at different lags) [T, m]
+%       m: number of weights.
+%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
+%   iFilter: input filter to use for prediction (LN_pcor) [m, 1],
+%       m: number of weights
+%   lgate: flag to generate permuted data
+%   stim_bin: binary vector of stimuli
+%   redo: redo flag
+%   filename: name of temporary file to generate
+%   filterebound: filter error bounds 
+%       (get filter for shuffle data, only collects mean, median and sd)
+%   chunk_minsize: minimun size of time chunk
+%   chunk_splitn: number of times to split catrace_in in the time domain
+%   chunksiz: number of chunks for parpool
+%   corenum: number of cores
+%   btn: number of permutations
+%
+% Outputs:
+%   pcor_cs: pearson correlation predicted vs raw for test indecex
+%   lFilter_cs_mean: mean estimated filter
+%   lFilter_cs_med: median estimated filter
+%   lFilter_cs_sd: std of estimated filters
+%
+% See also getsMod_ridgeperiter_ashuffle
 
-global pSM
-
-K = size(catrace_in, 1);
-dataObj = matfile([strrep(filename, ...
-    [pSM.fsuffix, '.mat'], ''), '_temp.mat'], ...
-    'Writable', true);
+siz1 = size(catrace_in, 1);
+dataObj = matfile(filename, 'Writable', true);
 
 if lgate || redo
     % initialize parameters
@@ -601,12 +653,12 @@ if lgate || redo
     % Get shuffle time
     [~, rperm_chunkIdx] = randchunkper(...
         catrace_in(1, :), chunk_splitn, ...
-        round(chunk_minsize), pSM.btn, stim_bin);
+        round(chunk_minsize), btn, stim_bin);
     dataObj.rperm_chunkIdx = rperm_chunkIdx;
 
     % make chunks to run
     [~, ~, chunk_idx] = ppool_makechunks(...
-        pSM.chunksiz, pSM.corenum, K);
+        chunksiz, corenum, siz1);
 else
     % update initial index
     vect_init = size(dataObj.pcor_cs, 1) + 1;
@@ -616,20 +668,25 @@ else
 
     % make chunks to run
     [~, ~, chunk_idx] = ppool_makechunks(...
-        pSM.chunksiz, pSM.corenum, K, vect_init);       
+        chunksiz, corenum, siz1, vect_init);       
 end
 
-% new implementation of shuffle with parpool saving file in a regular basis
-chunksiz = pSM.chunksiz; 
+% new implementation of shuffle with
+%   parpool saving file in a regular basis
 train_idx_l = train_idx(1, :);
 
 for i = 1:numel(chunk_idx)
-    if i == 1; t0 = stic; end
+    
+    if i == 1
+        t0 = stic;
+    end
+    
     batch2run = chunk_idx{i};
     
     parfor ii = 1:numel(batch2run)
         
-        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii) + chunksiz - 1, K));
+        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii)...
+            + chunksiz - 1, siz1));
         k = 1;
         t_pcor_cs_i = [];
         t_fmean_cs_i = [];
@@ -646,7 +703,8 @@ for i = 1:numel(chunk_idx)
                 t_fmed_cs_i(:, k), t_fsd_cs_i(:, k)] = ...
                 getsMod_ridgeperiter_ashuffle(...
                 train_idx_l, catrace_in(iii, :), stim_in, ...
-                stimSiz, rperm_chunkIdx, iFilter(:, iii), filterebound)
+                stimSiz, rperm_chunkIdx, iFilter(:, iii), ...
+                filterebound)
 
             if i == 1 && ii == 1 && k == 1
                 fprintf(['time per roi', ...
@@ -666,12 +724,17 @@ for i = 1:numel(chunk_idx)
         
     end
     
-    dataObj.pcor_cs(cat(2, roi_i_l{:}), 1:pSM.btn) = cat(1, tb_pcor_cs_i{:});
-    dataObj.lFilter_cs_mean(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fmean_cs_i{:});
-    dataObj.lFilter_cs_med(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fmed_cs_i{:}); 
-    dataObj.lFilter_cs_sd(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fsd_cs_i{:});
+    dataObj.pcor_cs(cat(2, roi_i_l{:}), 1:btn) = ...
+        cat(1, tb_pcor_cs_i{:});
+    dataObj.lFilter_cs_mean(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fmean_cs_i{:});
+    dataObj.lFilter_cs_med(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fmed_cs_i{:}); 
+    dataObj.lFilter_cs_sd(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fsd_cs_i{:});
     
-    clear tb_pcor_cs_i roi_i_l tb_fmean_cs_i tb_fmed_cs_i tb_fsd_cs_i
+    clear tb_pcor_cs_i roi_i_l tb_fmean_cs_i ...
+        tb_fmed_cs_i tb_fsd_cs_i
     
     if i == 1
         fprintf(['Estimated time ', ...
@@ -685,22 +748,63 @@ for i = 1:numel(chunk_idx)
     
 end
 
-pcor_cs = dataObj.pcor_cs; lFilter_cs_mean = dataObj.lFilter_cs_mean;
-lFilter_cs_med = dataObj.lFilter_cs_med; lFilter_cs_sd = dataObj.lFilter_cs_sd;
+pcor_cs = dataObj.pcor_cs;
+lFilter_cs_mean = dataObj.lFilter_cs_mean;
+lFilter_cs_med = dataObj.lFilter_cs_med;
+lFilter_cs_sd = dataObj.lFilter_cs_sd;
 
 end
 
-function [pcor_as, lFilter_as_mean, lFilter_as_med, lFilter_as_sd] = ...
-    runridgeshuffle(train_idx, catrace_in, stim_in, stimSiz, ...
-    iFilter, lgate, stim_bin, redo, filename, filterebound)
+function [pcor_as, lFilter_as_mean, ...
+    lFilter_as_med, lFilter_as_sd] = ...
+    runridgeshuffle(train_idx, catrace_in, ...
+    stim_in, stimSiz, iFilter, lgate, ...
+    stim_bin, redo, filename, filterebound, ...
+    chunksiz, corenum, btn)
+% runridgeshuffle: Run Ridge regression to all 
+%   the possible combinations of train and test data
+%
+% Usage:
+%   [pcor_as, lFilter_as_mean, ...
+%       lFilter_as_med, lFilter_as_sd] = ...
+%       runridgeshuffle(train_idx, catrace_in, ...
+%       stim_in, stimSiz, iFilter, lgate, ...
+%       stim_bin, redo, filename, filterebound, ...
+%       chunksiz, corenum, btn)
+%
+% Args:
+%   train_idx: indexes of train timepoints [n, T]
+%       n: different train arragaments, T: time.
+%   catrace_in: time traces [n, T]
+%   stim_in: stimuli to use for prediction (at different lags) [T, m]
+%       m: number of weights.
+%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
+%   iFilter: input filter to use for prediction (LN_pcor) [m, 1],
+%       m: number of weights
+%   lgate: flag to generate permuted data
+%   stim_bin: binary vector of stimuli
+%   redo: redo flag
+%   filename: name of temporary file to generate
+%   filterebound: filter error bounds 
+%       (get filter for shuffle data, only collects mean, median and sd)
+%   chunk_minsize: minimun size of time chunk
+%   chunk_splitn: number of times to split catrace_in in the time domain
+%   chunksiz: number of chunks for parpool
+%   corenum: number of cores
+%   btn: number of permutations
+%
+% Outputs:
+%   pcor_as: pearson correlation predicted vs raw for test indecex
+%   lFilter_as_mean: mean estimated filter
+%   lFilter_as_med: median estimated filter
+%   lFilter_as_sd: std of estimated filters
+%
+% See also getsMod_ridgeperiter_ashuffle
 
-global pSM
-
-K = size(catrace_in, 1);
+siz1 = size(catrace_in, 1);
 T = size(catrace_in, 2);
 
-dataObj = matfile([strrep(filename, ...
-    [pSM.fsuffix, '.mat'], ''), '_temp.mat'], ...
+dataObj = matfile(filename, ...
     'Writable', true);
 
 if lgate || redo
@@ -711,11 +815,12 @@ if lgate || redo
     dataObj.lFilter_as_sd = [];
 
     % Get shuffle time
-    rperm_chunkIdx = genShuffleTime(T, pSM.btn, stim_bin);
+    rperm_chunkIdx = randshuffleper(T, btn, stim_bin);
     dataObj.rperm_chunkIdx = rperm_chunkIdx;
 
     % make chunks to run
-    [~, ~, chunk_idx] = ppool_makechunks(pSM.chunksiz, pSM.corenum, K);
+    [~, ~, chunk_idx] = ...
+        ppool_makechunks(chunksiz, corenum, siz1);
     
 else
     
@@ -726,21 +831,26 @@ else
     rperm_chunkIdx = dataObj.rperm_chunkIdx;
 
     % make chunks to run
-    [~, ~, chunk_idx] = ppool_makechunks(pSM.chunksiz, pSM.corenum, K, vect_init);
+    [~, ~, chunk_idx] = ...
+        ppool_makechunks(chunksiz, corenum, siz1, vect_init);
     
 end
 
-% new implementation of shuffle with parpool saving file in a regular basis
-chunksiz = pSM.chunksiz; 
+% new implementation of shuffle with parpool
+%   saving file in a regular basis
 train_idx_l = train_idx(1, :);
 
 for i = 1:numel(chunk_idx)
-    if i == 1; t0 = stic; end
+    
+    if i == 1
+        t0 = stic;
+    end
     batch2run = chunk_idx{i};
     
     parfor ii = 1:numel(batch2run)
         
-        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii) + chunksiz - 1, K));
+        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii)...
+            + chunksiz - 1, siz1));
         k = 1;
         t_pcor_as_i = [];
         t_fmean_as_i = [];
@@ -749,11 +859,15 @@ for i = 1:numel(chunk_idx)
         
         for iii = roi_i_l{ii, 1}
             
-            if i == 1 && ii == 1 && k == 1; t0_ = stic; end
+            if i == 1 && ii == 1 && k == 1
+                t0_ = stic;
+            end
 
-            [t_pcor_as_i(k, :), t_fmean_as_i(:, k), t_fmed_as_i(:, k), t_fsd_as_i(:, k)] = ...
-                getsMod_ridgeperiter_ashuffle(train_idx_l, catrace_in(iii, :), stim_in, ...
-                stimSiz, rperm_chunkIdx, iFilter(:, iii), filterebound);
+            [t_pcor_as_i(k, :), t_fmean_as_i(:, k), ...
+                t_fmed_as_i(:, k), t_fsd_as_i(:, k)] = ...
+                getsMod_ridgeperiter_ashuffle(train_idx_l, ...
+                catrace_in(iii, :), stim_in, stimSiz, ...
+                rperm_chunkIdx, iFilter(:, iii), filterebound);
             
             if i == 1 && ii == 1 && k == 1
                 fprintf(['time per roi', ...
@@ -774,10 +888,14 @@ for i = 1:numel(chunk_idx)
         
     end
     
-    dataObj.pcor_as(cat(2, roi_i_l{:}), 1:pSM.btn) = cat(1, tb_pcor_as_i{:});
-    dataObj.lFilter_as_mean(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fmean_as_i{:});
-    dataObj.lFilter_as_med(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fmed_as_i{:}); 
-    dataObj.lFilter_as_sd(1:stimSiz, cat(2, roi_i_l{:})) = cat(2, tb_fsd_as_i{:});
+    dataObj.pcor_as(cat(2, roi_i_l{:}), 1:btn) = ...
+        cat(1, tb_pcor_as_i{:});
+    dataObj.lFilter_as_mean(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fmean_as_i{:});
+    dataObj.lFilter_as_med(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fmed_as_i{:}); 
+    dataObj.lFilter_as_sd(1:stimSiz, cat(2, roi_i_l{:})) = ...
+        cat(2, tb_fsd_as_i{:});
     
     clear tb_pcor_as_i roi_i_l ...
         tb_fmean_as_i tb_fmed_as_i tb_fsd_as_i
@@ -806,14 +924,48 @@ function [pcor_afs, lFilter_afs_mean, ...
     lFilter_afs_med, lFilter_afs_sd] = ...
     runridgeshuffle_af(train_idx, ...
     catrace_in, stim_in, stimSiz, iFilter, ...
-    lgate, stim_bin, redo, filename, filterebound)
-
-global pSM
+    lgate, stim_bin, redo, filename, filterebound, ...
+    chunksiz, corenum, btn)
+% runridgeshuffle: Run Ridge regression to all 
+%   the possible combinations of train and test data
+%
+% Usage:
+%   [pcor_afs, lFilter_afs_mean, ...
+%   	lFilter_afs_med, lFilter_afs_sd] = ...
+%       runridgeshuffle_af(train_idx, ...
+%       catrace_in, stim_in, stimSiz, iFilter, ...
+%       lgate, stim_bin, redo, filename, filterebound, ...
+%       chunksiz, corenum, btn)
+%
+% Args:
+%   train_idx: indexes of train timepoints [n, T]
+%       n: different train arragaments, T: time.
+%   catrace_in: time traces [n, T]
+%   stim_in: stimuli to use for prediction (at different lags) [T, m]
+%       m: number of weights.
+%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
+%   iFilter: input filter to use for prediction (LN_pcor) [m, 1],
+%       m: number of weights
+%   lgate: flag to generate permuted data
+%   stim_bin: binary vector of stimuli
+%   redo: redo flag
+%   filename: name of temporary file to generate
+%   filterebound: filter error bounds 
+%       (get filter for shuffle data, only collects mean, median and sd)
+%   chunksiz: number of chunks for parpool
+%   corenum: number of cores
+%   btn: number of permutations
+%
+% Outputs:
+%   pcor_afs: pearson correlation predicted vs raw for test indecex
+%   lFilter_afs_mean: mean estimated filter
+%   lFilter_afs_med: median estimated filter
+%   lFilter_afs_sd: std of estimated filters
+%
+% See also getsMod_ridgeperiter_afshuffle
 
 K = size(catrace_in, 1);
-dataObj = matfile([strrep(filename, ...
-    [pSM.fsuffix, '.mat'], ''), ...
-    '_temp.mat'], 'Writable', true);
+dataObj = matfile(filename, 'Writable', true);
 
 if lgate || redo
     
@@ -825,8 +977,8 @@ if lgate || redo
 
     % make chunks to run
     [~, ~, chunk_idx] = ...
-        ppool_makechunks(pSM.chunksiz, ...
-        pSM.corenum, K);
+        ppool_makechunks(chunksiz, ...
+        corenum, K);
     
 else
     
@@ -835,20 +987,20 @@ else
 
     % make chunks to run
     [~, ~, chunk_idx] = ...
-        ppool_makechunks(pSM.chunksiz, ...
-        pSM.corenum, K, vect_init);  
+        ppool_makechunks(chunksiz, ...
+        corenum, K, vect_init);  
     
 end
 
 % new implementation of shuffle with parpool
 %   saving file in a regular bases
-chunksiz = pSM.chunksiz; 
 train_idx_l = train_idx(1, :);
-n_perm = pSM.btn;
 
 for i = 1:numel(chunk_idx)
     
-    if i == 1; t0 = stic; end
+    if i == 1
+        t0 = stic;
+    end
     batch2run = chunk_idx{i};
     
     parfor ii = 1:numel(batch2run)
@@ -871,7 +1023,7 @@ for i = 1:numel(chunk_idx)
                 t_fmed_afs_i(:, k), t_fsd_afs_i(:, k)] = ...
                 getsMod_ridgeperiter_afshuffle(train_idx_l, ...
                 catrace_in(iii, :), stim_in, stimSiz, ...
-                iFilter(:, iii), n_perm, stim_bin, filterebound);
+                iFilter(:, iii), btn, stim_bin, filterebound);
             
             if i == 1 && ii == 1 && k == 1
                 fprintf(['time per roi', ...
@@ -892,7 +1044,7 @@ for i = 1:numel(chunk_idx)
         
     end
     
-    dataObj.pcor_afs(cat(2, roi_i_l{:}), 1:pSM.btn) = ...
+    dataObj.pcor_afs(cat(2, roi_i_l{:}), 1:btn) = ...
         cat(1, tb_pcor_afs_i{:});
     dataObj.lFilter_afs_mean(1:stimSiz, cat(2, roi_i_l{:})) = ...
         cat(2, tb_fmean_afs_i{:});

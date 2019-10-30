@@ -1,13 +1,20 @@
-function [LN_pcor, LN_filter] = getsMod_ridgeperiter_raw(train_idx, Y, stimM, stimSiz)
-% getsMod_ridgeperiter_raw: Run Ridge regression to all the possible combinations of train and test data
+function [LN_pcor, LN_filter] = ...
+    getsMod_ridgeperiter_raw(...
+    train_idx, Y, stimM, stimSiz)
+% getsMod_ridgeperiter_raw: Run Ridge regression to all 
+%   the possible combinations of train and test data
+%
 % Usage:
 %   [LN_filter, LN_pcor_periter] = ...
-%       getsMod_ridgeperiter_raw(train_idx, Y, stimM, stimSiz)
+%       getsMod_ridgeperiter_raw(...
+%       train_idx, Y, stimM, stimSiz)
 %
 % Args:
-%   train_idx: indexes of train timepoints [n, T], n: different train arragaments, T: time
+%   train_idx: indexes of train timepoints [n, T]
+%       n: different train arragaments, T: time.
 %   Y: time traces [1, T]
-%   stimM: stimuli to use for prediction (at different lags) [T, m], m: number of weights
+%   stimM: stimuli to use for prediction (at different lags) [T, m]
+%       m: number of weights.
 %   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
 %
 % Outputs:
@@ -15,6 +22,7 @@ function [LN_pcor, LN_filter] = getsMod_ridgeperiter_raw(train_idx, Y, stimM, st
 %   LN_filter: filter per train arragement
 
 test_idx = ~train_idx; 
+LN_filter = []; 
 LN_pcor = zeros(size(train_idx, 1), 1); 
 zs_stim = [];
 
