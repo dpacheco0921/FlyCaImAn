@@ -27,6 +27,9 @@ This pipeline requires the following packages:
 - [NoRMCorre](https://github.com/flatironinstitute/NoRMCorre), see link for dependencies.
 - [CMTK_matlab_wrapper](https://github.com/dpacheco0921/CMTK_matlab_wrapper), this requires the Computational Morphometry Toolkit [CMTK](https://www.nitrc.org/projects/cmtk)
 
+For saving figures install:
+- [export_fig](https://github.com/altmany/export_fig)
+
 # Acknowledgements
 
 Special thanks to:

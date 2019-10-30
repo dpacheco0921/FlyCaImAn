@@ -1,8 +1,8 @@
-function [figH, axH] = max_int_proj(Y, iparams)
-% max_int_proj: basic maximun intensity projection function
-% 
+function [figH, axH] = min_int_proj(Y, iparams)
+% min_int_proj: basic minimun intensity projection function
+%
 % Usage:
-%   [figH, axH] = max_int_proj(Y, iparams)
+%   [figH, axH] = min_int_proj(Y, iparams)
 %
 % Args:
 %   Y: 3D matrix or a cell array of 3D matrices
@@ -55,18 +55,18 @@ for i = 1:numel(Y)
     end
     
     % plot projections in different subplots
-    imagesc(max(Y{i}, [], 3), 'Parent', mippars.axH(1));
+    imagesc(min(Y{i}, [], 3), 'Parent', mippars.axH(1));
     caxis(mippars.axH(1), mippars.irange(1, :));
     mippars.axH(1).XLabel.String = 'X';
     mippars.axH(1).YLabel.String = 'Y';
     
-    imagesc(flip(squeeze(max(Y{i}, [], 2))', 2), ...
+    imagesc(flip(squeeze(min(Y{i}, [], 2))', 1), ...
         'Parent', mippars.axH(2));
     caxis(mippars.axH(2), mippars.irange(1, :));
     mippars.axH(2).XLabel.String = 'Y';
     mippars.axH(2).YLabel.String = 'Z';
     
-    imagesc(flip(squeeze(max(Y{i}, [], 1))', 2), ...
+    imagesc(flip(squeeze(min(Y{i}, [], 1))', 1), ...
         'Parent', mippars.axH(3));
     caxis(mippars.axH(3), mippars.irange(1, :));
     mippars.axH(3).XLabel.String = 'X';

@@ -33,7 +33,8 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, [1:7])
 %       (maxshift: max displacement in z)
 %           (default, 8)
-%       (maxZshift: threshold for man - min change from init to last frame to remove edge)
+%       (maxZshift: threshold for man - min change 
+%           from init to last frame to remove edge)
 %           (default, 0.3)
 %       (maxshift_xy: maximun shift in x and y)
 %           (default, [15 15])
@@ -52,7 +53,8 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %       %%%%%%%%%%%% manual editing %%%%%%%%%%%%
 %       (stack2rem: entire stacks to ignore)
 %           (default, [])
-%       (zend_man: input last plane to use, used when there was a circular mapping on XYZ axis)
+%       (zend_man: input last plane to use, 
+%           used when there was a circular mapping on XYZ axis)
 %           ({1} stack idx and {2} end plane)
 %           (default, [])
 %       (plot_flag: flag to plot stitch correction)
@@ -68,6 +70,7 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, [])
 %       (debug_flag: flag to debug stitching of a particular stack)
 %           (default, [])
+%
 % Notes:
 % Interpreting max correlated planes:
 %   For all z resolution: high correlation means contiguous plane.

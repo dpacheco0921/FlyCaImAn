@@ -41,6 +41,8 @@ function batch_formatstacks(FolderName, FileName, iparams)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
+%
+% Notes:
 
 cspf = [];
 cspf.cDir = pwd;
