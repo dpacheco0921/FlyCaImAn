@@ -307,7 +307,7 @@ function wDat = savedata_per_cha(fname, ...
 %   patch_overlap: overlap across patches
 %       (default, [0 0 0])
 
-% generate
+% generate patches
 if wDat.vSize(3) > 1
     
     if wDat.vSize(3) > 2
@@ -326,9 +326,36 @@ else
     
 end
 
+% tag planes to remove (whole nan-planes (3D data only))
+if wDat.vSize(3) > 1
+    
+    try
+        siz = size(wDat.GreenChaMean);
+        nan_pix = isnan(wDat.GreenChaMean);
+    catch
+        siz = size(wDat.RedChaMean);
+        nan_pix = isnan(wDat.RedChaMean);        
+    end
+    
+    wDat.plane2keep = sum(reshape(nan_pix, ...
+        [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
+
+    % prune average images
+    if ~isempty(wDat.RedChaMean)
+        wDat.RedChaMean = ...
+            wDat.RedChaMean(:, :, wDat.plane2keep);
+    end
+    
+    if ~isempty(wDat.GreenChaMean)
+        wDat.GreenChaMean = ...
+            wDat.GreenChaMean(:, :, wDat.plane2keep);
+    end
+    
+end
+
 tinit = tic;
 
-% Load files
+% load files
 if contains(cha2use, 'green')
     
     % green channel
@@ -420,6 +447,13 @@ for i = 1:numel(patches_)
     
 end
 fprintf('\n')
+
+% update wDat.vSize(3)
+if wDat.vSize(3) > 1
+    if isfield(wDat, 'plane2keep')
+        wDat.vSize(3) = sum(wDat.plane2keep);
+    end
+end
 
 dataObj_out.nY = min(minval);
 if wDat.vSize(3) > 1

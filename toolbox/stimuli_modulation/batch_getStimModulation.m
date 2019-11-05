@@ -89,17 +89,21 @@ pSM.serId = 'int';
 pSM.corenum = 4;
 pSM.chunksiz = 80;
 pSM.febgate = 0;
-pSM.oDir = [pwd, filesep, 'smod'];
+
+pSMplot = [];
+pSMplot.fsuffix = '_prosroi.mat';
+pSMplot.hbins = -1:0.01:1;
+pSMplot.hbinsp = 0:0.01:1.1;
+pSMplot.prct2use = 30;
+pSMplot.fdr = 0.01;
+pSMplot.mccor_method = 'dep';
+pSMplot.oDir = [];
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end
-if ~exist('FolderName', 'var');  FolderName = []; end
+if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pSM = loparam_updater(pSM, iparams);
-
-if ~exist(pSM.oDir, 'dir')
-   mkdir(pSM.oDir)
-end
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSM.serId, pSM.corenum);
@@ -112,11 +116,24 @@ f2run = {f2run.name};
 fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
 
 for i = 1:numel(f2run)
+    
     fprintf(['Running folder : ', f2run{i}, '\n']); 
+    
     cd(f2run{i});
+    
+    pSMplot.oDir = [pwd, filesep, 'smod'];
+    if ~exist(pSMplot.oDir, 'dir')
+       mkdir(pSMplot.oDir)
+    end
+    
     runperfolder(FileName, pSM);
     cd(pSM.cDir);
+    
+    plot_sMod_results(...
+        f2run{i}, FileName, pSMplot)
+    
     fprintf('\n')
+    
 end
 
 delete_parpool(ppobj);

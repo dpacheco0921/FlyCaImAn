@@ -67,7 +67,8 @@ end
 if isempty(wDat.GreenChaMean) ...
         && isempty(wDat.RedChaMean)
     fprintf('***********************************************************************\n')
-    fprintf('File failed at motion correction (did not generate mean fields (RedChaMean GreenChaMean) in iDat)\n')
+    fprintf(['File failed at motion correction ', ...
+        '(did not generate mean fields (RedChaMean GreenChaMean) in iDat)\n'])
     fprintf('***********************************************************************\n')
     return
 end
@@ -97,32 +98,6 @@ end
 wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
     mcDat, strrep(filename, '_metadata', ''), ...
     1, 1, [], iDat.FrameN);
-
-% tag and remove whole nan-planes (3D data only)
-if contains(datatype, '3DxT')
-    
-    try
-        siz = size(wDat.GreenChaMean);
-        nan_pix = isnan(wDat.GreenChaMean);
-    catch
-        siz = size(wDat.RedChaMean);
-        nan_pix = isnan(wDat.RedChaMean);        
-    end
-    
-    wDat.plane2keep = sum(reshape(nan_pix, ...
-        [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
-
-    if ~isempty(wDat.RedChaMean)
-        wDat.RedChaMean = ...
-            wDat.RedChaMean(:, :, wDat.plane2keep);
-    end
-    
-    if ~isempty(wDat.GreenChaMean)
-        wDat.GreenChaMean = ...
-            wDat.GreenChaMean(:, :, wDat.plane2keep);
-    end
-    
-end
 
 % tag and remove nan-xy pixels
 if ~isempty(wDat.RedChaMean)

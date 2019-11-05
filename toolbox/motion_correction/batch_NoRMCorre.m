@@ -1231,6 +1231,7 @@ pi.vname = [target_directory, filesep, filename];
 pi.vquality = 100;
 pi.frate = 10;
 pi.cmap = parula;
+pi.axisratio = 0;
 
 slice3Dmatrix(input_im, pi)
 

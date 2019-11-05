@@ -2,7 +2,7 @@ function [chunks, nchunks, chunk_idx] = ...
     ppool_makechunks(chunksiz, corenum, ...
     vect_length, vect_init)
 % ppool_makechunks: split a vector into chunks that 
-% could be then used by parpool to run data chunk by chunk
+%   could be then used by parpool to run data chunk by chunk
 %
 % Usage:
 %   [chunks, nchunks, chunk_idx] = ...
@@ -20,7 +20,9 @@ function [chunks, nchunks, chunk_idx] = ...
 %   nchunks: number of chunks
 %   chunk_idx: chunks indeces grouped in corenum batches
 
-if ~exist('vect_init', 'var'); vect_init = 1; end
+if ~exist('vect_init', 'var')
+    vect_init = 1;
+end
 
 chunks = vect_init:chunksiz:vect_length;
 nchunks = numel(chunks);
