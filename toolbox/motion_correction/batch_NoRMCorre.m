@@ -642,14 +642,58 @@ if iDat.MotCorr == 0 || pMC.redo == 1
         'iDat', 'lStim', 'mcDat', '-append')
 
     Data = GreenCha;
+    
+    % plot image of start vs end of recording
+    if isempty(Data)
+        
+        if length(dgDim) == 4
+            float_im_1 = ...
+                mean(Data(:, :, :, 1:10), 4);
+            float_im_2 = ...
+                mean(Data(:, :, :, end-10:end), 4);
+        else
+            float_im_1 = ...
+                mean(Data(:, :, 1:10), 3);
+            float_im_2 = ...
+                mean(Data(:, :, end-10:end), 3);         
+        end
+        
+        plot_fused_image_vid(...
+            float_im_1, float_im_2, ...
+            strrep(f2run, '_rawdata', '_init_end_im_g'), ...
+            pMC.oDir);
+        
+    end
+    
     save(f2run, 'Data', '-v7.3');
     GreenCha = [];
 
     Data = RedCha;
+    
     if ~isempty(Data)
+        
+        if length(dgDim) == 4
+            float_im_1 = ...
+                mean(Data(:, :, :, 1:10), 4);
+            float_im_2 = ...
+                mean(Data(:, :, :, end-10:end), 4);
+        else
+            float_im_1 = ...
+                mean(Data(:, :, 1:10), 3);
+            float_im_2 = ...
+                mean(Data(:, :, end-10:end), 3);         
+        end
+        
+        plot_fused_image_vid(...
+            float_im_1, float_im_2, ...
+            strrep(f2run, '_rawdata', '_init_end_im_r'), ...
+            pMC.oDir);
+        
         save(strrep(f2run, '_rawdata', '_refdata'), ...
             'Data', '-v7.3');
+        
     end
+    
     RedCha = [];
 
     Data = [];

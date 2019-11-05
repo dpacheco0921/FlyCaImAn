@@ -18,7 +18,8 @@ if iscell(iFile)
     for i = 1:numel(iFile)
         
         prestr = strsplit2(iFile{i}, idelimiter);
-        iDir{i, 1} = strrep(iFile{i}, [idelimiter, prestr{end}], '');
+        iDir{i, 1} = strrep(iFile{i}, ...
+            [idelimiter, prestr{end}], '');
         iFile{i, 1} = prestr{end};
         
     end
@@ -26,7 +27,8 @@ if iscell(iFile)
 else
     
     prestr = strsplit2(iFile, idelimiter);
-    iDir = strrep(iFile, [idelimiter, prestr{end}], '');
+    iDir = strrep(iFile, [idelimiter, ...
+        prestr{end}], '');
     iFile = prestr{end};
     
 end
