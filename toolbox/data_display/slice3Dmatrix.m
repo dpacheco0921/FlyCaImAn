@@ -346,6 +346,7 @@ for t = 1:size(Y, pi.axp)
     
     % save single frames
     if pi.save_frame_flag
+        
         % default saving params
         figformat = [0 0 0 0 0 0 0 0 1];
         fitsize = 1;
@@ -355,12 +356,13 @@ for t = 1:size(Y, pi.axp)
         tickgate = 'off';
         resolution_ = '-r300';
         
-        [File_name, Folder_name] = GS_getfilename(pi.vname);
+        [File_name, Folder_name] = split_path(pi.vname);
         
         save_edit_fig_int(pi.hAxes, pi.figH, ...
             Folder_name, [File_name, '_f_', num2str(t)], ...
             figformat, fitsize, axcolor, figcolor, ...
             xyzcolor, tickgate, resolution_);
+        
     end
     
     hold(pi.hAxes, 'off'); 
@@ -419,8 +421,9 @@ if isempty(sparef) || ~axisratio
     
     if tidx == 1
        colormap(axH, cmap)
-       caxis(axH, imrange)
     end
+    
+    caxis(axH, imrange)
     
 else
     

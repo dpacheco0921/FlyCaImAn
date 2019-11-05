@@ -17,7 +17,8 @@ function savefig_int(figH, tDir, ...
 %       (7, expfig_eps-ogl_nocrop, 8 expfig_eps-ogl_crop)
 %       (9, png (build-in), 10, expfig_png)
 %       (11, svg (build-in), 12 svg)
-%   resolution_: resolution (default -r300), in dots per pixel
+%   resolution_: resolution, in dots per pixel
+%       (default -r300)
 % 
 % Notes:
 
