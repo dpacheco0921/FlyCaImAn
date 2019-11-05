@@ -99,19 +99,37 @@ wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
     mcDat, strrep(filename, '_metadata', ''), ...
     1, 1, [], iDat.FrameN);
 
+% find nan-slices
+if wDat.vSize(3) > 1
+    
+    try
+        siz = size(wDat.GreenChaMean);
+        nan_pix = isnan(wDat.GreenChaMean);
+    catch
+        siz = size(wDat.RedChaMean);
+        nan_pix = isnan(wDat.RedChaMean);        
+    end
+    
+    plane2keep = sum(reshape(nan_pix, ...
+        [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
+    
+end
+
 % tag and remove nan-xy pixels
-if ~isempty(wDat.RedChaMean)
-    wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+if wDat.vSize(3) > 1
+    if ~isempty(wDat.RedChaMean)
+        wDat.mask = max(isnan(...
+            wDat.RedChaMean(:, :, plane2keep)), [], 3);
+    else
+        wDat.mask = max(isnan(...
+            wDat.GreenChaMean(:, :, plane2keep)), [], 3);
+    end
 else
-    wDat.mask = max(isnan(wDat.GreenChaMean), [], 3);
-end
-
-if ~isempty(wDat.RedChaMean)
-    wDat.RedChaMean = pruneIm(wDat.RedChaMean, wDat.mask);
-end
-
-if ~isempty(wDat.RedChaMean)
-    wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
+    if ~isempty(wDat.RedChaMean)
+        wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+    else
+        wDat.mask = max(isnan(wDat.GreenChaMean), [], 3);
+    end    
 end
 
 % bmask, use all pixels (2D data only)

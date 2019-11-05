@@ -353,6 +353,36 @@ if wDat.vSize(3) > 1
     
 end
 
+% prune XY nan pixels
+if ~isempty(wDat.RedChaMean)
+    wDat.RedChaMean = pruneIm(wDat.RedChaMean, wDat.mask);
+end
+
+if ~isempty(wDat.GreenChaMean)
+    wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
+end
+
+% update size
+if ~isempty(wDat.RedChaMean)
+    wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
+else
+    wDat.fSize = [size(wDat.GreenChaMean, 1), size(wDat.GreenChaMean, 2)];
+end
+
+if wDat.vSize(3) > 1
+    
+    if ~isempty(wDat.RedChaMean)
+        wDat.vSize = [wDat.fSize, size(wDat.RedChaMean, 3)];
+    else
+        wDat.vSize = [wDat.fSize, size(wDat.GreenChaMean, 3)];
+    end    
+    
+else
+    
+    wDat.vSize = [wDat.fSize, 1];
+    
+end
+
 tinit = tic;
 
 % load files
@@ -447,13 +477,6 @@ for i = 1:numel(patches_)
     
 end
 fprintf('\n')
-
-% update wDat.vSize(3)
-if wDat.vSize(3) > 1
-    if isfield(wDat, 'plane2keep')
-        wDat.vSize(3) = sum(wDat.plane2keep);
-    end
-end
 
 dataObj_out.nY = min(minval);
 if wDat.vSize(3) > 1
