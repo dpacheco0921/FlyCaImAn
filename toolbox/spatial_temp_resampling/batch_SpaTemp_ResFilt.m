@@ -30,6 +30,8 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %           (default, [])
 %       (size: ridig motion correction gate)
 %           (default, [])
+%       (edgerm_flag: flag to remove edges after spatial smoothing)
+%           (default, 0)
 %       (newres: target voxel size (homogenize width and heigth))
 %           (default, [1.2 1.2 1])
 %       (fres: max sub-micron resolution, up to 4 digits, it rounds number smaller than this)
@@ -75,6 +77,7 @@ spte.newtimeres = 0.5;
 spte.time = [];
 spte.sigma = [];
 spte.size = [];
+spte.edgerm_flag = 0;
 spte.newres = [1.2 1.2 1];
 spte.fres = 10^4;
 spte.art_val = -1*10^3;
@@ -332,19 +335,30 @@ for i = 1:numel(repnum)
         
         % functional Data
         Data = imblur(Data, spte.sigma, spte.size, 2);
+        
         % delete edges
-        Data = Data(2:end-1, 2:end-1, :, :);
-       
-        % structural Data
-        if isfield(iDat, 'RedChaMean') && ~isempty(iDat.RedChaMean)
-            iDat.RedChaMean = iDat.RedChaMean(2:end-1, 2:end-1, :);
+        if spte.edgerm_flag
+            
+            % functional Data
+            Data = Data(2:end-1, 2:end-1, :, :);
+
+            % structural Data
+            if isfield(iDat, 'RedChaMean') && ...
+                    ~isempty(iDat.RedChaMean)
+                iDat.RedChaMean = ...
+                    iDat.RedChaMean(2:end-1, 2:end-1, :);
+            end
+
+            if isfield(iDat, 'GreenChaMean') && ...
+                    ~isempty(iDat.GreenChaMean)
+                iDat.GreenChaMean = ...
+                    iDat.GreenChaMean(2:end-1, 2:end-1, :);
+            end
+
+            iDat.FrameSize = [size(Data, 1) size(Data, 2)];
+            
         end
         
-        if isfield(iDat, 'GreenChaMean') && ~isempty(iDat.GreenChaMean)
-            iDat.GreenChaMean = iDat.GreenChaMean(2:end-1, 2:end-1, :);
-        end
-        
-        iDat.FrameSize = [size(Data, 1) size(Data, 2)];
         iDat.sSmooth = 1;
         iDat.sSmoothpar = [spte.sigma, spte.size];
         fprintf('\n')
@@ -480,8 +494,12 @@ for i = 1:numel(repnum)
 
             % structural Data
             Data_ref = imblur(Data_ref, spte.sigma, spte.size, 2);
+            
             % delete edges
-            Data_ref = Data_ref(2:end-1, 2:end-1, :, :);          
+            if spte.edgerm_flag
+                Data_ref = Data_ref(2:end-1, 2:end-1, :, :);          
+            end
+            
             fprintf('\n')
 
         else

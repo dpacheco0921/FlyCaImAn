@@ -100,7 +100,7 @@ wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
     1, 1, [], iDat.FrameN);
 
 % find nan-slices
-if wDat.vSize(3) > 1
+if iDat.FrameN > 1
     
     try
         siz = size(wDat.GreenChaMean);
@@ -116,7 +116,7 @@ if wDat.vSize(3) > 1
 end
 
 % tag and remove nan-xy pixels
-if wDat.vSize(3) > 1
+if iDat.FrameN > 1
     if ~isempty(wDat.RedChaMean)
         wDat.mask = max(isnan(...
             wDat.RedChaMean(:, :, plane2keep)), [], 3);
@@ -139,17 +139,21 @@ end
 
 % update size
 if ~isempty(wDat.RedChaMean)
-    wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
+    wDat.fSize = [size(wDat.RedChaMean, 1), ...
+        size(wDat.RedChaMean, 2)];
 else
-    wDat.fSize = [size(wDat.GreenChaMean, 1), size(wDat.GreenChaMean, 2)];
+    wDat.fSize = [size(wDat.GreenChaMean, 1), ...
+        size(wDat.GreenChaMean, 2)];
 end
 
 if iDat.FrameN > 1
     
     if ~isempty(wDat.RedChaMean)
-        wDat.vSize = [wDat.fSize, size(wDat.RedChaMean, 3)];
+        wDat.vSize = [wDat.fSize, ...
+            size(wDat.RedChaMean, 3)];
     else
-        wDat.vSize = [wDat.fSize, size(wDat.GreenChaMean, 3)];
+        wDat.vSize = [wDat.fSize, ...
+            size(wDat.GreenChaMean, 3)];
     end    
     wDat.vOrient = imdirection;
     

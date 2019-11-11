@@ -1,6 +1,7 @@
 function rho = neighcorr_3D(Y, iparams)
-% neighcorr_3D: Function that uses correlation_image_3D to generate a correlation image
-%   based on neighboring pixels, but in this case it deals better with big
+% neighcorr_3D: Function that uses correlation_image_3D
+%   to generate a correlation image based on neighboring 
+%   pixels, but in this case it deals better with big
 %   matrices (memmap).
 %
 % Usage:
@@ -20,6 +21,7 @@ function rho = neighcorr_3D(Y, iparams)
 p.overlap = [2 2 2];
 p.timestamps = [];
 p.chunksize = [50 50 10];
+
 if ~exist('iparams', 'var'); iparams = []; end
 p = loparam_updater(p, iparams);
 

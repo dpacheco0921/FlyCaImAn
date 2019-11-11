@@ -97,7 +97,7 @@ pSMplot.hbinsp = 0:0.01:1.1;
 pSMplot.prct2use = 30;
 pSMplot.fdr = 0.01;
 pSMplot.mccor_method = 'dep';
-pSMplot.oDir = [];
+pSMplot.dir_depth = 1;
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end
@@ -121,16 +121,12 @@ for i = 1:numel(f2run)
     
     cd(f2run{i});
     
-    pSMplot.oDir = [pwd, filesep, 'smod'];
-    if ~exist(pSMplot.oDir, 'dir')
-       mkdir(pSMplot.oDir)
-    end
+    oDir = [pwd, filesep, 'smod'];
     
     runperfolder(FileName, pSM);
     cd(pSM.cDir);
     
-    plot_sMod_results(...
-        f2run{i}, FileName, pSMplot)
+    batch_plot_sMod_results(FileName, oDir, pSMplot)
     
     fprintf('\n')
     

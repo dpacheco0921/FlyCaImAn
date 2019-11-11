@@ -24,20 +24,24 @@ pulseEnd = find(pulseIdx < 0);
 
 % find trains
 try
-    Ths = (1/lStim.freq(1))*lStim.fs(1); % in time units (a.u.)
+    % in time units (a.u.)
+    Ths = (1/lStim.freq(1))*lStim.fs(1);
 catch
-    Ths = (1/lStim.freq(1))*lStim.rate(1); % in time units (a.u.)
+    % in time units (a.u.)
+    Ths = (1/lStim.freq(1))*lStim.rate(1);
 end
 
 initDis = diff(pulsenInit);
 peaks = find(initDis > Ths*2);
-stimuli_onset_offset = zeros(numel(peaks) + 1,2);
+stimuli_onset_offset = zeros(numel(peaks) + 1, 2);
 stimuli_onset_offset(1,1) = pulsenInit(1);
-stimuli_onset_offset(end,end) = pulseEnd(end);
+stimuli_onset_offset(end, end) = pulseEnd(end);
 
 for i = 2:size(stimuli_onset_offset, 1)
-    stimuli_onset_offset(i, 1) = pulsenInit(peaks(i-1) + 1); % init
-    stimuli_onset_offset(i-1, 2) = pulseEnd(peaks(i-1)); % end
+    
+    stimuli_onset_offset(i, 1) = pulsenInit(peaks(i-1) + 1);
+    stimuli_onset_offset(i-1, 2) = pulseEnd(peaks(i-1));
+    
 end
 
 end

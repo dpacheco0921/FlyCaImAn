@@ -194,7 +194,9 @@ end
 
 % prune reps if stack2rem exists
 load([fname, '_prosmetadata.mat'], 'stack2rem');
+
 if exist('stack2rem', 'var')
+    
     % remove stacks (init or end)
     reps = setdiff(reps, stack2rem);
     % sort stacks cspfb.direction
@@ -203,6 +205,7 @@ if exist('stack2rem', 'var')
     else
         reps = sort(reps, 'ascend');
     end
+    
 end
 
 % Compile stacks
@@ -366,7 +369,7 @@ for rep_i = 1:numel(reps)
         
     end
     
-    clear iDat Zn Data
+    clear iDat Zn Data rData
     fprintf([num2str(toc(tinit)), ' seconds\n'])
     
 end

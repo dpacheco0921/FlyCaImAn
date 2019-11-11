@@ -62,7 +62,7 @@ wDat.sIdx = stim_all_idx(1:size(wDat.sTime, 1), 1);
 
 clear stim_all_idx stim_u_idx stimuli_name
   
-% zscore dfof
+% zscore signal
 CaRaw_zs = zscorebigmem(CaRaw);
 
 [~, a3, ~, ~, a1, ~, ~, a4, a5, a6] = ...
