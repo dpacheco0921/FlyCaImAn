@@ -109,7 +109,7 @@ load([filename, p.fimetsuffix], 'wDat')
 dsize = wDat.vSize;
 
 % load and generate temp mat file
-loaddata(obj, filename, p.fisuffix)
+loaddata(obj, [filename, p.fisuffix])
 
 % generate patches using set parameters
 if roiparams.patchtype == 0
@@ -238,7 +238,7 @@ elseif p.jobpart == 2
         
         initComponents_part2(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
-        rawsignal(obj, filename, p.rfisuffix)
+        rawsignal(obj, [filename, p.rfisuffix])
         %bas_estimate(obj)
         roi = snapshot(obj);
         roi.userparams = roiparams;
@@ -265,7 +265,9 @@ elseif p.jobpart == 2
 elseif p.jobpart == 3
 
     % 3) run each patch and save results directly
-    % it does 1), and saves all ROI segmentation parameters as in 2)
+    %   it does: 1), and saves all ROI segmentation 
+    %   parameters as in 2)
+    
     % uses internally:
     % roi = snapshot(obj);
     % roi.userparams = roiparams;

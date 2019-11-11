@@ -99,9 +99,9 @@ if ~isfield(roi, 'filtered_') || ~isfield(roi, 'filtered') ...
         || isempty(roi.filtered_) || p.redo
     
     % extract signal from raw data
-    rawsignal(obj, filename, p.orefsuffix)
+    rawsignal(obj, [filename, p.orefsuffix])
     % extract signal from raw and ref data
-    %rawsignal_red(obj, filename, p.orefsuffix)
+    %rawsignal_red(obj, [filename, p.orefsuffix])
     bas_estimate(obj)
     roi = snapshot(obj);
     roi.userparams = userparams;

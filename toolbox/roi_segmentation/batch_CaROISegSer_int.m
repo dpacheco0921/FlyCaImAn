@@ -173,7 +173,7 @@ load([filename, roipars.fimetsuffix], 'wDat')
 dsize = wDat.vSize;
 
 % load mat file (load and generate temp mat file)
-loaddata(obj, filename, roipars.fosuffix) 
+loaddata(obj, [filename, roipars.fosuffix]) 
 
 % make patches (generate patches using set parameters)
 makepatch(obj, roiparams.patch_size, roiparams.overlap)
@@ -279,10 +279,11 @@ if ~exist([loDir, filesep, filename, '_prosroi.mat'], 'file') || roipars.redo
     initComponents_part2(obj, roiparams.K, ...
         roiparams.tau, roiparams.p, filename)
     
-    rawsignal(obj, filename, roipars.rfosuffix)
+    rawsignal(obj, [filename, roipars.rfosuffix])
     
     bas_estimate(obj);
-    roi = snapshot(obj); roi.userparams = roiparams;
+    roi = snapshot(obj);
+    roi.userparams = roiparams;
     
     % saves files locally
     save([loDir, filesep, filename, '_prosroi'], 'roi', '-v7.3')
