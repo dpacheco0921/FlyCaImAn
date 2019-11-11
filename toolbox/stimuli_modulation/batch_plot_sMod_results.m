@@ -1,20 +1,19 @@
-function plot_sMod_results(...
-    FolderName, FileName, iparams)
-% plot_sMod_results: plots results from stimuli modulation test
+function batch_plot_sMod_results(Filename, oDir, iparams)
+% batch_plot_sMod_results: plots results from stimuli modulation test
 %   (distribution of correlations, raw vs null, mod vs non-mod)
 %
 % Usage:
-%   plot_sMod_results(...
-%       FolderName, FileName, iparams)
+%   batch_plot_sMod_results(FileName, oDir, iparams)
 %
 % Args:
-%   FolderName: name of folders to load
-%   FileName: name of files to load
+%   Filename: name pattern of files to use
+%       (default, [])
+%   oDir: output directory.
 %   iparams: parameters to update
 %       (fsuffix: suffix of raw data)
 %           (default, '_rawdata.mat')
-%       (fo2reject: folders to reject)
-%       (fi2reject: files to reject)
+%       (fmetsuffix: suffix of metadata file)
+%           (default, '_metadata.mat')
 %       (hbins: bins for histogram)
 %           (default, -1:0.01:1)
 %       (hbinsp: bins for histogram pvals)
@@ -27,6 +26,8 @@ function plot_sMod_results(...
 %           correction to use: dep, pdep, bh)
 %           see calculate_pval.m
 %            (default, 'dep')
+%       (dir_depth: depth of directory search)
+%           (default, 0)
 %
 % Notes:
 %
@@ -36,51 +37,60 @@ function plot_sMod_results(...
 % default params
 motpar = [];
 motpar.fsuffix = '_prosroi.mat';
-motpar.metasuffix = '_prosmetadata.mat';
-motpar.fo2reject = {'.', '..'};
-motpar.fi2reject = []; 
+motpar.fmetsuffix = '_prosmetadata.mat';
 motpar.hbins = -1:0.01:1;
 motpar.hbinsp = 0:0.01:1.1;
 motpar.prct2use = 30;
 motpar.fdr = 0.01;
 motpar.mccor_method = 'dep';
-motpar.oDir = [];
+motpar.dir_depth = 0;
 
-if ~exist('FileName', 'var')
-    FileName = [];
+if ~exist('Filename', 'var')
+    Filename = [];
 end
 
-if ~exist('FolderName', 'var')
-    FolderName = [];
+if isempty(oDir)
+    oDir = [pwd, filesep, 'smodrel'];
 end
 
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 motpar = loparam_updater(motpar, iparams);
 
-% Selecting folders
-cDir = pwd;
-fo2run = dir;
-fo2run = str2match(FolderName, fo2run);
-fo2run = str2rm(motpar.fo2reject, fo2run);
-fo2run = {fo2run.name};
+if ~isempty(oDir) && ~exist('oDir', 'var')
+    mkdir(oDir)
+end
 
-fprintf('Reading motion from metadata files\n')
-fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
+% define files to use
+if motpar.dir_depth == 0
+    f2run = rdir(['.', filesep, '*', ...
+        motpar.fsuffix]);
+elseif motpar.dir_depth == 1
+    f2run = rdir(['.', filesep, '*', ...
+        filesep, '*', motpar.fsuffix]);
+else
+    f2run = rdir(['.', filesep, '*', ...
+        filesep, '*', filesep, '*', ...
+        motpar.fsuffix]);
+end
 
-% plot motion correction across timepoints
-for i = 1:numel(fo2run)
+f2run = {f2run.name}';
+[filename, iDir] = split_path(f2run);
+filename = strrep(filename, motpar.fsuffix, '');
 
-    fprintf(['Running folder : ', fo2run{i}, '\n']); 
-    cd(fo2run{i});
-    
-    if isempty(motpar.oDir)
-        motpar.oDir = [pwd, filesep, 'smodrel'];
-    end
-    
-    mkdir(motpar.oDir)
-    runperfolder(FileName, motpar);
-    cd(cDir)
+if ~isempty(Filename)
+    f2run = find(contains(filename, Filename));
+    filename = filename(f2run);
+    iDir = iDir(f2run);
+end
+
+fprintf(['Generating plots for ', ...
+    num2str(numel(filename)), ' files\n'])
+
+% plot sMod results
+for i = 1:numel(filename)
+
+    plotperfly(filename{i}, iDir{i}, oDir, motpar);
 
 end
 
@@ -88,47 +98,22 @@ fprintf('... Done\n')
 
 end
 
-function runperfolder(FileName, motpar)
-% runperfolder: run all files per folder
-%
-% Usage:
-%   runperfolder(FileName, motpar)
-%
-% Args:
-%   fname: file name pattern
-%   motpar: parameter variable
-
-% Plot all flies per folder
-[f2plot, rep2plot, ~] = ...
-    rdir_namesplit(FileName, motpar.fsuffix, ...
-    [], motpar.fi2reject, [], 0);
-
-fprintf(['Plotting n-flies : ', ...
-    num2str(numel(f2plot)), '\n'])
-
-for file_i = 1:numel(f2plot)
-    
-    filename = [f2plot{file_i}, '_', ...
-        num2str(rep2plot(file_i))];
-    
-    plotperfly(filename, motpar)
-
-end
-
-end
-
-function plotperfly(filename, motpar)
+function plotperfly(filename, iDir, oDir, motpar)
 % plotperfly: plot results per file
 %
 % Usage:
 %   plotperfly(filename, motpar)
 %
 % Args:
-%   fname: file name pattern
+%   filename: file name to load
+%   iDir: directory of filename
+%   oDir: output directory
 %   motpar: parameter variable
 
-load([filename, motpar.fsuffix], 'sMod', 'roi')
-load([filename, motpar.metasuffix], 'wDat')
+load([iDir, filesep, filename, motpar.fsuffix], ...
+    'sMod', 'roi')
+load([iDir, filesep, filename, motpar.fmetsuffix], ...
+    'wDat')
 
 % 1) ************ correlation related ************
 % ************************************************
@@ -200,7 +185,7 @@ fprintf('Plotting CC and pval\n')
 plot_distribution_all(corrcoef_hist, ...
     corrcoef_hist_null, corrcoef_stat, ...
     smod_hist, nsmod_hist, pval_raw, ...
-    pval_cor, motpar, filename)
+    pval_cor, motpar, filename, oDir)
 
 % 2) ************ correlation related ************
 % ************************************************
@@ -252,7 +237,7 @@ if sum(selIdx)
     plot_med_sig_per_smodroi(CaRef_zs_tl, ...
         CaRaw_zs_tl, corrcoef_stat(selIdx), ...
         time_tl, stim_vect, stim_idx, wDat, ...
-        motpar, filename)
+        motpar, filename, oDir)
 end
 
 % plot coverage videos
@@ -261,7 +246,7 @@ if sum(selIdx)
     fprintf('Plotting smod ROI coverage\n')
     
     plot_roi_coverage([filename, '_smod'], ...
-        [1 1 0], wDat, roi, motpar.oDir, find(selIdx)')
+        [1 1 0], wDat, roi, oDir, find(selIdx)')
     
 end
 
@@ -270,7 +255,7 @@ end
 function plot_distribution_all(corrcoef_hist, ...
     corrcoef_hist_null, corrcoef_stat, ...
     smod_hist, nsmod_hist, pval_raw, ...
-    pval_cor, motpar, filename)
+    pval_cor, motpar, filename, oDir)
 % plot_distribution_all: distribution of stimuli correlations
 %
 % Usage:
@@ -289,6 +274,7 @@ function plot_distribution_all(corrcoef_hist, ...
 %   pval_cor: corrected pvalues
 %   motpar: parameter variable
 %   filename: file name
+%   oDir: output directory
 
 % generate histograms
 roi_n = size(corrcoef_stat, 1);
@@ -458,9 +444,10 @@ tickgate = 'on';
 fontsiz = 10;
 
 figformat = [1 0 0 0 0 0 0 0 1 0 1];
-save_edit_fig_int(axH, figH, motpar.oDir, ...
+save_edit_fig_int(axH, figH, oDir, ...
     [filename, '_smod_results'], figformat, ...
-    fitsize, axcolor, figcolor, xyzcolor, tickgate, [], fontsiz)
+    fitsize, axcolor, figcolor, xyzcolor, ...
+    tickgate, [], fontsiz)
 
 close(figH)
 
@@ -468,7 +455,7 @@ end
 
 function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
     CaRaw_zs_tl, corrcoef_stat, time_tl, stim_vect, ...
-    stim_idx, wDat, motpar, filename)
+    stim_idx, wDat, motpar, filename, oDir)
 % plot_med_sig_per_smodroi: plot traces of smod rois
 %
 % Usage:
@@ -486,6 +473,7 @@ function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
 %   wDat: metadata parameter
 %   motpar: parameter variable
 %   filename: file name
+%   oDir: output directory
 
 [~, idx_order] = sort(corrcoef_stat);
 color_vect = cool(numel(unique(stim_idx)));
@@ -557,7 +545,7 @@ tickgate = 'on';
 fontsiz = 10;
 
 figformat = [1 0 0 0 0 0 0 0 1 0 1];
-save_edit_fig_int(axH, figH, motpar.oDir, ...
+save_edit_fig_int(axH, figH, oDir, ...
     [filename, '_smod_roi_results'], figformat, ...
     fitsize, axcolor, figcolor, xyzcolor, ...
     tickgate, [], fontsiz)

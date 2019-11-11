@@ -168,7 +168,7 @@ if ~isempty(strfind(motpar.fsuffix, 'rawdata'))
 
     end
 
-    if ~isempty(mcDat.rigids)
+    if isfield(mcDat, 'rigids') && ~isempty(mcDat.rigids)
 
         if iscell(mcDat.rigids)
             mcDat.rigids = mcDat.rigids{1};
@@ -185,7 +185,11 @@ if ~isempty(strfind(motpar.fsuffix, 'rawdata'))
         mcDat.rigid(3, :)*iDat.MetaData{3}(3), ...
         motpar.colorm(1, :), motpar.AxH);
 
-    legend(motpar.AxH(1), lineH, {'Raw Motion', 'Motion Corrected'})
+    if isfield(mcDat, 'rigids') && ~isempty(mcDat.rigids)
+        legend(motpar.AxH(1), lineH, {'Raw Motion', 'Motion Corrected'})
+    else
+        legend(motpar.AxH(1), lineH(2), {'Motion Corrected'})
+    end
 
 elseif ~isempty(strfind(motpar.fsuffix, 'prosdata'))
 
