@@ -80,6 +80,10 @@ classdef CaROISeg < handle
         % 3) memmap mat file
         function loaddata(obj, filename)
            
+            if ~contains(filename, '.mat')
+                filename = [filename, '.mat'];
+            end
+            
             if ~exist(filename, 'file')
                 % generate the memmap mat file
                 fprintf('Error file does not exist\n')
@@ -302,6 +306,10 @@ classdef CaROISeg < handle
         % 19) compute additional traces
         function rawsignal(obj, filename)
             
+            if ~contains(filename, '.mat')
+                filename = [filename, '.mat'];
+            end
+            
             % map red channel if it exist
             if exist('filename', 'var') ...
                     && ~isempty(filename)
@@ -326,6 +334,10 @@ classdef CaROISeg < handle
         
         % 20) compute additional traces (red only)
         function rawsignal_red(obj, filename)
+            
+            if ~contains(filename, '.mat')
+                filename = [filename, '.mat'];
+            end
             
             % map red channel if it exist
             if exist('filename', 'var') ...

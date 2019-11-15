@@ -43,7 +43,7 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %       (phaseflag: flag for using phase correlation, use this when SNR is high)
 %           (default, 1)
 %       (planeshift: how to interpret the plane with highest correlation
-%           when stitching serailly imaged stacks, this dependes on the
+%           when stitching serially imaged stacks, this dependes on the
 %           resolution in z and the overlap between stacks)
 %           (as the contiguous plane, 0, default)
 %           (as the same plane, 1)
@@ -72,8 +72,6 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, [])
 %
 % Notes:
-% Interpreting max correlated planes:
-%   For all z resolution: high correlation means contiguous plane.
 % How to orient consecutive planes and stacks 
 %   (particularly to match reference orientation: ventral-dorsal)
 %   Imaging from the central brain dorsal
@@ -230,10 +228,8 @@ for rep_i = 1:numel(reps)
     
     % Correct for inverse z order
     if strcmp(cspfa.direction, 'invert')
-        eval(['local(rep_i).RedChaMean = ', ...
-            str2use, '(iDat.RedChaMean, 3);']);
-        eval(['local(rep_i).GreenChaMean = ', ...
-            str2use, '(iDat.GreenChaMean, 3);']);
+        local(rep_i).RedChaMean = flip(iDat.RedChaMean, 3);
+        local(rep_i).GreenChaMean = flip(iDat.GreenChaMean, 3);
     else
         local(rep_i).RedChaMean = iDat.RedChaMean;
         local(rep_i).GreenChaMean = iDat.GreenChaMean;        
@@ -242,22 +238,31 @@ for rep_i = 1:numel(reps)
     % remove edges
     pix2rm = 10;
     local(rep_i).RedChaMean = ...
-        local(rep_i).RedChaMean(pix2rm:end-pix2rm, pix2rm:end-pix2rm, :);
+        local(rep_i).RedChaMean(pix2rm:end-pix2rm, ...
+        pix2rm:end-pix2rm, :);
     local(rep_i).GreenChaMean = ...
-        local(rep_i).RedChaMean(pix2rm:end-pix2rm, pix2rm:end-pix2rm, :);
+        local(rep_i).RedChaMean(pix2rm:end-pix2rm, ...
+        pix2rm:end-pix2rm, :);
     
     frame_siz = size(local(rep_i).RedChaMean);
     frame_siz = prod(frame_siz(1:2));
     
     % edit channels
     if cspfa.bkgate
-    	local(rep_i).RedChaMean = local(rep_i).RedChaMean - iDat.bs(1); 
-        local(rep_i).GreenChaMean = local(rep_i).GreenChaMean - iDat.bs(2); 
+    	local(rep_i).RedChaMean = ...
+            local(rep_i).RedChaMean - iDat.bs(1); 
+        local(rep_i).GreenChaMean = ...
+            local(rep_i).GreenChaMean - iDat.bs(2); 
     end
-    local(rep_i).RedChaMean = local(rep_i).RedChaMean + cspfa.fshift; 
-    local(rep_i).RedChaMean(local(rep_i).RedChaMean < cspfa.blowcap) = cspfa.blowcap;
-    local(rep_i).GreenChaMean = local(rep_i).GreenChaMean + cspfa.fshift; 
-    local(rep_i).GreenChaMean(local(rep_i).GreenChaMean < cspfa.blowcap) = cspfa.blowcap;
+    
+    local(rep_i).RedChaMean = ...
+        local(rep_i).RedChaMean + cspfa.fshift; 
+    local(rep_i).RedChaMean(local(rep_i).RedChaMean < cspfa.blowcap) = ...
+        cspfa.blowcap;
+    local(rep_i).GreenChaMean = ...
+        local(rep_i).GreenChaMean + cspfa.fshift; 
+    local(rep_i).GreenChaMean(local(rep_i).GreenChaMean < cspfa.blowcap) = ...
+        cspfa.blowcap;
     
     % Detecting nan
     if sum(isnan(local(rep_i).RedChaMean(:))) > 0
@@ -311,7 +316,9 @@ for rep_i = 1:numel(reps)
         
         while sum(sum(isnan(local(rep_i).RedChaMean(:, :, zshift)), 2), 1) == frame_siz
             zshift = zshift + 1;
-            if zshift == (size(local(rep_i).RedChaMean, 3) + 1); keyboard; end
+            if zshift == (size(local(rep_i).RedChaMean, 3) + 1)
+                keyboard;
+            end
         end
         
         SimRed(rep_i, zshift) = 1;
@@ -355,7 +362,9 @@ for rep_i = 1:numel(reps)
     load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
         'iDat', 'fDat', 'mcDat', 'lStim');
     
-    if ~exist('mcDat', 'var'); mcDat = []; end
+    if ~exist('mcDat', 'var')
+        mcDat = [];
+    end
     
     if ~isempty(strfind(fDat.DataType, 'opto'))
         load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
@@ -372,10 +381,8 @@ for rep_i = 1:numel(reps)
         
         % Collect the red and green template
         if strcmp(cspfa.direction, 'invert')
-            eval(['wDat.RedChaMean = ', ...
-                str2use, '(iDat.RedChaMean, 3);']);
-            eval(['wDat.GreenChaMean = ', ...
-                str2use, '(iDat.GreenChaMean, 3);']);
+            wDat.RedChaMean = flip(iDat.RedChaMean, 3);
+            wDat.GreenChaMean = flip(iDat.GreenChaMean, 3);
         else
             wDat.RedChaMean = iDat.RedChaMean;
             wDat.GreenChaMean = iDat.GreenChaMean;           
@@ -415,8 +422,8 @@ for rep_i = 1:numel(reps)
         
         % Correct for inverse z order
         if strcmp(cspfa.direction, 'invert')
-            eval(['iDat.RedChaMean = ', str2use, '(iDat.RedChaMean, 3);']);
-            eval(['iDat.GreenChaMean = ', str2use, '(iDat.GreenChaMean, 3);']);
+            iDat.RedChaMean = flip(iDat.RedChaMean, 3);
+            iDat.GreenChaMean = flip(iDat.GreenChaMean, 3);
         end
         
         % delete empty planes if nan
@@ -431,9 +438,11 @@ for rep_i = 1:numel(reps)
         end
         
         iDat.RedChaMean = iDat.RedChaMean + cspfa.fshift; 
-        iDat.RedChaMean(iDat.RedChaMean < cspfa.blowcap) = cspfa.blowcap;
+        iDat.RedChaMean(iDat.RedChaMean < cspfa.blowcap) = ...
+            cspfa.blowcap;
         iDat.GreenChaMean = iDat.GreenChaMean + cspfa.fshift;
-        iDat.GreenChaMean(iDat.GreenChaMean < cspfa.blowcap) = cspfa.blowcap;
+        iDat.GreenChaMean(iDat.GreenChaMean < cspfa.blowcap) = ...
+            cspfa.blowcap;
         
         % Get shift
         % reset size of stack
@@ -491,6 +500,8 @@ for rep_i = 1:numel(reps)
         % how to interpret plane with highest correlation (see notes)
         if cspfa.planeshift
             init_slice = 1;
+            wDat.Zstitch.Zshift(rep_i, 1) = ...
+                wDat.Zstitch.Zshift(rep_i, 1) + 1;
         else
             init_slice = 0;
         end

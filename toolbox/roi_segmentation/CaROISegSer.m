@@ -4,7 +4,7 @@ function CaROISegSer(paramfile, serverid, IntID)
 %   into subvolumes (defined by patches)
 %
 % Usage:
-%   CaROISegSer(paramfile, serverid, username, IntID)
+%   CaROISegSer(paramfile, serverid, IntID)
 %
 % Args:
 %   paramfile: mat file with all parameters
@@ -13,7 +13,7 @@ function CaROISegSer(paramfile, serverid, IntID)
 %
 % Notes:
 % This function is run by batch_CaROISegSer
-% cluster compatible
+%   cluster compatible
 
 timeint = tic;
 fprintf('Running roi-segmentation using CNMF\n');
@@ -150,21 +150,23 @@ obj.options.freq_th = roiparams.freq_th;
 obj.options.brainmask = wDat.bMask;
 
 % add extra options for detending
-obj.options.dtype = roiparams.dtype; % 0 = lowpass filter, 1 = percentile filter
 obj.options.d_prct = roiparams.d_prct;
 obj.options.d_window = roiparams.d_window;
 obj.options.d_shift = roiparams.d_shift;
 obj.options.se_parallel = 1;
 obj.options.Asize_ths = roiparams.Asize_ths;
-obj.options.t_init = 2;
+% skip first 5 seconds
+obj.options.t_init = max([sum(wDat.fTime - wDat.fTime(1)  < 5) 1]);
 
 % add c_ths for data with LED bleedthrough
 if isfield(wDat.sPars, 'led_delta') && ...
         ~isempty(wDat.sPars.led_delta)
     
-    if isfield(roipars, 'c_ths') && ...
-            ~isempty(roipars.c_ths)
-        obj.options.l_df = roipars.c_ths;
+    % roiparams.c_ths is userdefined threshold (deprecated)
+    
+    if isfield(roiparams, 'c_ths') && ...
+            ~isempty(roiparams.c_ths)
+        obj.options.l_df = roiparams.c_ths;
     else
         obj.options.l_df = max(wDat.sPars.led_delta);
     end

@@ -58,15 +58,18 @@ if rep_i == 1
 end
 
 % Collect song-related
-if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
+if contains(fDat.DataType, 'song') || ...
+        contains(fDat.DataType, 'prv')
     
     % it assumes that within a file name, the stimuli params are the same
     wDat.sTrace = lStim.trace;
     
-    if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
+    if isfield(lStim, 'sPars') && ...
+            isfield(lStim.sPars, 'basPre')
         
         if rep_i == 1
-            wDat.sPars.name = cell(n_reps, length(lStim.sPars.name));
+            wDat.sPars.name = cell(n_reps, ...
+                length(lStim.sPars.name));
             wDat.sPars.int = [];
             wDat.sPars.sr = [];
         end
@@ -83,7 +86,8 @@ if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
         load([fname, '_vDat.mat'], 'rDat');
         
         if rep_i == 1
-            wDat.sPars.name = cell(n_reps, length(rDat.ctrl.stimFileName));
+            wDat.sPars.name = cell(n_reps, ...
+                length(rDat.ctrl.stimFileName));
             wDat.sPars.int = [];
             wDat.sPars.sr = [];
         end
@@ -101,11 +105,13 @@ if contains(fDat.DataType, 'song') || contains(fDat.DataType, 'prv')
 end
 
 % Collect opto-related
-if contains(fDat.DataType, 'opto') && ~contains(fDat.DataType, 'prv')
+if contains(fDat.DataType, 'opto') && ...
+        ~contains(fDat.DataType, 'prv')
     
     wDat.sTrace = lStim.trace;
     
-    if isfield(lStim, 'sPars') && isfield(lStim.sPars, 'basPre')
+    if isfield(lStim, 'sPars') && ...
+            isfield(lStim.sPars, 'basPre')
         wDat.sPars.int(rep_i, :) = lStim.sPars.int;
         wDat.sPars.freq(rep_i, :) = lStim.sPars.freq;
         wDat.sPars.width(rep_i, :) = lStim.sPars.width;
@@ -160,8 +166,10 @@ end
 % Stitch related
 wDat.Zstitch.Zidx = cat(1, wDat.Zstitch.Zidx, ones(zlength, 1)*reps(rep_i));
 if rep_i > 1
-    wDat.Zstitch.Yshift(rep_i-1, 1) = shifts_align.shifts(1, 1, 1, 1);
-    wDat.Zstitch.Xshift(rep_i-1, 1) = shifts_align.shifts(1, 1, 1, 2);
+    wDat.Zstitch.Yshift(rep_i-1, 1) = ...
+        shifts_align.shifts(1, 1, 1, 1);
+    wDat.Zstitch.Xshift(rep_i-1, 1) = ...
+        shifts_align.shifts(1, 1, 1, 2);
 end
 
 % save substracted background

@@ -89,7 +89,7 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating plots for ', ...
+fprintf(['Collecting DF images for ', ...
     num2str(numel(filename)), ' files\n'])
 
 % plot sMod results
@@ -295,6 +295,13 @@ function Y = stackloader(dataObj, ...
 %   corenumber: number of cores to use.
 
 siz = dataObj.sizY;
+
+% check that time2load are all positive integers
+error_flag = numel(find(time2load <= 0));
+if error_flag
+    fprintf('Time points are negative')
+    display(time2load)
+end
 
 % initialize variables
 if length(siz) == 4

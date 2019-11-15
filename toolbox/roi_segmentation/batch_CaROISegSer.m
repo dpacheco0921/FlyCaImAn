@@ -59,39 +59,48 @@ CaRp.functype = {'CaROISegSer.m'};
 CaRp.cDir = pwd;
 maxjobs = 4;
 
-if exist('fname', 'var') && ~isempty(fname)
+if ~exist('fname', 'var') || ...
+        isempty(fname)
    fname = [];
 end
 
-if exist('serverid', 'var') && ~isempty(serverid)
+if ~exist('serverid', 'var') || ...
+        isempty(serverid)
     serverid = 'spock';
 end
 
-if exist('jobpart', 'var') && ~isempty(jobpart)
+if ~exist('jobpart', 'var') || ...
+        isempty(jobpart)
     jobpart = 1;
 end
 
-if exist('memreq', 'var') && ~isempty(memreq)
+if ~exist('memreq', 'var') || ...
+        isempty(memreq)
     memreq = 48;
 end
 
-if exist('corenum', 'var') && ~isempty(corenum)
+if ~exist('corenum', 'var') || ...
+        isempty(corenum)
     corenum = 4;
 end
 
-if exist('roi_n_init', 'var') && ~isempty(roi_n_init)
+if ~exist('roi_n_init', 'var') || ...
+        isempty(roi_n_init)
     roi_n_init = [];
 end
 
-if ~exist('inputparams', 'var') || isempty(inputparams)
+if ~exist('inputparams', 'var') || ...
+        isempty(inputparams)
     inputparams = 'roiseg_3D_dense_fr_2Hz_z2';
 end
 
-if ~exist('patchtype', 'var') || isempty(patchtype)
+if ~exist('patchtype', 'var') || ...
+        isempty(patchtype)
     patchtype = 0;
 end
 
-if ~exist('stitch_flag', 'var') || isempty(stitch_flag)
+if ~exist('stitch_flag', 'var') || ...
+        isempty(stitch_flag)
     stitch_flag = 1;    
 end
 
@@ -138,10 +147,10 @@ end
 % get scratch (temporary) and bucket (permanent) directories
 [~, username, ~, scratchdir, ~] = ...
     user_defined_directories(serverid);
-if ~exist([scratchdir, sep, 'jobsub', sep, 'roirel'], 'dir')
-    mkdir([scratchdir, sep, 'jobsub', sep, 'roirel']);
+if ~exist([scratchdir, 'jobsub', filesep, 'roirel'], 'dir')
+    mkdir([scratchdir, 'jobsub', filesep, 'roirel']);
 end
-tDir = [fastscratchdir, filesep, 'jobsub', filesep, 'roirel'];
+tDir = [scratchdir, 'jobsub', filesep, 'roirel'];
 
 % Find input files withing data folder CaRp.cDir
 [filename, patchidx] = getinputfiles(...
@@ -328,7 +337,7 @@ switch serverid
         fprintf(fid, '#SBATCH --mail-user=dpacheco@princeton.edu\n');
         fprintf(fid, ['#SBATCH --array=1-', num2str(numT), '\n\n']);
         
-        fprintf(fid, 'module load matlab/R2016b\n');
+        fprintf(fid, 'module load matlab/R2018b\n');
         fprintf(fid, '# Create a local work directory\n');
         fprintf(fid, 'mkdir -p /tmp/$USER-$SLURM_JOB_ID\n');
         fprintf(fid, ['matlab -nodesktop -nodisplay -nosplash -r "', ...
@@ -362,7 +371,7 @@ switch serverid
         fprintf(fid, '#SBATCH --mail-user=dpacheco@princeton.edu\n');
         fprintf(fid, ['#SBATCH --array=1-', num2str(numT), '\n\n']);
         
-        fprintf(fid, 'module load matlab/R2016b\n');
+        fprintf(fid, 'module load matlab/R2018b\n');
         fprintf(fid, '# Create a local work directory\n');
         fprintf(fid, 'mkdir -p /tmp/$USER-$SLURM_JOB_ID\n');
         fprintf(fid, ['matlab -nodesktop -nodisplay -nosplash -r "', ...
