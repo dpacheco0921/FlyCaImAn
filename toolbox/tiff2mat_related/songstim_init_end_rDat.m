@@ -23,13 +23,18 @@ function [stimuli_onset_offset, stimuli_cat_trace] = ...
 % Note:
 % rDat.log.silencePre and rDat.log.silencePost are in ms
 
-if ~exist('stimCha', 'var') || isempty(stimCha)
+if ~exist('stimCha', 'var') || ...
+        isempty(stimCha)
     stimCha = 1;
 end
-if ~exist('findStim', 'var') || isempty(findStim)
+
+if ~exist('findStim', 'var') || ...
+        isempty(findStim)
     findStim = 0;
 end
-if ~exist('minwidth', 'var') || isempty(minwidth)
+
+if ~exist('minwidth', 'var') || ...
+        isempty(minwidth)
     minwidth = 100;
 end
 
@@ -57,14 +62,19 @@ end
 stimuli_cat_trace = stimuli_cat_trace(start_end(1):start_end(2))';
 
 if findStim
+    
     stimuli_onset_offset = ...
         find_stim_int(stimuli_cat_trace, minwidth, stimths);
+    
 else
+    
     stimuli_onset_offset = ...
         stimuli_onset_offset - start_end(1); 
+    
 end
 
 l2chop = find(stimuli_onset_offset(:, 1) > start_end(2));
+
 if ~isempty(l2chop)
     stimuli_onset_offset = stimuli_onset_offset(1:(l2chop - 1), :);
 end

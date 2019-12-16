@@ -17,19 +17,15 @@ if iscell(iFile)
     
     for i = 1:numel(iFile)
         
-        prestr = strsplit2(iFile{i}, idelimiter);
-        iDir{i, 1} = strrep(iFile{i}, ...
-            [idelimiter, prestr{end}], '');
-        iFile{i, 1} = prestr{end};
+        [iDir{i, 1}, ~, ~] = fileparts(iFile{i});
+        iFile{i} = strrep(iFile{i}, [iDir{i, 1}, idelimiter], '');
         
     end
     
 else
     
-    prestr = strsplit2(iFile, idelimiter);
-    iDir = strrep(iFile, [idelimiter, ...
-        prestr{end}], '');
-    iFile = prestr{end};
+    [iDir, ~, ~] = fileparts(iFile);
+    iFile = strrep(iFile, [iDir, idelimiter], '');
     
 end
 

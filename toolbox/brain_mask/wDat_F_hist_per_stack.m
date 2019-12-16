@@ -94,7 +94,8 @@ else
     
 end
 
-xlim(axH, [-20 50])
+xlim(axH, [min(wDat.GreenChaMean(:)), ...
+    max(wDat.GreenChaMean(:))])
 legend(axH, lh, lstr)
 title(axH, 'Histogram of fluorescent values')
 

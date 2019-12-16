@@ -70,9 +70,18 @@ for i = 1:numel(wDat.bF_zbin)-1
     
     % plot histograms
     if plot_flag
+        
         fitgaussPlotter(hDat, figH, axH);
-        xlim(axH, [0 50])
         title(axH, 'Gaussian fit to fluorescence distribution')
+        
+        if ~isempty(image2replace)
+            xlim(axH, [min(image2replace(:)), ...
+                max(image2replace(:))])
+        else
+            xlim(axH, [min(wDat.GreenChaMean(:)), ...
+                max(wDat.GreenChaMean(:))])
+        end
+        
     end
     
     wDat.bF_ths(1, i) = hDat.xths(1, 2);

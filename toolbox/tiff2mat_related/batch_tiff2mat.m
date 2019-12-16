@@ -387,6 +387,8 @@ for tif_i = 1:tif_num
     
     if tif_i == 1
         fprintf(['Channels imported: ', num2str(ImMeta.ChNum), '\n'])
+        try fprintf(['Frame rate: ', num2str(ImMeta.framerate), '\n']); end
+        try fprintf(['Volume rate: ', num2str(ImMeta.volumerate), '\n']); end
     end
     
     fprintf('*');
@@ -398,6 +400,12 @@ end
 
 clear tempdata_pre
 
+if ~isfield(ImMeta, 'sympixels') || ...
+        (isfield(ImMeta, 'sympixels') && ...
+        isempty(ImMeta.sympixels))
+   ImMeta.sympixels = tifpars.pixelsym;
+end
+
 % Default values for reshape
 ImMeta.RepeatNum = dim2count;
 ImMeta.DelFrames = [];
@@ -407,7 +415,7 @@ fprintf(['Data final size: ', num2str(size(dataObj.Data)), '\n'])
 % generate metadata
 [fDat, iDat] = generatemetadata(repname_tif(1:(end-6)), ImMeta,  ...
     tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
-    tifpars.pixelsym, tifpars.Zres, tifpars.sres, ...
+    tifpars.Zres, tifpars.sres, ...
     tifpars.FieldOfView, tifpars.fName);
 
 % save metadata
@@ -469,6 +477,12 @@ for acqIdx = 1:numel(TemplateFile)
             Data = uint16(Data);
     end
     
+    if ~isfield(ImMeta, 'sympixels') || ...
+        (isfield(ImMeta, 'sympixels') && ...
+        isempty(ImMeta.sympixels))
+        ImMeta.sympixels = tifpars.pixelsym; 
+    end
+    
     % Selecting channel to save
     pmtNum = size(Data, 4); 
     
@@ -485,7 +499,7 @@ for acqIdx = 1:numel(TemplateFile)
     ImMeta.FrameNum = size(Data, 3);
     [fDat, iDat] = generatemetadata(TemplateFile{acqIdx}(1:(end-4)), ImMeta,  ...
         tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
-        tifpars.pixelsym, tifpars.Zres, tifpars.sres, ...
+        tifpars.Zres, tifpars.sres, ...
         tifpars.FieldOfView, tifpars.fName);
     
     SavingDataNew(Data, fDat, iDat, 1, ...
@@ -534,6 +548,12 @@ for RepIdx = 1:tiffNumel
     
 end
 
+if ~isfield(ImMeta, 'sympixels') || ...
+        (isfield(ImMeta, 'sympixels') && ...
+        isempty(ImMeta.sympixels))
+   ImMeta.sympixels = tifpars.pixelsym; 
+end
+
 fprintf('\n')
 fprintf(['Channels imported: ',num2str(ImMeta.ChNum),'\n'])
 
@@ -559,7 +579,7 @@ end
 % Metadata
 [fDat, iDat] = generatemetadata(TemplateFile(1:(end-8)), ImMeta, ...
     tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
-    tifpars.pixelsym, tifpars.Zres, tifpars.sres, ...
+    tifpars.Zres, tifpars.sres, ...
     tifpars.FieldOfView, tifpars.fName);
 
 SavingDataNew(Data, fDat, iDat, 2, ...
@@ -606,7 +626,7 @@ end
 
 function [fDat, iDat] = ...
     generatemetadata(ifilename, ImMeta, ...
-    cDir, Folder2Run, SpMode, pixelsym, ...
+    cDir, Folder2Run, SpMode, ...
     Zres, sres, FieldOfView, fName)
 % generatemetadata: collect image metadata
 %
@@ -619,9 +639,6 @@ function [fDat, iDat] = ...
 %   cDir: current directory
 %   Folder2Run: file directory
 %   SpMode: type of data to run (2DxT, 3DxT, old, new, etc)
-%   pixelsym: flag for pixel symmetry
-%       (0, asymmetric)
-%       (1, symmetric)
 %   Zres: space between planes, 1 um
 %   sres: max spatial resolution to use (round all values smaller than 1/p.sres)
 %       (default, 10^4)
@@ -647,7 +664,7 @@ if ~exist('iDat', 'var')
 end
 
 % pixel size (symmetric or not)
-if pixelsym == 0
+if ImMeta.sympixels == 0
     
     iDat.MetaData = {'voxelsize', 'y x z', ...
         round([FieldOfView/(ImMeta.Zoom*ImMeta.Y), ...
@@ -669,6 +686,10 @@ iDat.StackN = ImMeta.RepeatNum;
 iDat.FrameSize = [ImMeta.Y, ImMeta.X]; % [Y, X], [heigth, width]
 iDat.Power = ImMeta.Power;
 iDat.DelFrames = ImMeta.DelFrames;
+
+% add rate variables (in Hz)
+iDat.framerate = ImMeta.framerate;
+iDat.volumerate = ImMeta.volumerate;
 
 % reset preprocessing count
 iDat.LEDCorr = 0;

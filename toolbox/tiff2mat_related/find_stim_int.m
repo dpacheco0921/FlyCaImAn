@@ -18,7 +18,9 @@ end
 
 itrace = abs(itrace) > threshold_val;
 
-stimuli_onset_offset = [(find(diff(itrace) == 1) + 1)', find(diff(itrace) == -1)' + 1];
+stimuli_onset_offset = ...
+    [(find(diff(itrace) == 1) + 1)', ...
+    find(diff(itrace) == -1)' + 1];
 
 if size(stimuli_onset_offset, 1) > 1
     

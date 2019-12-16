@@ -18,6 +18,9 @@ function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose)
 %       (ChNum: number of channels collected)
 %       (Zoom: zoom factor)
 %       (Power: power)
+%       (framerate: frame rate)
+%       (volumerate: volume rate)
+%       (sympixels: flag for symetric pixels)
 %       (Imclass: class of encoding)
 
 if ~exist('verbose', 'var'); verbose = 0; end
@@ -28,9 +31,13 @@ try
     Imclass = getClass(info);
     
     if contains(datatype, {'2DxT_single', 'old'})
-        [Y, X, Channels, Zoom, Power, Z] = TiffMetadataOld(info);
+        [Y, X, Channels, Zoom, Power, Z, ...
+            framerate, volumerate, sympixels] = ...
+            TiffMetadataOld(info);
     else
-        [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info);
+        [Y, X, Channels, Zoom, Power, Z, ...
+            framerate, volumerate, sympixels] = ...
+            TiffMetadata(info);
     end
     
     % getting frame offset
@@ -70,6 +77,9 @@ try
     ImMeta.ChNum = Channels;
     ImMeta.Zoom = Zoom;
     ImMeta.Power = Power;
+    ImMeta.framerate = framerate;
+    ImMeta.volumerate = volumerate;
+    ImMeta.sympixels = sympixels;    
     ImMeta.Imclass = Imclass;
     
 catch error
@@ -146,7 +156,8 @@ end
 
 end
 
-function [Y, X, Channels, Zoom, Power, Z] = TiffMetadataOld(info)
+function [Y, X, Channels, Zoom, Power, Z, ...
+    framerate, volumerate, sympixels] = TiffMetadataOld(info)
 % TiffMetadataOld: get metadata from tiff files
 %
 % Usage:
@@ -162,6 +173,9 @@ function [Y, X, Channels, Zoom, Power, Z] = TiffMetadataOld(info)
 %   Zoom: zoom factor
 %   Power: power
 %   Z: planes per volume
+%   framerate: frame rate
+%   volumerate: volume rate
+%   sympixels: flag for symetric pixels
 
 params = strfind(info(1,1).ImageDescription, 'state.');
 
@@ -179,10 +193,14 @@ Channels = state.acq.numberOfChannelsAcquire;
 Zoom = state.acq.zoomFactor;
 Power = [];
 Z = [];
+framerate = [];
+volumerate = [];
+sympixels = 0;
 
 end
 
-function [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info)
+function [Y, X, Channels, Zoom, Power, Z, ...
+    framerate, volumerate, sympixels] = TiffMetadata(info)
 % TiffMetadata: get metadata from tiff files
 %
 % Usage:
@@ -198,6 +216,9 @@ function [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info)
 %   Zoom: zoom factor
 %   Power: power
 %   Z: planes per volume
+%   framerate: frame rate
+%   volumerate: volume rate
+%   sympixels: flag for symetric pixels
 %
 % Notes:
 % So far compatible with old and new scanimage
@@ -247,5 +268,8 @@ Z = scanimage.SI.hFastZ.numFramesPerVolume;
 Channels = sum(scanimage.SI.hChannels.channelSave > 0);
 Zoom = scanimage.SI.hRoiManager.scanZoomFactor;
 Power = scanimage.SI.hBeams.powers;
+framerate = scanimage.SI.hRoiManager.scanFrameRate;
+volumerate = scanimage.SI.hRoiManager.scanVolumeRate;
+sympixels = scanimage.SI.hRoiManager.forceSquarePixels;
 
 end

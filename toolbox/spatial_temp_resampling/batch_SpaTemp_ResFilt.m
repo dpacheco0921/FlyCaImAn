@@ -574,6 +574,9 @@ if ~check_gate
         iniT(i, :) = [max(iniT_t(:, 1)), min(iniT_t(:, end))];
     end
 
+    fprintf('All onset-offset times:/n')
+    display(iniT)
+    
     start_end_time(1) = ceil(max(iniT(:, 1))/newtimeres)*newtimeres;
     start_end_time(2) = floor(min(iniT(:, 2))/newtimeres)*newtimeres;
 

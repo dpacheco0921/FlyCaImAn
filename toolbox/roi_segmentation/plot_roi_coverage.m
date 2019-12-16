@@ -22,6 +22,10 @@ if ~exist('vid2plot', 'var') || isempty(vid2plot)
    vid2plot = [1 1 1];
 end
 
+if ~exist('roi2sel', 'var')
+   roi2sel = [];
+end
+
 % deafult video settings
 vidpar.xyzres = wDat.XYZres{2};
 vidpar.overcor = [1 0 0];

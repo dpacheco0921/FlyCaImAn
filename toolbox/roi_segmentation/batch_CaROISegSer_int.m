@@ -213,15 +213,16 @@ obj.options.d_window = roiparams.d_window;
 obj.options.d_shift = roiparams.d_shift;
 obj.options.se_parallel = 1;
 obj.options.Asize_ths = roiparams.Asize_ths;
-obj.options.t_init = 2;
+% skip first 5 seconds
+obj.options.t_init = max([sum(wDat.fTime - wDat.fTime(1)  < 5) 1]);
 
 % add c_ths for data with LED bleedthrough
 if isfield(wDat.sPars, 'led_delta') && ...
         ~isempty(wDat.sPars.led_delta)
     
-    if isfield(roipars, 'c_ths') && ...
-            ~isempty(roipars.c_ths)
-        obj.options.l_df = roipars.c_ths;
+    if isfield(roiparams, 'c_ths') && ...
+            ~isempty(roiparams.c_ths)
+        obj.options.l_df = roiparams.c_ths;
     else
         obj.options.l_df = max(wDat.sPars.led_delta);
     end

@@ -46,6 +46,8 @@ function slice3Dmatrix(Y, iparams)
 %           (default, [])
 %       (Y3textcmap:, color of text, default 'cyan')
 %           (default, 'cyan')
+%       (Y3fontsiz: font size of text)
+%           (default, 12)
 %       %%%%%%%%%%%% saving params %%%%%%%%%%%%
 %       (vgate: save flag)
 %           (default, 0)
@@ -100,6 +102,7 @@ pi.Y3 = [];
 pi.Y3cmap = [1 0 0];
 pi.Y3text = [];
 pi.Y3textcmap = 'cyan';
+pi.Y3fontsiz = 12;
 pi.overcor = [1 0 0];
 pi.xyzres = [1.2, 1.2, 1];
 pi.vgate = 0;
@@ -124,13 +127,20 @@ if isempty(pi.sizY); pi.sizY = size(Y); end
 
 % reshape Y if it is flat
 pi.sizYi = size(Y);
-sizM = size(pi.Y1);
-Y = reshape(full(Y), [pi.sizY prod(pi.sizYi)/prod(pi.sizY)]);
-pi.Y1 = reshape(full(pi.Y1), [pi.sizY prod(sizM)/prod(pi.sizY)]);
+pi.sizY1_orig = size(pi.Y1);
+pi.sizY1_target = [pi.sizY prod(pi.sizY1_orig)/prod(pi.sizY)];
 
-if prod(sizM)/prod(pi.sizY) > 1 ...
+% flatten Y1
+if pi.sizY1_orig(1) == pi.sizY1_target(1)
+    pi.Y1 = reshape(pi.Y1, ...
+        [prod(pi.sizY), prod(pi.sizY1_orig)/prod(pi.sizY)]);
+end
+
+Y = reshape(full(Y), [pi.sizY prod(pi.sizYi)/prod(pi.sizY)]);
+
+if prod(pi.sizY1_orig)/prod(pi.sizY) > 1 ...
         && size(pi.Y1cmap, 1) == 1
-    pi.Y1cmap = gradientgen(11, prod(sizM)/prod(pi.sizY));   
+    pi.Y1cmap = jet(prod(pi.sizY1_orig)/prod(pi.sizY));   
 end
 
 if isempty(pi.Y1text) || ...
@@ -274,15 +284,19 @@ for t = 1:size(Y, pi.axp)
     if ~isempty(pi.Y1)
         
         % if mask is same size uses each for each Y(:, :, t)
-        if size(Y, 3) == size(pi.Y1, 3) 
-                        
-            for ic = 1:size(pi.Y1, 4)
+        if size(Y, 3) == pi.sizY1_target(3)         
+
+            for ic = 1:pi.sizY1_target(4)
+                
+                % full volume per mask
+                temp_Y1 = reshape(full(pi.Y1(:, ic)), [pi.sizY 1]);
+
                 if pi.axp == 3
-                    temp_Y1 = squeeze(pi.Y1(:, :, t, ic));
+                    temp_Y1 = squeeze(temp_Y1(:, :, t));
                 elseif pi.axp == 2
-                    temp_Y1 = squeeze(pi.Y1(:, t, :, ic));
+                    temp_Y1 = squeeze(temp_Y1(:, t, :));
                 else
-                    temp_Y1 = squeeze(pi.Y1(t, :, :, ic));
+                    temp_Y1 = squeeze(temp_Y1(t, :, :));
                 end
                 
                 pixres = pi.xyzres(setdiff(1:3, pi.axp));
@@ -295,14 +309,17 @@ for t = 1:size(Y, pi.axp)
             end
             
         % otherwise it uses the same for all (1)
-        elseif size(pi.Y1, 3) == 1 
+        elseif pi.sizY1_target(3)
             
+            temp_Y1 = reshape(full(pi.Y1(:, 1)), [pi.sizY 1]);
+
             pixres = pi.xyzres(setdiff(1:3, pi.axp));
-            imobj_a = imref2d(size(pi.Y1), pixres(2), pixres(1));
-            overlay_mask(pi.hAxes(1), pi.Y1, pi.Y1text(1), [], ...
+            imobj_a = imref2d(size(temp_Y1), pixres(2), pixres(1));
+            overlay_mask(pi.hAxes(1), temp_Y1, pi.Y1text(1), [], ...
                 imobj_a, pi.text_position)
             
         end
+
     end
     
     % add points
@@ -325,6 +342,7 @@ for t = 1:size(Y, pi.axp)
                         temp_Y3(i, 1)*pi.xyzres(1), ...
                         pi.Y3text{pts2use(i)}, ...
                         'Color', pi.Y3textcmap, ...
+                        'FontSize', pi.Y3fontsiz,...
                         'Parent', pi.hAxes)
                end
            end

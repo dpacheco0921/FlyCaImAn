@@ -258,6 +258,11 @@ end
 % collect timestamps
 FrameN = iDat.FrameN*iDat.StackN;
 
+% if metadata iDat variable already has framerate information, then use it
+if isfield(iDat, 'framerate') && ~isempty(iDat.framerate)
+    metpars.minframet = floor(10000/iDat.framerate);
+end
+
 if ~isempty(Ch)
     [FrameInit, FrameEnd] = ...
         colecttimestamp(Ch(metpars.frameCh, :), ...

@@ -20,7 +20,9 @@ mippars.irange = [];
 if ~exist('iparams', 'var'); iparams = []; end
 mippars = loparam_updater(mippars, iparams);
 
-if ~iscell(Y); Y = {Y}; end
+if ~iscell(Y)
+    Y = {double(Y)};
+end
 
 for i = 1:numel(Y)
     
@@ -33,6 +35,7 @@ for i = 1:numel(Y)
     end
     
     if isempty(mippars.axH)
+        
         for j = 1:3
             if j == 1
                 mippars.axH = subplot(1, 3, j);
@@ -40,6 +43,7 @@ for i = 1:numel(Y)
                 mippars.axH(j) = subplot(1, 3, j);
             end
         end
+        
     end
     
     if isempty(mippars.irange)

@@ -210,7 +210,7 @@ function runperfolder(fname, pMC)
 % runperfolder: run all files per folder
 %
 % Usage:
-%   runperfolder(fname)
+%   runperfolder(fname, pMC)
 %
 % Args:
 %   fname: file name pattern
@@ -618,7 +618,19 @@ if iDat.MotCorr == 0 || pMC.redo == 1
         
         iDat.fstEn = [init_temp(:) end_temp(:)];
         clear init_temp end_temp delta_siz
-                    
+        
+        % provide final size after removing nans
+        dgDim = size(GreenCha);
+        if length(dgDim) == 4
+            nan_plane = sum(reshape(isnan(mean(GreenCha, length(dgDim))), ...
+                [prod(dgDim([1 2])) dgDim(3)])) ~= prod(dgDim([1 2]));
+        else
+            nan_plane = [];
+        end
+        
+        fprintf('planes to keep\n')
+        display(nan_plane)
+        
     end
 
     % Save metadata, avg image and save
@@ -644,7 +656,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     Data = GreenCha;
     
     % plot image of start vs end of recording
-    if isempty(Data)
+    if ~isempty(Data)
         
         if length(dgDim) == 4
             float_im_1 = ...

@@ -49,7 +49,7 @@ if ~exist('Filename', 'var')
     Filename = [];
 end
 
-if isempty(oDir)
+if ~exist('oDir', 'var') || isempty(oDir)
     oDir = [pwd, filesep, 'smodrel'];
 end
 

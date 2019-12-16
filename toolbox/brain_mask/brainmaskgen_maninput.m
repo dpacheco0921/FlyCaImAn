@@ -2,14 +2,17 @@
 %% Manual curation/editing of mask
 % 1.1) test if generated 'wDat.bF_ths' is good
 display(wDat.bF_ths) % display current threshold
-
+display([min(wDat.GreenChaMean(:)) ...
+    max(wDat.GreenChaMean(:))])
+im_range = [min(wDat.GreenChaMean(:)) ...
+    max(wDat.GreenChaMean(:))*0.7];
 % generate mask using this threshold
 brainmask = wDat_generatemask(wDat, 5^3, bGreen, 0); 
 
 % 1.2) slide through planes and contour of mask per plane
 pi = [];
 pi.iter = 0;
-pi.range = [-10 200];
+pi.range = [im_range(1) im_range(1) + 100];
 pi.maskout = 0;
 pi.lag = 0.1;
 pi.Y1 = brainmask;

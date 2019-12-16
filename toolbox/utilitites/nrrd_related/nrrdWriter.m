@@ -39,7 +39,8 @@ ndims=length(dims);     % number of dimensions (dim n)
 % First the code puts the argument 'encoding' in lowercase
 encoding = lower(encoding);
 
-encodingCond = isequal(encoding, 'ascii') || isequal(encoding, 'raw') || isequal(encoding, 'gzip');
+encodingCond = isequal(encoding, 'ascii') || ...
+    isequal(encoding, 'raw') || isequal(encoding, 'gzip');
 assert(encodingCond, 'Unsupported encoding')
 
 % The same with output format
@@ -54,14 +55,14 @@ if (encodingCond && formatCond)
     % Header
     % Open, filename (which specifies output format) and write binary
     fid = fopen(filename, 'wb');
-    fprintf(fid,'NRRD0004\n');      % NRRD type 4
+    fprintf(fid, 'NRRD0004\n');      % NRRD type 4
     
     % Type of variable we're storing in our file
-    mtype=class(matrix);
-    outtype=setDatatype(mtype);
-    fprintf(fid,['type: ', outtype, '\n']);    
+    mtype = class(matrix);
+    outtype = setDatatype(mtype);
+    fprintf(fid, ['type: ', outtype, '\n']);    
     
-    fprintf(fid,['encoding: ', encoding, '\n']);
+    fprintf(fid, ['encoding: ', encoding, '\n']);
     
     [~,~,endian] = computer();
     if (isequal(endian, 'B'))
@@ -77,16 +78,24 @@ if (encodingCond && formatCond)
     fprintf(fid,['space dimension: ', num2str(ndims), '\n']);
     
     if isequal(ndims, 2)
-        fprintf(fid,['space directions: (', num2str(pixelspacing(1)), ...
+        
+        fprintf(fid,['space directions: (', ...
+            num2str(pixelspacing(1)), ...
             ',0) (0,', num2str(pixelspacing(2)), ')\n']);
+        
         %fprintf(fid,'kinds: domain domain\n');
-        fprintf(fid,'space units: "microns" "microns"\n');
+        fprintf(fid, 'space units: "microns" "microns"\n');
+        
     elseif isequal (ndims, 3)
-        fprintf(fid,['space directions: (', num2str(pixelspacing(1)), ...
+        
+        fprintf(fid,['space directions: (', ....
+            num2str(pixelspacing(1)), ...
             ',0,0) (0,', num2str(pixelspacing(2)), ',0) (0,0,', ...
             num2str(pixelspacing(3)), ')\n']);
+        
         %fprintf(fid,'kinds: domain domain domain\n');
         fprintf(fid,'space units: "microns" "microns" "microns"\n');
+        
     end
     
     %if isequal(ndims, 2)
@@ -96,10 +105,14 @@ if (encodingCond && formatCond)
     %end
     
     if isequal(ndims, 2)
-        fprintf(fid,['space origin: (', num2str(origin(1)),',', num2str(origin(2)),')\n']);
+        fprintf(fid, ['space origin: (', ...
+            num2str(origin(1)), ...
+            ',', num2str(origin(2)), ')\n']);
     elseif isequal (ndims, 3)
-        fprintf(fid,['space origin: (', num2str(origin(1)), ...
-            ',',num2str(origin(2)),',', num2str(origin(3)),')\n']);
+        fprintf(fid, ['space origin: (', ...
+            num2str(origin(1)), ...
+            ',', num2str(origin(2)), ',', ...
+            num2str(origin(3)), ')\n']);
     end    
     
     if (isequal(format, 'nhdr')) 
@@ -107,7 +120,7 @@ if (encodingCond && formatCond)
         fprintf(fid, ['data file: ', [fname, '.', encoding], '\n']);
         fclose(fid);
         
-        if isequal(length(pathf),0)
+        if isequal(length(pathf), 0)
             fid = fopen([fname, '.', encoding], 'wb');
         else
             fid = fopen([pathf, filesep, fname, '.', encoding], 'wb');
@@ -115,7 +128,7 @@ if (encodingCond && formatCond)
         
     else
         
-        fprintf(fid,'\n');
+        fprintf(fid, '\n');
         
     end
     
@@ -140,13 +153,15 @@ function datatype = setDatatype(metaType)
 % Determine the datatype
 switch (metaType)
     
-     case {'int8', 'uint8', 'int16', 'uint16', 'int32', 'uint32', 'int64',...
-           'uint64', 'double'}
+    case {'int8', 'uint8', 'int16', ...
+            'uint16', 'int32', 'uint32', ...
+            'int64', 'uint64', 'double'}
         datatype = metaType;
     case {'single'}
         datatype = 'float';
     otherwise
-        assert(false, 'Unknown datatype')
+        
+    assert(false, 'Unknown datatype')
   
 end
    
@@ -167,6 +182,7 @@ function status_ = writeData(fidIn, matrix, datatype, encoding)
 %   status_
 
 switch (encoding)
+    
     case {'raw'}
         
         status_ = fwrite(fidIn, matrix(:), datatype);
