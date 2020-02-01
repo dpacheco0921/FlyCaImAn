@@ -72,6 +72,10 @@ end
 if ~exist('iparams', 'var'); iparams = []; end
 ipars = loparam_updater(ipars, iparams);
 
+if ~isempty(oDir) && exist('oDir', 'var')
+    mkdir(oDir)
+end
+
 % define parpool settings
 if isempty(ipars.corenumber)
     if ispc

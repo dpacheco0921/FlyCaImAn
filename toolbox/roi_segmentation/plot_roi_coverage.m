@@ -22,8 +22,12 @@ if ~exist('vid2plot', 'var') || isempty(vid2plot)
    vid2plot = [1 1 1];
 end
 
-if ~exist('roi2sel', 'var')
+if ~exist('roi2sel', 'var') || isempty(roi2sel)
    roi2sel = [];
+end
+
+if ~exist('oDir', 'var') || isempty(oDir)
+   oDir = pwd;
 end
 
 % deafult video settings

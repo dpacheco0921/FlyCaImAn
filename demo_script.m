@@ -46,13 +46,13 @@ mcpar.stack2del = 1:3;
 mcpar.sgate = 1; %(1 = smooth and zero, 2 = smooth, 3 = zeroing, 0 = raw)
 batch_NoRMCorre(FolderName, FileName, mcpar)
 
-% FolderName = {'20190712'}; FileName = [];
+% FolderName = {'20161129'}; FileName = [];
 % batch_NoRMCorre(FolderName, FileName, mcpar)
 
 % plot results from motion correction
 batch_plotShiftPerStack([], [], mcpar)
 
-%% Test batch_SpaTemp_ResFilt_3D
+%% Test batch_SpaTemp_ResFilt
 FolderName = []; FileName = [];
 stpar = [];
 stpar.sigma = [];
@@ -61,10 +61,10 @@ stpar.newtimeres = 0.5;
 stpar.time = [];
 stpar.debug = 1;
 
-batch_SpaTemp_ResFilt_3D(FolderName, FileName, stpar)
+batch_SpaTemp_ResFilt(FolderName, FileName, stpar)
 
-%% Test batch_collectstacksperfly_a
+%% Test batch_stitch_format_stacks_a
 
-%% Test batch_collectstacksperfly_a
+%% Test batch_stitch_format_stacks_b
 
-%% Test batch_collectstacksperfly_a
+%% Test batch_formatstacks

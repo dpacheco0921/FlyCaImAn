@@ -1,4 +1,18 @@
 function write_table_in_textfile(filename, oDir, variable2write)
+% write_table_in_textfile: writes a text file from table or cell of
+%   variables
+%
+% Usage:
+%   write_table_in_textfile(filename, oDir, variable2write)
+%
+% Args:
+%   filename: name of file to save
+%   oDir: output directory
+%   variable2write: variable to write as text (table or cell)
+%
+% Notes:
+%   if input variable is a cell, it assumes that the first row are variable
+%       names
 
 if istable(variable2write)
     
@@ -9,8 +23,8 @@ if istable(variable2write)
 elseif iscell(variable2write)
     
     % if cell it assumes first row is variable names
-    inputVar = variable2write(1, :);
-    varNames = variable2write(2:end, :);
+    varNames = variable2write(1, :);
+    inputVar = variable2write(2:end, :);
     
 end
 
@@ -22,6 +36,11 @@ fid = fopen(full_name, 'w');
 % set header for the new log file
 varName_str = [];
 for i = 1:numel(varNames)
+    
+    % convert numbers to strings
+    if ~ischar(varNames{i})
+       varNames{i} = num2str(varNames{i}); 
+    end
     
     if i ~= numel(varNames)
         varName_str = ...

@@ -50,14 +50,14 @@ if ~exist('Filename', 'var')
 end
 
 if ~exist('oDir', 'var') || isempty(oDir)
-    oDir = [pwd, filesep, 'smodrel'];
+    oDir = [pwd, filesep, 'smod'];
 end
 
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 motpar = loparam_updater(motpar, iparams);
 
-if ~isempty(oDir) && ~exist('oDir', 'var')
+if ~isempty(oDir) && exist('oDir', 'var')
     mkdir(oDir)
 end
 
@@ -76,7 +76,6 @@ end
 
 f2run = {f2run.name}';
 [filename, iDir] = split_path(f2run);
-filename = strrep(filename, motpar.fsuffix, '');
 
 if ~isempty(Filename)
     f2run = find(contains(filename, Filename));
@@ -84,13 +83,21 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
+filename = strrep(filename, motpar.fsuffix, '');
+
 fprintf(['Generating plots for ', ...
     num2str(numel(filename)), ' files\n'])
 
 % plot sMod results
 for i = 1:numel(filename)
 
-    plotperfly(filename{i}, iDir{i}, oDir, motpar);
+    try
+        plotperfly(filename{i}, iDir{i}, oDir, motpar);
+    catch
+        fprintf('/n ****************************************** /n')
+        fprintf(['Failed file: ', filename{i}, '/n'])
+        fprintf('****************************************** /n')
+    end
 
 end
 

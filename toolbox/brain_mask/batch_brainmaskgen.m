@@ -1,38 +1,63 @@
 function batch_brainmaskgen(FolderName, FileName, iparams)
-% batch_brainmaskgen(FolderName, FileName, iparams)
-% This function basically reads all flyfiles ('*prosmetadata') and displays
-% distribution of the F per pixel and their gaussian fits so to manually decide on thresholds
-% for mask and min_f
-% generates wDat.fths_zbin, wDat.fths_zval and wDat.min_f which is used by
-% batch_stackperfly_b
+% batch_brainmaskgen: function to generate a binary mask of pixels that belong
+%   to neural tissue (based on pixel fluorescence) to use for ROI segmentation.
+%
+% Usage:
+%   batch_brainmaskgen(FolderName, FileName, iparams)
+%
+% Args:
+%   FolderName: name of folders to load
+%   FileName: name of files to load
+%   iparams: parameters to update
+%       (cDir: current directory)
+%       (redo: redo gate)
+%       (debug: debug gate)
+%       (fsuffix: suffix of files to load)
+%           ('_prosmetadata' or '_metadata')
+%       (fo2reject: folders to reject)
+%       (fi2reject: files to reject)
+%       (tsuffix: name type)
+%           (deaulf, 0 [day _ fly])
+%           (1 [day _ fly _ rep])
+%       %%%%%%%%%%%% editing of mean image before generating histograms %%%%%%%%%%%%
+%       (minsize: minumun size of connected components when generating binary mask)
+%           (default, 5^3)
+%       (blurflag: flag to blur image)
+%           (default, flag to blur image)
+%       (manual: flag to require manual confirmation of binary mask)
+%           (default, 1)
+%       (all: flag to use all pixels, instead of mask)
+%           (default, 0)
+%
+% Notes:
+%   generates wDat.fths_zbin, wDat.fths_zval and wDat.min_f which are used by
+%   batch_formatstacks or batch_stitch_format_stacks_*.m
+%
+% ToDo:
 
 % Deafult params
-global pbm
-
 pbm = [];
 pbm.cDir = pwd;
 pbm.redo = 0;
+pbm.fsuffix = '_prosmetadata'; 
 pbm.fo2reject = {'.', '..', 'preprocessed', 'BData'};
 pbm.fi2reject = {'Zstack'};
-pbm.FolderName = [];
-pbm.FileName = [];
-pbm.fsuffix = '_prosmetadata'; 
-pbm.tsuffix = 0; % default name type 0 [day _ fly], if 1 [day _ fly _ rep]
-% editing of mean image before generating histograms
-pbm.minsize = 5^3; % delete connected components that are smaller than this
-pbm.blurgate = 1; % blur image
-pbm.manual = 1; % require manual confirmation that masks are ok
-pbm.all = 0; % use all pixels
+pbm.tsuffix = 0;
+pbm.minsize = 5^3;
+pbm.blurflag = 1;
+pbm.manual = 1;
+pbm.all = 0;
 
-if exist('FolderName','var'); pbm.FolderName = FolderName; end
-if exist('FileName','var'); pbm.FileName = FileName; end
+% update variables
+if ~exist('FolderName', 'var'); FolderName = []; end
+if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pbm = loparam_updater(pbm, iparams);
 
 % Selecting folders
 f2run = dir;
-f2run = GS_str2match(pbm.FolderName, f2run);
-f2run = GS_str2rm(pbm.fo2reject, f2run);
+f2run = str2match(FolderName, f2run);
+f2run = str2rm(pbm.fo2reject, f2run);
 f2run = {f2run.name};
 
 fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
@@ -41,7 +66,7 @@ for i = 1:numel(f2run)
     
     fprintf(['Running folder : ', f2run{i}, '\n']); 
     cd(f2run{i});
-    runperfolder(pbm.FileName, pbm);
+    runperfolder(FileName, pbm);
     cd(pbm.cDir)
     fprintf('\n')
     
@@ -83,19 +108,22 @@ end
 end
 
 function processfunc(f2run, pbm)
-% processfunc: for each filename compile all sub-stacks in the right order
+% processfunc: for each filename compile 
+%   all sub-stacks in the right order
 %
 % Usage:
 %   processfunc(f2run, pbm)
 %
 % Args:
 %   fname: file name
-%   cspf: internal parameters structure
+%   pbm: internal parameters structure
 
 % Load metadata
-load([f2run, '_', strrep(pbm.fsuffix, '_', ''), '.mat'], 'wDat')
+load([f2run, '_', strrep(pbm.fsuffix, '_', ''), ...
+    '.mat'], 'wDat')
 
-if pbm.redo || (~isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask'))
+if pbm.redo || (~isfield(wDat, 'bSide') ...
+        && ~isfield(wDat, 'bMask'))
     
     % Input brain side used
     if pbm.manual
@@ -130,7 +158,7 @@ if pbm.redo || (~isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask'))
         % smooth mean images (XYZ)
         bGreen = [];
 
-        if pbm.blurgate
+        if pbm.blurflag
             bGreen = imblur(wDat.GreenChaMean, ...
                 [2 2 2], [5 5 3], 3);
         end

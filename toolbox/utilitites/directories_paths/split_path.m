@@ -1,4 +1,4 @@
-function [iFile, iDir] = split_path(iFile)
+function [oFile, iDir] = split_path(iFile)
 % split_path: it splits path into file name and full directory
 % 
 % Usage:
@@ -8,7 +8,7 @@ function [iFile, iDir] = split_path(iFile)
 %   iFile: input files to chop
 % 
 % Returns:
-%   iFile: file name(s) in cells
+%   oFile: file name(s) in cells
 %   iDir: file directory(s) in cells
 
 idelimiter = filesep;
@@ -18,15 +18,20 @@ if iscell(iFile)
     for i = 1:numel(iFile)
         
         [iDir{i, 1}, ~, ~] = fileparts(iFile{i});
-        iFile{i} = strrep(iFile{i}, [iDir{i, 1}, idelimiter], '');
+        oFile{i, 1} = strrep(iFile{i}, [iDir{i, 1}, idelimiter], '');
         
     end
     
 else
     
     [iDir, ~, ~] = fileparts(iFile);
-    iFile = strrep(iFile, [iDir, idelimiter], '');
+    oFile = strrep(iFile, [iDir, idelimiter], '');
     
+end
+
+if isempty(iFile)
+    iDir = [];
+    oFile = [];
 end
 
 end
