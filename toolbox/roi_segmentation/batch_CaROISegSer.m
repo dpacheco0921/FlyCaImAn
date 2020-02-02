@@ -1,13 +1,13 @@
 function batch_CaROISegSer(fname, inputparams, ...
     serverid, jobpart, memreq, patchtype, ...
-    corenum, roi_n_init, stitch_flag)
+    corenum, roi_n_init, stitch_flag, jobtime)
 % batch_CaROISegSer: batch function to ROI segment files within
 %   subdirectory
 %
 % Usage:
 %   batch_CaROISegSer(fname, inputparams, ...
 %       serverid, jobpart, memreq, patchtype, ...
-%       corenum, roi_n_init, stitch_flag)
+%       corenum, roi_n_init, stitch_flag, jobtime)
 %
 % Args:
 %   fname: name of files to run
@@ -33,6 +33,8 @@ function batch_CaROISegSer(fname, inputparams, ...
 %       (deafult, [])
 %   stitch_flag: flag indicating that file is stitched (used to then find input files)
 %       (deafult, 1)
+%   jobtime: time to run each job
+%       (deafult, 4 hours)
 % 
 % Notes:
 % it requires that the script is run in the data folder
@@ -79,11 +81,6 @@ if ~exist('memreq', 'var') || ...
     memreq = 48;
 end
 
-if ~exist('corenum', 'var') || ...
-        isempty(corenum)
-    corenum = 4;
-end
-
 if ~exist('roi_n_init', 'var') || ...
         isempty(roi_n_init)
     roi_n_init = [];
@@ -104,8 +101,9 @@ if ~exist('stitch_flag', 'var') || ...
     stitch_flag = 1;    
 end
 
-if jobpart == 2
-    corenum = 4;
+if ~exist('jobtime', 'var') || ...
+        isempty(jobtime)
+   jobtime = 4;
 end
 
 % 1) define string patter to find input files
@@ -140,17 +138,27 @@ end
 
 if ispc || ismac
     % running locally
+    ppobj = parcluster('local');
+    corenum = ppobj.NumWorkers;
+    clear ppobj
+else
+    if ~exist('corenum', 'var') || ...
+        isempty(corenum)
+        corenum = 4;
+    end
+end
+
+if jobpart == 2
     corenum = 4;
-    maxjobs = 4;
 end
 
 % get scratch (temporary) and bucket (permanent) directories
-[~, username, ~, scratchdir, ~] = ...
+[~, username, ~, temporary_dir, ~, userdomain] = ...
     user_defined_directories(serverid);
-if ~exist([scratchdir, 'jobsub', filesep, 'roirel'], 'dir')
-    mkdir([scratchdir, 'jobsub', filesep, 'roirel']);
+if ~exist([temporary_dir, 'jobsub', filesep, 'roirel'], 'dir')
+    mkdir([temporary_dir, 'jobsub', filesep, 'roirel']);
 end
-tDir = [scratchdir, 'jobsub', filesep, 'roirel'];
+tDir = [temporary_dir, 'jobsub', filesep, 'roirel'];
 
 % Find input files withing data folder CaRp.cDir
 [filename, patchidx] = getinputfiles(...
@@ -193,9 +201,8 @@ if ~isempty(filename)
     CaRp
     
     submitjob(param_file, tDir, ...
-        username, corenum, ...
-        jobpart, serverid, ...
-        numT, memreq)
+        username, corenum, serverid, ...
+        numT, memreq, jobtime, userdomain)
     
 else
     
@@ -286,36 +293,39 @@ end
 end
 
 function submitjob(name, tDir, ...
-    username, corenum, jobpart, ...
-    serverid, numT, memreq)
+    username, corenum, serverid, ...
+    numT, memreq, jobtime, userdomain)
 % submitjob: submit jobs to spock/della
 %
 % Usage:
 %   submitjobsubmitjob(name, tDir, ...
-%       username, corenum, jobpart, ...
-%       serverid, numT)
+%       username, corenum, serverid, ..
+%       numT, memreq, jobtime, userdomain)
 %
 % Args:
 %   name: name of matfile with parameters to use
 %   tDir: directory where the output files are saved
 %   username: used to update directories to use
 %   corenum: maximun number of cores to use per task
-%   jobpart: type of job to run
-%       1) run roi segmentation for patches of whole volume (generate RESULTS)
-%       2) compile patches
-%       (deafult, 1)
-%       3) extract processed signal
 %   serverid: server ID 'int', 'spock', 'della'
 %       (deafult, 'spock')
 %   numT: number of jobs
 %   memreq: RAM memory to request
 %       (deafult, 48)
+%   jobtime: time to run jobs
+%       (default, 4 hours)
+%   userdomain: domain to use for username
 
 functype = 'CaROISegSer.m';
 
 switch serverid
-    case 'spock'
+    
+    case {'spock', 'della'}
         
+        eval('username = username.', serverid, ';');
+        
+        % run on cluster
+        % write a slurm file
         LogFileName = fullfile([name, '.slurm']);
         if exist(LogFileName, 'file')
             delete(LogFileName)
@@ -326,15 +336,10 @@ switch serverid
         fprintf(fid, '#!/bin/bash\n\n');
         fprintf(fid, '#SBATCH -N 1\n');
         fprintf(fid, ['#SBATCH --cpus-per-task=', num2str(corenum), '\n']);
-        if jobpart == 1 || jobpart == 3
-            fprintf(fid, '#SBATCH --time=4:00:00\n');
-            fprintf(fid, ['#SBATCH --mem=', num2str(memreq), '000\n']);            
-        elseif jobpart == 2
-            fprintf(fid, '#SBATCH --time=4:00:00\n');
-            fprintf(fid, ['#SBATCH --mem=', num2str(memreq), '000\n']);            
-        end
+        fprintf(fid, ['#SBATCH --time=', num2str(jobtime), ':00:00\n']);
+        fprintf(fid, ['#SBATCH --mem=', num2str(memreq), '000\n']);
         fprintf(fid, '#SBATCH --mail-type=END\n');
-        fprintf(fid, '#SBATCH --mail-user=dpacheco@princeton.edu\n');
+        fprintf(fid, ['#SBATCH --mail-user=', username, userdomain, '\n']);
         fprintf(fid, ['#SBATCH --array=1-', num2str(numT), '\n\n']);
         
         fprintf(fid, 'module load matlab/R2018b\n');
@@ -348,42 +353,9 @@ switch serverid
         % close log file
         fclose(fid);
         
-    case 'della'
+    otherwise
         
-        LogFileName = fullfile([name, '.slurm']);
-        if exist(LogFileName, 'file')
-            delete(LogFileName)
-        end
-        
-        % open/create log file
-        fid = fopen(LogFileName, 'a+');
-        fprintf(fid, '#!/bin/bash\n\n');
-        fprintf(fid, '#SBATCH -N 1\n');
-        fprintf(fid, ['#SBATCH --cpus-per-task=', num2str(corenum), '\n']);
-        if jobpart == 1 || jobpart == 3
-            fprintf(fid, '#SBATCH --time=4:00:00\n');
-            fprintf(fid, ['#SBATCH --mem=', num2str(memreq), '000\n']);
-        elseif jobpart == 2
-            fprintf(fid, '#SBATCH --time=4:00:00\n');
-            fprintf(fid, ['#SBATCH --mem=', num2str(memreq), '000\n']);
-        end
-        fprintf(fid, '#SBATCH --mail-type=END\n');
-        fprintf(fid, '#SBATCH --mail-user=dpacheco@princeton.edu\n');
-        fprintf(fid, ['#SBATCH --array=1-', num2str(numT), '\n\n']);
-        
-        fprintf(fid, 'module load matlab/R2018b\n');
-        fprintf(fid, '# Create a local work directory\n');
-        fprintf(fid, 'mkdir -p /tmp/$USER-$SLURM_JOB_ID\n');
-        fprintf(fid, ['matlab -nodesktop -nodisplay -nosplash -r "', ...
-            functype(1:end-2),'(''', name, ''',''', serverid, ''')"\n']);
-        fprintf(fid, '# Cleanup local work directory\n');
-        fprintf(fid, 'rm -rf /tmp/$USER-$SLURM_JOB_ID\n');
-        
-        % close log file
-        fclose(fid);
-        
-    otherwise % internal run
-        
+        % internal run
         cd(tDir)
         for f_run = 1:numT
            CaROISegSer(name, serverid, f_run); 

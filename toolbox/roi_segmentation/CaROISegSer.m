@@ -33,9 +33,9 @@ if exist('IntID', 'var')
 
 else
     
-    [~, ~, ~, scratchdir, ~] = ...
+    [~, ~, ~, tempfiledir, ~] = ...
         user_defined_directories(serverid);
-    p.tDir = [scratchdir, filesep, 'jobsub', filesep, 'roirel'];
+    p.tDir = [tempfiledir, filesep, 'jobsub', filesep, 'roirel'];
     load([p.tDir, filesep, paramfile, '_impre.mat'], ...
         'filename', 'patchidx', 'p', 'roiparams')
     % p.Cdir is updated to the one saved in the _impre.mat file
