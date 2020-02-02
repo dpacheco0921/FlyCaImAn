@@ -1,10 +1,16 @@
 %% demo
 %% Move to folder and Download demo data
-tDir = 'C:\Users\Diego\Dropbox\LabScripts\myRepos\CaImProPi\demodata';
+tDir = strrep(which('CaImProPi_demo'), 'CaImProPi_demo.m', '');
 cd(tDir)
 
 url = 'https://www.dropbox.com/s/1s2h6yigfmdhodf/20161129.zip?dl=1';
 filename = '20161129.zip';
+
+if ~exist('demodata', 'dir')
+    mkdir('demodata')
+end
+cd demodata
+
 outfilename = websave(filename, url);
 unzip(outfilename);
 clear url outfilename

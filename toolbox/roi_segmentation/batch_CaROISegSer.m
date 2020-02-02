@@ -322,7 +322,7 @@ switch serverid
     
     case {'spock', 'della'}
         
-        eval('username = username.', serverid, ';');
+        eval(['username = username.', serverid, ';']);
         
         % run on cluster
         % write a slurm file
