@@ -1,4 +1,7 @@
 %% demo
+% it assumes you have already add the repository folders to your path
+addpath(genpath(pwd))
+
 %% Move to folder and Download demo data
 tDir = strrep(which('CaImProPi_demo'), 'CaImProPi_demo.m', '');
 cd(tDir)
