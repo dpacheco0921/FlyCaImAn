@@ -28,6 +28,7 @@ function MIP_proj = get_df_MIP(...
 %       (default, 1 (get DF))
 %       (0 (get DF/Fo))
 %       (2 (get Max F))
+%       (3 (get baseline-zscored, SNR))
 %   chunk_size: size of chunks.
 %   corenumber: number of cores to use.
 %   serId: server ID.
@@ -36,6 +37,7 @@ function MIP_proj = get_df_MIP(...
 % Notes:
 % it requires a metadata variable wDat
 % 2019-09-22: uses paralel parpool per patches
+% 2020-02-03: add SNR movie (units are z-score)
 
 if ~exist('rawdata_name', 'var') || isempty(rawdata_name)
     rawdata_name = [];
@@ -91,7 +93,7 @@ else
     z = {1:wDat.vSize(3)};
 end
 
-MIP_proj = cell(numel(z), 3);
+MIP_proj = cell(numel(z), 4);
 
 % get Y dimensions
 n_d = numel(dataObj.sizY);
@@ -99,9 +101,11 @@ n_d = numel(dataObj.sizY);
 fprintf('load and generate baseline\n')
 tic
 if n_d == 4
-    bas = mean(double(dataObj.Y(:, :, :, baseline_tp)), 4);
+    bas_mean = mean(double(dataObj.Y(:, :, :, baseline_tp)), 4);
+    bas_sd = std(double(dataObj.Y(:, :, :, baseline_tp)), [], 4);
 else
-    bas = mean(double(dataObj.Y(:, :, baseline_tp)), 3);
+    bas_mean = mean(double(dataObj.Y(:, :, baseline_tp)), 3);
+    bas_sd = std(double(dataObj.Y(:, :, baseline_tp)), [], 3);
 end
 toc
 
@@ -114,11 +118,11 @@ for i = 1:numel(z)
     temp_o_i = zeros([wDat.fSize numel(time2load)]);
     temp_o_ii = zeros([wDat.fSize numel(time2load)]);
     temp_o_iii = zeros([wDat.fSize numel(time2load)]);
+    temp_o_iv = zeros([wDat.fSize numel(time2load)]);
     
     [~, ~, chunk_idx] = ...
         ppool_makechunks(chunk_size, ....
-        corenumber, numel(time2load), ...
-        time2load(1));
+        corenumber, numel(time2load), 1);
     
     % time patches    
     for j = 1:numel(chunk_idx)
@@ -126,12 +130,14 @@ for i = 1:numel(z)
         if j == 1; t0 = stic; end
 
         batch2run = chunk_idx{j};
-        t_idx = cell(corenumber, 1);
         
-        temp_i = cell(corenumber, 1);
-        temp_ii = cell(corenumber, 1);
-        temp_iii = cell(corenumber, 1);
-
+        jobs2run = min([numel(batch2run) corenumber]);
+        t_idx = cell(jobs2run, 1);
+        temp_i = cell(jobs2run, 1);
+        temp_ii = cell(jobs2run, 1);
+        temp_iii = cell(jobs2run, 1);
+        temp_vi = cell(jobs2run, 1);
+        
         parfor ii = 1:numel(batch2run)
 
             t_idx{ii, 1} = (batch2run(ii):min(batch2run(ii) + ...
@@ -141,10 +147,10 @@ for i = 1:numel(z)
             for iii = t_idx{ii, 1}'
 
                 [temp_i{ii}(:, :, iv), temp_ii{ii}(:, :, iv), ...
-                    temp_iii{ii}(:, :, iv)] = ...
+                    temp_iii{ii}(:, :, iv), temp_vi{ii}(:, :, iv)] = ...
                     load_process_and_project_Y(dataObj, ...
                     time2load(iii), z{i}, n_d, sign2use, ...
-                    df_flag, bas);
+                    df_flag, bas_mean, bas_sd);
                 iv = iv + 1;
 
             end
@@ -152,17 +158,31 @@ for i = 1:numel(z)
             temp_i{ii} = temp_i{ii}(:);
             temp_ii{ii} = temp_ii{ii}(:);
             temp_iii{ii} = temp_iii{ii}(:);
+            temp_vi{ii} = temp_vi{ii}(:);
             
         end
 
         t_idx = cell2mat(t_idx);
 
-        temp_o_i(:, :, t_idx) = reshape(cell2mat(temp_i), ...
-            [wDat.fSize numel(t_idx)]);
-        temp_o_ii(:, :, t_idx) = reshape(cell2mat(temp_ii), ...
-            [wDat.fSize numel(t_idx)]);
-        temp_o_iii(:, :, t_idx) = reshape(cell2mat(temp_iii), ...
-            [wDat.fSize numel(t_idx)]);
+        if sum(ismember(df_flag, 1))
+            temp_o_i(:, :, t_idx) = reshape(cell2mat(temp_i), ...
+                [wDat.fSize numel(t_idx)]);
+        end
+        
+        if sum(ismember(df_flag, 0))
+            temp_o_ii(:, :, t_idx) = reshape(cell2mat(temp_ii), ...
+                [wDat.fSize numel(t_idx)]);
+        end
+        
+        if sum(ismember(df_flag, 2))
+            temp_o_iii(:, :, t_idx) = reshape(cell2mat(temp_iii), ...
+                [wDat.fSize numel(t_idx)]);
+        end
+        
+        if sum(ismember(df_flag, 3))
+            temp_o_iv(:, :, t_idx) = reshape(cell2mat(temp_vi), ...
+                [wDat.fSize numel(t_idx)]);
+        end
         
         if j == 1 
             stocf(t0, 'Time per chunk ');
@@ -179,10 +199,23 @@ for i = 1:numel(z)
     end
     
     % collect projections
-    MIP_proj{i, 1} = temp_o_i/max(temp_o_i(:));
-    MIP_proj{i, 2} = temp_o_ii;
-    MIP_proj{i, 3} = temp_o_iii/max(temp_o_iii(:));
-    clear temp_o_i temp_o_ii temp_o_iii
+    if sum(ismember(df_flag, 1))
+        MIP_proj{i, 1} = temp_o_i/max(temp_o_i(:));
+    end
+    
+    if sum(ismember(df_flag, 0))
+        MIP_proj{i, 2} = temp_o_ii;
+    end
+    
+    if sum(ismember(df_flag, 2))
+        MIP_proj{i, 3} = temp_o_iii/max(temp_o_iii(:));
+    end
+    
+    if sum(ismember(df_flag, 3))
+        MIP_proj{i, 4} = temp_o_iv;
+    end
+    
+    clear temp_o_i temp_o_ii temp_o_iii temp_o_iv
 
 end
 
@@ -190,18 +223,20 @@ toc
 
 end
 
-function [F_stat_i, F_stat_ii, F_stat_iii] = ...
+function [F_stat_i, F_stat_ii, ...
+    F_stat_iii, F_stat_iv] = ...
     load_process_and_project_Y(dataObj, ...
     time_idx, planes_idx, n_d, sign2use, ...
-    df_flag, bas)
+    df_flag, bas_mean, bas_sd)
 % load_process_and_project_Y: load, process 
 %   and project volumetric or plane timeseries
 %
 % Usage:
-%   [F_stat_i, F_stat_ii, F_stat_iii] = ...
+%   [F_stat_i, F_stat_ii, ...
+%       F_stat_iii, F_stat_vi] = ...
 %       load_process_and_project_Y(dataObj, ...
 %       time_idx, planes_idx, n_d, sign2use, ...
-%       df_flag, bas)
+%       df_flag, bas_mean, bas_sd)
 %
 % Args:
 %   dataObj: data object, data is stored at Y.
@@ -216,13 +251,15 @@ function [F_stat_i, F_stat_ii, F_stat_iii] = ...
 %       (default, 1 (get DF))
 %       (0 (get DF/Fo))
 %       (2 (get Max F))
-%   bas: baseline fluorescence.
+%   bas_mean: baseline mean fluorescence.
+%   bas_sd: baseline sd fluorescence.
 
 if ~exist('planes_idx', 'var'); planes_idx = []; end
 
 temp_i = [];
 temp_ii = [];
 temp_iii = [];
+temp_iv = [];
 
 % load raw data
 if n_d == 4
@@ -234,7 +271,7 @@ end
 % 1) calculate DF
 if sum(ismember(df_flag, 1))
 
-    temp_i = imblur(temp_ - bas(:, :, planes_idx), 1, 3, n_d - 1);
+    temp_i = imblur(temp_ - bas_mean(:, :, planes_idx), 1, 3, n_d - 1);
 
     if sign2use == 0
         temp_i = abs(temp_i);
@@ -245,9 +282,9 @@ if sum(ismember(df_flag, 1))
 end
 
 % 2) calculate DF/Fo
-if sum(ismember(df_flag, 0))
+if sum(ismember(df_flag, [0 3]))
 
-    temp_ii = imblur(temp_ - bas(:, :, planes_idx), 1, 3, n_d - 1);
+    temp_ii = imblur(temp_ - bas_mean(:, :, planes_idx), 1, 3, n_d - 1);
 
     if sign2use == 0
         temp_ii = abs(temp_ii);
@@ -255,11 +292,16 @@ if sum(ismember(df_flag, 0))
         temp_ii = sign2use*temp_ii;
     end
 
-    temp_ii = temp_ii./abs(imblur(bas(:, :, planes_idx), 1, 3, n_d - 1));
+    if sum(ismember(df_flag, 3))
+        % 3) calculate SNR ((F-u(baseline))/o(baseline))
+    	temp_iv = temp_ii./abs(imblur(bas_sd(:, :, planes_idx), 1, 3, n_d - 1));
+    end
+    
+    temp_ii = temp_ii./abs(imblur(bas_mean(:, :, planes_idx), 1, 3, n_d - 1));
 
 end
 
-% 3) calculate Max
+% 4) calculate Max
 if sum(ismember(df_flag, 2))
     temp_iii = max(temp_, [], 3);
 end
@@ -268,5 +310,6 @@ end
 F_stat_i = max(temp_i, [], 3);
 F_stat_ii = max(temp_ii, [], 3);
 F_stat_iii = max(temp_iii, [], 3);
+F_stat_iv = max(temp_iv, [], 3);
 
 end

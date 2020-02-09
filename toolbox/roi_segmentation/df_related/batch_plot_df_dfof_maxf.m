@@ -17,6 +17,8 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %       (vquality: video quality)
 %       (frate: frame rate)
 %       (cmap: foreground image colormap)
+%       (range: intensity range for each type of video)
+%       (axisratio: axis ratio to use, see variable within 'slice3Dmatrix')
 %       %%%%%%%%%%%% DF calculation %%%%%%%%%%%%
 %       (baseline_tp: baseline timepoints)
 %       (sign2use: use positive or negative changes (by multipliying it by 1/-1))
@@ -39,6 +41,8 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %           (default, 0)
 %       (vstr: input stimuli name)
 %           (default, [])
+%       (axisratio: axis ratio)
+%       (time2load: timestamps to load)
 %
 % Notes:
 %   See get_df_MIP
@@ -46,20 +50,22 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 % parameters
 ipars.metadata_suffix = '_metadata.mat';
 ipars.rawdata_suffix = '_rawdata.mat';
-ipars.baseline_tp = 1:50;
 ipars.vfontsiz = 10;
 ipars.vgate = 1;
 ipars.vquality = 100;
 ipars.frate = 10;
 ipars.cmap = parula;
+ipars.range = [0 1; 0 1; 0 1; 0 1];
+ipars.baseline_tp = 1:50;
 ipars.sign2use = 0;
-ipars.plottype = [0 1 2];
+ipars.df_flag = [0 1 2 3];
 ipars.chunk_size = 10;
 ipars.serId = [];
 ipars.corenumber = [];
 ipars.dir_depth = 0;
 ipars.vstr = [];
 ipars.axisratio = 1;
+ipars.time2load = [];
 
 if ~exist('Filename', 'var')
     Filename = [];
@@ -71,6 +77,7 @@ end
 
 if ~exist('iparams', 'var'); iparams = []; end
 ipars = loparam_updater(ipars, iparams);
+image_range = ipars.range;
 
 if ~isempty(oDir) && exist('oDir', 'var')
     mkdir(oDir)
@@ -127,13 +134,19 @@ for i = 1:numel(filename)
         
         load([iDir{i}, filesep, filename{i}, ...
             ipars.metadata_suffix], 'wDat')
-        time2load = 1:numel(wDat.fTime);
+        
+        if isfield(ipars, 'time2load') && ...
+                ~isempty(ipars.time2load)
+            time2load = ipars.time2load;
+        else
+            time2load = 1:numel(wDat.fTime);
+        end
         
         MIP_proj = get_df_MIP(...
             [iDir{i}, filesep, filename{i}, ipars.rawdata_suffix], ...
             [iDir{i}, filesep, filename{i}, ipars.metadata_suffix], ...
             ipars.baseline_tp, [], time2load, ...
-            ipars.sign2use, ipars.plottype, ...
+            ipars.sign2use, ipars.df_flag, ...
             ipars.chunk_size, ipars.corenumber, ...
             ipars.serId);
 
@@ -155,27 +168,35 @@ for i = 1:numel(filename)
         ipars.vstrt = ipars.vstrt(time2load);
 
         ipars.vname = [oDir, filesep, filename{i}, '_MIP_DF'];
-        ipars.range = [0 1];
+        ipars.range = image_range(1, :);
         
-        if sum(ismember(ipars.plottype, 0))
+        if sum(ismember(ipars.df_flag, 1))
             fprintf('plot DF \n')
             slice3Dmatrix(flip(MIP_proj{1}, 2), ipars)
         end
         
-        ipars.range = [0 1];
+        ipars.range = image_range(2, :);
         ipars.vname = [oDir, filesep, filename{i}, '_MIP_DFoF'];
 
-        if sum(ismember(ipars.plottype, 1))
+        if sum(ismember(ipars.df_flag, 0))
             fprintf('plot DFoF \n')
             slice3Dmatrix(flip(MIP_proj{2}, 2), ipars)
         end
         
-        ipars.range = [0 1];
+        ipars.range = image_range(3, :);
         ipars.vname = [oDir, filesep, filename{i}, '_MIP_maxF'];
 
-        if sum(ismember(ipars.plottype, 2))
+        if sum(ismember(ipars.df_flag, 2))
             fprintf('plot maxF \n')
             slice3Dmatrix(flip(MIP_proj{3}, 2), ipars)
+        end
+        
+        ipars.range = image_range(4, :);
+        ipars.vname = [oDir, filesep, filename{i}, '_MIP_snr'];
+
+        if sum(ismember(ipars.df_flag, 3))
+            fprintf('plot snr \n')
+            slice3Dmatrix(flip(MIP_proj{4}, 2), ipars)
         end
         
         clear wDat
