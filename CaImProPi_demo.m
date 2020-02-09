@@ -2,6 +2,9 @@
 % it assumes you have already add the repository folders to your path
 addpath(genpath(pwd))
 
+% add paths of all dependencies
+% CaImAn, NoRMCorre, CMTK_matlab_wrapper
+
 %% Move to folder and Download demo data
 tDir = strrep(which('CaImProPi_demo'), 'CaImProPi_demo.m', '');
 cd(tDir)
