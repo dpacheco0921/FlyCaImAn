@@ -43,6 +43,9 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %           (default, [])
 %       (axisratio: axis ratio)
 %       (time2load: timestamps to load)
+%       (slices2project: slices to use for MIP projection, this is a cell that
+%           can have different set of slices to collect)
+%           (default, 1:wDat.vSize(3))
 %
 % Notes:
 %   See get_df_MIP
@@ -66,6 +69,7 @@ ipars.dir_depth = 0;
 ipars.vstr = [];
 ipars.axisratio = 1;
 ipars.time2load = [];
+ipars.slices2project = [];
 
 if ~exist('Filename', 'var')
     Filename = [];
@@ -145,7 +149,7 @@ for i = 1:numel(filename)
         MIP_proj = get_df_MIP(...
             [iDir{i}, filesep, filename{i}, ipars.rawdata_suffix], ...
             [iDir{i}, filesep, filename{i}, ipars.metadata_suffix], ...
-            ipars.baseline_tp, [], time2load, ...
+            ipars.baseline_tp, ipars.slices2project, time2load, ...
             ipars.sign2use, ipars.df_flag, ...
             ipars.chunk_size, ipars.corenumber, ...
             ipars.serId);
@@ -170,7 +174,7 @@ for i = 1:numel(filename)
         ipars.vname = [oDir, filesep, filename{i}, '_MIP_DF'];
         ipars.range = image_range(1, :);
         
-        if sum(ismember(ipars.df_flag, 1))
+        if sum(ismember(ipars.df_flag, 0))
             fprintf('plot DF \n')
             slice3Dmatrix(flip(MIP_proj{1}, 2), ipars)
         end
@@ -178,7 +182,7 @@ for i = 1:numel(filename)
         ipars.range = image_range(2, :);
         ipars.vname = [oDir, filesep, filename{i}, '_MIP_DFoF'];
 
-        if sum(ismember(ipars.df_flag, 0))
+        if sum(ismember(ipars.df_flag, 1))
             fprintf('plot DFoF \n')
             slice3Dmatrix(flip(MIP_proj{2}, 2), ipars)
         end
