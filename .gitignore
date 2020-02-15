@@ -1,3 +1,5 @@
 
 demodata/
 toolbox/tiff2nrrd/zstacktiff2mat_maninput.m
+*.ffs_db
+*.asv
