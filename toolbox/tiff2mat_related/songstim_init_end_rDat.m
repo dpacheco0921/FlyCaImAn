@@ -13,7 +13,7 @@ function [stimuli_onset_offset, stimuli_cat_trace] = ...
 %   start_end: start and end of trace
 %   stimCha: analog output channel
 %   findStim: gate to use stimuli trace to find stimuli start and end
-%   minwidth: minimun width of stimuli (ms)
+%   minwidth: minimun width of stimuli timepoints
 %   stimths: voltage threshold to find stimuli
 %
 % Returns:
@@ -62,21 +62,21 @@ end
 stimuli_cat_trace = stimuli_cat_trace(start_end(1):start_end(2))';
 
 if findStim
-    
     stimuli_onset_offset = ...
         find_stim_int(stimuli_cat_trace, minwidth, stimths);
-    
-else
-    
-    stimuli_onset_offset = ...
-        stimuli_onset_offset - start_end(1); 
-    
 end
 
 l2chop = find(stimuli_onset_offset(:, 1) > start_end(2));
 
 if ~isempty(l2chop)
-    stimuli_onset_offset = stimuli_onset_offset(1:(l2chop - 1), :);
+    stimuli_onset_offset = ...
+        stimuli_onset_offset(1:(l2chop - 1), :);
+end
+
+if ~findStim
+    % make units relative to start point
+    stimuli_onset_offset = ...
+        stimuli_onset_offset - start_end(1) + 1; 
 end
 
 end

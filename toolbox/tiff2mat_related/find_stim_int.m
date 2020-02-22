@@ -9,7 +9,7 @@ function stimuli_onset_offset = ...
 %
 % Args:
 %   itrace: input stimuli trace
-%   minwidth: minimun width of stimuli (ms)
+%   minwidth: minimun width of stimuli timepoints
 %   threshold_val: voltage threshold
 
 if ~exist('threshold_val', 'var')
@@ -18,9 +18,18 @@ end
 
 itrace = abs(itrace) > threshold_val;
 
-stimuli_onset_offset = ...
-    [(find(diff(itrace) == 1) + 1)', ...
-    find(diff(itrace) == -1)' + 1];
+if size(itrace, 1) > 1
+    itrace = itrace';
+end
+
+% get onset
+onset = (find(diff(itrace) == 1) + 1)';
+% get offset
+offset = (find(diff(itrace) == -1) + 1)';
+
+min_num = min([numel(onset) numel(offset)]);
+
+stimuli_onset_offset = [onset(1:min_num), offset(1:min_num)];
 
 if size(stimuli_onset_offset, 1) > 1
     
