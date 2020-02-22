@@ -33,6 +33,8 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           ([])
 %       (fs_stim: sampling rate of stimuli related traces)
 %           (10^4)
+%       (fileformat: format of files to look for)
+%           ('.tif', default)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -92,6 +94,7 @@ tifpars.pixelsym = 0;
 tifpars.fStrain = [];
 tifpars.region2crop = [];
 tifpars.fs_stim = 10^4;
+tifpars.fileformat = '.tif';
 
 % internal variables
 tifpars.fName = [];
@@ -113,76 +116,108 @@ end
 fprintf('Running Tiff2Mat\n');
 
 % finding folders and filtering out data that is not selected
-f2run = dir;
-f2run = str2match(FolderName, f2run);
-f2run = str2rm(tifpars.f2reject, f2run);
-f2run = {f2run.name};
+fo2run = dir;
+fo2run = str2match(FolderName, fo2run);
+fo2run = str2rm(tifpars.f2reject, fo2run);
+fo2run = {fo2run.name};
 
-fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
+fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
 
-% checking files inside folder
-for Fol_i = 1:numel(f2run)
+for i = 1:numel(fo2run)
     
-    tifpars.Folder2Run = f2run{Fol_i};
-    cd(f2run{Fol_i});
-    
-    [BaseFName, ~, ~] = rdir_namesplit([], [], [], {'Zstack'}, FileName);
-    
-    % rdir_namesplit: select all 
-    %   '(year|month|day)_(animalnum)_(trialnum/repnum)' names
-    UBaseFName = unique(BaseFName); 
-    fprintf(['Running Folder : ', num2str(f2run{Fol_i}), ...
-        ' (n-exp-types, ', num2str(numel(UBaseFName)), ') ,'])
-    clear BaseFName
-    
-    % running each exptype (basename)
-    
-    % get unique flynum and fly-trials per basename
-    for basename_i = 1:numel(UBaseFName)
-        
-        [~, AnimalNum, TrialNum] = ...
-            rdir_namesplit(UBaseFName(basename_i), [], [], {'Zstack'}, FileName);
-        
-        % get the number of trials per unique AnimalNum and basename
-        for ani_i = unique(AnimalNum)
-            
-            TrialPerAnimal = TrialNum(AnimalNum == ani_i);
-            
-            if isempty(TrialPerAnimal)
-                
-                fprintf(['Does not have any file with', ...
-                    ' flynumber :', num2str(ani_i), ' \n'])
-                
-            else
-                
-                Trial2Load = unique(TrialPerAnimal);
-                fprintf([' (n-trials, ', ...
-                    num2str(unique(TrialPerAnimal)), ')\n']);
-                
-                for trial_i = Trial2Load
-                    
-                    % collapsing all timepoints and z-slices to 1 mat file
-                    NameRoot = [UBaseFName{basename_i}, '_', ...
-                        num2str(ani_i), '_', num2str(trial_i), '_'];
-                    loadertype(NameRoot, tifpars);
-                    
-                end 
-                
-            end
-            
-            clear TNPFlyNum
-            
-        end
-        
-        clear FlyNum TrialNum
-        
-    end
-    
+    fprintf(['Running folder : ', fo2run{i}, '\n']);
+    cd(fo2run{i}); 
+    tifpars.Folder2Run = fo2run{i};
+    runperfolder(FileName, fo2run{i}, tifpars);
     cd(tifpars.cDir)
     
 end
 
-fprintf('\n ********** Done **********\n')
+fprintf('... Done\n')
+
+end
+
+function runperfolder(fname, foname, tifpars)
+% runperfolder: function 
+%
+% Usage:
+%   runperfolder(fname, foname, tifpars)
+%
+% Args:
+%   fname: file name
+%   foname: folder name
+%   tifpars: parameters
+
+% checking files inside folder
+    
+[BaseFName, ~, ~] = rdir_namesplit([], ...
+    tifpars.fileformat, [], {'Zstack'}, fname);
+    
+if isempty(BaseFName)
+    
+    fprintf(['*************************************\n ', ...
+        'No tiff files in current folder', ...
+        ', searching for *.mat metadata files\n', ...
+        '*************************************\n '])
+    
+    tifpars.fileformat = '.mat';
+    [BaseFName, ~, ~] = rdir_namesplit([], ...
+        tifpars.fileformat, [], {'Zstack'}, fname);
+    
+    % change smode to generate empty file
+    tifpars.SpMode = [tifpars.SpMode, '_notiff'];
+    
+end
+
+% rdir_namesplit: select all 
+%   '(year|month|day)_(animalnum)_(trialnum/repnum)' names
+BaseFName = unique(BaseFName); 
+fprintf(['Running Folder : ', num2str(foname), ...
+    ' (n-exp-types, ', num2str(numel(BaseFName)), ') ,'])
+
+% running each exptype (basename)
+
+% get unique flynum and fly-trials per basename
+for basename_i = 1:numel(BaseFName)
+
+    [~, AnimalNum, TrialNum] = ...
+        rdir_namesplit(BaseFName(basename_i), ...
+        tifpars.fileformat, [], {'Zstack'}, fname);
+
+    % get the number of trials per unique AnimalNum and basename
+    for ani_i = unique(AnimalNum)
+
+        TrialPerAnimal = TrialNum(AnimalNum == ani_i);
+
+        if isempty(TrialPerAnimal)
+
+            fprintf(['Does not have any file with', ...
+                ' flynumber :', num2str(ani_i), ' \n'])
+
+        else
+
+            Trial2Load = unique(TrialPerAnimal);
+            fprintf([' (n-trials, ', ...
+                num2str(unique(TrialPerAnimal)), ')\n']);
+
+            for trial_i = Trial2Load
+
+                % collapsing all timepoints and z-slices to 1 mat file
+                NameRoot = [BaseFName{basename_i}, '_', ...
+                    num2str(ani_i), '_', num2str(trial_i), '_'];
+                loadertype(NameRoot, tifpars);
+
+            end 
+
+        end
+
+        clear TNPFlyNum
+
+    end
+
+    clear FlyNum TrialNum
+
+end
 
 end
 
@@ -196,26 +231,52 @@ function loadertype(NameRoot, tifpars)
 %   NameRoot: basic name of file to load
 %   tifpars: parameters
 
-if contains(tifpars.SpMode, 'old')
-    
-    % collapsing files with the same animal and trial number to one mat
-    % files (old)
-	trialcollapser(NameRoot, tifpars);
-    
-elseif contains(tifpars.SpMode, ...
-            {'2DxT_single'})
-    
-    % saving each file independently
-    singleacqcollapser(NameRoot, tifpars);
+if ~contains(tifpars.SpMode, ...
+            'notiff')
+
+    if contains(tifpars.SpMode, 'old')
+
+        % collapsing files with the same animal and trial number to one mat
+        % files (old)
+        trialcollapser(NameRoot, tifpars);
+
+    elseif contains(tifpars.SpMode, ...
+                {'2DxT_single'})
+
+        % saving each file independently
+        singleacqcollapser(NameRoot, tifpars);
+
+    else
+
+        % collapsing files with the same animal and trial number to one mat files
+        % for example {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', '3DxT_opto', ...
+        %   '3DxT_opto_prv'}
+
+        trialcollapsernew(NameRoot, tifpars)
+
+    end
     
 else
-    
-    % collapsing files with the same animal and trial number to one mat files
-    % for example {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', '3DxT_opto', ...
-    %   '3DxT_opto_prv'}
+   
+    % generate empty Data and metadata variables
+    % generate metadata
+    tifpars.fName = [];
+    [fDat, iDat] = generatemetadata(NameRoot(1:end-1), [],  ...
+        tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
+        tifpars.Zres, tifpars.sres, ...
+        tifpars.FieldOfView, tifpars.fName);
 
-    trialcollapsernew(NameRoot, tifpars)
-                
+    Data = [];
+    save([tifpars.cDir, filesep, ...
+        tifpars.Folder2Run, filesep, ...
+        fDat.FileName, '_rawdata.mat'], ...
+        'Data', '-v7.3')
+
+    % save metadata
+    SavingDataNew([], fDat, iDat, 3, ...
+        tifpars.cDir, tifpars.Folder2Run, ...
+        tifpars.fStrain, tifpars.fs_stim)
+    
 end
 
 end
@@ -631,7 +692,9 @@ function [fDat, iDat] = ...
 % generatemetadata: collect image metadata
 %
 % Usage:
-%   [fDat, iDat] = generatemetadata(ifilename, ImMeta)
+%   [fDat, iDat] = generatemetadata(ifilename, ImMeta, ...
+%       cDir, Folder2Run, SpMode, ...
+%       Zres, sres, FieldOfView, fName)
 %
 % Args:
 %   ifilename: input filename
@@ -644,6 +707,25 @@ function [fDat, iDat] = ...
 %       (default, 10^4)
 %   FieldOfView: default 768um, set for this setup
 %   fName: name of all tiff files contributing to this matfile
+
+if isempty(ImMeta)
+    
+    fprintf(['ImMeta is empty, generating ', ...
+        'arbitrary imaging related params\n']);
+    
+    % generate fields
+    ImMeta.Zoom = NaN;
+    ImMeta.sympixels = 1;
+    ImMeta.FrameNum = [];
+    ImMeta.RepeatNum = [];
+    ImMeta.Y = NaN;
+    ImMeta.X = NaN;
+    ImMeta.Power = NaN;
+    ImMeta.DelFrames = [];
+    ImMeta.framerate = NaN;
+    ImMeta.volumerate = NaN;
+    
+end
 
 % Loading existing metadata, Load matfile asociated with this tiff file
 try
@@ -762,7 +844,8 @@ lStim.channels = [];
 % update lStim (using rDat)
 if exist('rDat', 'var')
     lStim.fs = rDat.Fs;
-    lStim.trialn = numel(rDat.selectedStimulus);  
+    lStim.trialn = numel(rDat.selectedStimulus);
+    lStim.channels = rDat.channels;
 end
 
 % update lStim (using logs)
