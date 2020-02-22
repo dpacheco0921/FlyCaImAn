@@ -23,7 +23,13 @@ function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose)
 %       (sympixels: flag for symetric pixels)
 %       (Imclass: class of encoding)
 
-if ~exist('verbose', 'var'); verbose = 0; end
+if ~exist('verbose', 'var') || isempty(verbose)
+    verbose = 0;
+end
+
+if ~exist('datatype', 'var') || isempty(datatype)
+    datatype = 'new';
+end
 
 try
     
@@ -36,7 +42,7 @@ try
             TiffMetadataOld(info);
     else
         [Y, X, Channels, Zoom, Power, Z, ...
-            framerate, volumerate, sympixels] = ...
+            framerate, volumerate, sympixels, Z_stepsiz] = ...
             TiffMetadata(info);
     end
     
@@ -82,10 +88,15 @@ try
     ImMeta.sympixels = sympixels;    
     ImMeta.Imclass = Imclass;
     
+    if exist('Z_stepsiz', 'var') && ...
+            ~isempty(Z_stepsiz)
+        ImMeta.Z_stepsiz = Z_stepsiz;
+    end
+    
 catch error
     
     if verbose == 1
-        fprintf(['could not run file', strrep(tifname, '\', ''), '\n']);
+        fprintf(['could not run file ', strrep(tifname, '\', ''), '\n']);
         keyboard
         display(error);
     end
@@ -200,11 +211,12 @@ sympixels = 0;
 end
 
 function [Y, X, Channels, Zoom, Power, Z, ...
-    framerate, volumerate, sympixels] = TiffMetadata(info)
+    framerate, volumerate, sympixels, Z_stepsiz] = TiffMetadata(info)
 % TiffMetadata: get metadata from tiff files
 %
 % Usage:
-%   [Y, X, Channels, Zoom, Power, Z] = TiffMetadata(info)
+%   [Y, X, Channels, Zoom, Power, Z, ...
+%       framerate, volumerate, sympixels, Z_stepsiz] = TiffMetadata(info)
 %
 % Args:
 %   info: tiff metadata (using imfinfo)
@@ -219,6 +231,7 @@ function [Y, X, Channels, Zoom, Power, Z, ...
 %   framerate: frame rate
 %   volumerate: volume rate
 %   sympixels: flag for symetric pixels
+%   Z_stepsiz: step size in Z
 %
 % Notes:
 % So far compatible with old and new scanimage
@@ -264,12 +277,29 @@ end
 % parameters to collect
 Y = scanimage.SI.hRoiManager.linesPerFrame;
 X = scanimage.SI.hRoiManager.pixelsPerLine;
-Z = scanimage.SI.hFastZ.numFramesPerVolume;
+
+try
+    Z = scanimage.SI.hFastZ.numFramesPerVolume;
+catch
+    if isfield(scanimage.SI, 'hStackManager') && ...
+        scanimage.SI.hStackManager.enable
+        Z = scanimage.SI.hStackManager.numSlices;
+    else
+        Z = 1;
+    end
+end
+
 Channels = sum(scanimage.SI.hChannels.channelSave > 0);
 Zoom = scanimage.SI.hRoiManager.scanZoomFactor;
 Power = scanimage.SI.hBeams.powers;
 framerate = scanimage.SI.hRoiManager.scanFrameRate;
 volumerate = scanimage.SI.hRoiManager.scanVolumeRate;
 sympixels = scanimage.SI.hRoiManager.forceSquarePixels;
+
+if isfield(scanimage.SI, 'hStackManager')
+    Z_stepsiz = scanimage.SI.hStackManager.stackZStepSize;
+else
+    Z_stepsiz = [];
+end
 
 end
