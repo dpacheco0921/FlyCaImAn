@@ -774,16 +774,6 @@ if ~isempty(stack2del)
         % Get frame times and prune them too
         iDat.StackN = iDat.StackN - numel(stack2del);
 
-        % Update sstEn
-        if iDat.FrameN > 1
-            preInit = min(reshape(iDat.fstEn(:, 1), ...
-                [iDat.FrameN, iDat.StackN]), [], 1)';
-            preEnd =  max(reshape(iDat.fstEn(:, 1), ...
-                [iDat.FrameN, iDat.StackN]), [], 1)';
-            iDat.sstEn = [preInit, preEnd];
-            clear preInit preEnd
-        end
-
         % Update PMT_fscore
         if isfield(iDat, 'PMT_fscore') && ...
                 ~isempty(iDat.PMT_fscore)

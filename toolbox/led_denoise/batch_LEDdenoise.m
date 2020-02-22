@@ -475,9 +475,9 @@ function Baseline = baselinegenerator(iDat, sDat)
 
 baselineTime = (sDat.silencePre/10^3)*sDat.fs; % from ms to timepoints
 
-if isfield(iDat, 'sstEn')
+if iDat.FrameN > 1
     % if this is a volume & low temporal resolution (0.5-1 Hz)
-    Int = (iDat.sstEn(1, 2) - iDat.sstEn(1, 1));
+    Int = (iDat.fstEn(iDat.FrameN, 2) - iDat.fstEn(1, 1));
     Baseline = 4:(ceil(baselineTime/Int)-2);
 else
     % if this is a plane & high temporal resolution (8-10 Hz)
