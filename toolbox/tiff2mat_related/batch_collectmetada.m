@@ -9,11 +9,11 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %   FolderName: name of folders to load
 %   FileName: name of files to load
 %   iparams: parameters to update
-%       (frameCh: 2PM shutter trigger / Y-axis of galvo or resonant channel)
-%           (default, 1)
-%       (lstimCh: stimuli channel in bin file)
+%       (Ygalvo_Ch: Y-axis of galvo or resonant channel)
 %           (default, 2)
-%       (lstimrDat: stimuli channel in rDat)
+%       (stimcopy_Ch: channel receiving a copy of stimuli delivered in bin file)
+%           (default, 1)
+%       (stim_oCh: analog ouput channel use to deliver stimuli)
 %           (default, 1)
 %       (buffer: time to chop from recording end 0 (ms))
 %           (default, 0)
@@ -39,6 +39,12 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %           (default, [])
 %       (stimths: voltage threshold to find stimuli)
 %           (default, 0)      
+%       (vid_time_init: initial time to use for mean substration)
+%           (default, 100 timepoints)      
+%       (vid_volt_ths: voltage threshold to find pulses)
+%           (default, [2.5 2.5])      
+%       (vid_ttl_width: expected width of pulses)
+%           (default, 20 timepoints)      
 % 
 % Notes
 % this function updates: lStim and iDat
@@ -60,7 +66,6 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %       iDat.StackN: updates depending on the length of time stamps
 %           collected
 %       iDat.fstEn: frame timestamps [onset offset]
-%       iDat.sstEn: volume timestamps [onset offset]
 %
 % 2019-02-22: bleedthrough is adding a stronger DC change than expected and
 %   affecting Frame time estimation, so now it runs calculate the mode frame
@@ -72,9 +77,9 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %   2) compatible with new setup (reads Y-galvo from data_*.mat files)
 
 % default params
-metpars.frameCh = 1;
-metpars.lstimCh = 2;
-metpars.lstimrDat = 1;
+metpars.Ygalvo_Ch = 2;
+metpars.stimcopy_Ch = 1;
+metpars.stim_oCh = 1;
 metpars.buffer = 0;
 metpars.pgate = 0;
 metpars.pgates = 0;
@@ -88,6 +93,9 @@ metpars.minframet = 900;
 metpars.findstim = 0;
 metpars.minwidth = [];
 metpars.stimths = 0;
+metpars.vid_ttl_width = 20;
+metpars.vid_time_init = 100;
+metpars.vid_volt_ths = [2.5 2.5];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
@@ -177,121 +185,66 @@ datatype = fDat.DataType;
 stim_file2load = [];
 if contains(datatype, 'song') || contains(datatype, 'prv') ...
         && ~contains(datatype, 'fict')
+    
     stim_file2load = 'prv';
+    metpars.Ygalvo_Ch = 2;
+    metpars.stimcopy_Ch = 1;
+    
+    if contains(datatype, 'snd_odor')
+        metpars.Ygalvo_Ch = 3;
+    elseif contains(datatype, 'diego')
+        metpars.stimcopy_Ch = [];
+    elseif contains(datatype, 'diego_FlyOnTheBall')
+        metpars.stimcopy_Ch = [3 4];
+    end    
+    
+    if contains(datatype, 'opto')
+        metpars.stim_oCh = 2;
+    end
+    
 elseif contains(datatype, 'opto') && ~contains(datatype, 'prv') ...
         && ~contains(datatype, 'fict')
     stim_file2load = 'LEDcontroler';
 elseif contains(datatype, 'fict')
     stim_file2load = 'fict';
+    metpars.Ygalvo_Ch = 1;
+    metpars.stimcopy_Ch = 2;
 end
 
 % Notes:
 % cases for 3DxT new data, sometimes the Y movement stops, giving you a
 %   wrong frame end for the last frame, which is then deleted
 
-if contains(stim_file2load, 'prv')
-    % stimuli delivered using prv code
-
-    if contains(datatype, 'prv') && contains(datatype, 'opto')
-        %ip.frameCh = 3; ip.lstimCh = 4; ip.lstimrDat = 2;
-        metpars.frameCh = 2;
-        metpars.lstimCh = 1;
-        metpars.lstimrDat = 2;
-    else
-        metpars.frameCh = 2;
-        metpars.lstimCh = 1;
-    end
-
-    bin_file_name = ['.', filesep, filename, '_bin.mat'];
-
-    if exist(bin_file_name, 'file')
-
-        load(bin_file_name, 'data', 'dataScalingFactor')
-        Ch = data';
-        Ch = double(Ch)/dataScalingFactor;
-        clear data
-
-    else
-
-        fprintf('No stimulus & timestamp-related bin file found\n')
-        Ch = [];
-
-    end
-
-elseif contains(stim_file2load, 'LEDcontroler')
-
-    % stimuli delivered using LEDcontroler (old setup)
-    Ch = local_binread(lStim);
-
-elseif contains(stim_file2load, 'fict')
-
-    % stimuli delivered using **
-    data = h5load(['.', filesep, filename, '.h5']);
-    eval(['Ch = ', 'data.input.samples(:,3);']);
-    Ch = double(Ch)';
-    clear data
-
-    metpars.frameCh = 1;
-    
-    if contains(datatype, 'opto')
-
-        % read stimulus from *.h5 file
-        data = h5load(['.', filesep, filename, '.h5']);
-        eval(['Ch(2, :) = ', 'data.input.samples(:, 2);']);
-        clear data
-                
-    else
-        
-        Ch(2, :) = zeros(size(Ch));
-        
-    end
-
-    metpars.lstimCh = 2;
-    
-else
-
-    fprintf('No stimulus & timestamp-related bin file found\n')
-    Ch = [];
-
-end
-
-% collect timestamps
-FrameN = iDat.FrameN*iDat.StackN;
+% collect galvo and stimuli copy channel(s)
+Ch = load_galvo_and_stim_channels(...
+    stim_file2load, filename);
 
 % if metadata iDat variable already has framerate information, then use it
-if isfield(iDat, 'framerate') && ~isempty(iDat.framerate)
+if isfield(iDat, 'framerate') && ...
+        ~isempty(iDat.framerate)
+    % iDat.framerate is in Hzs
     metpars.minframet = floor(10000/iDat.framerate);
 end
 
-if ~isempty(Ch)
-    [FrameInit, FrameEnd] = ...
-        colecttimestamp(Ch(metpars.frameCh, :), ...
-        FrameN, metpars.minframet, stim_file2load);
-else
-
-    % generate arbitrary timestamps
-    %   (in case you dont have a readout of the Y galvo)
-    FrameInit = (0:(FrameN-1))*10^3;
-    FrameInit(1) = 1;
-    FrameEnd = FrameInit + 900;
-
-end
-
-iDat.fstEn = [FrameInit' FrameEnd'];
-clear FrameInit FrameEnd
+% collect timestamps using galvo channels
+frame_num = iDat.FrameN*iDat.StackN;
+iDat.fstEn = collect_frame_timestamps(Ch, ...
+    metpars.Ygalvo_Ch, metpars.minframet, ...
+    frame_num, stim_file2load);
 
 % plot stim trace
-if metpars.pgates == 1 && ~isempty(Ch)
+if metpars.pgates == 1 && ...
+        ~isempty(Ch) && ~isempty(iDat.fstEn)
 
     figure('Name', filename);
     AxHs = subplot(1, 1, 1);
-    plot(Ch(metpars.frameCh, :), 'Parent', AxHs);
+    plot(Ch(metpars.Ygalvo_Ch, :), 'Parent', AxHs);
     hold(AxHs, 'on');
     plot(iDat.fstEn(:, 1), ...
-        Ch(metpars.frameCh, iDat.fstEn(:, 1)), ...
+        Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 1)), ...
         'o', 'Parent', AxHs)
     plot(iDat.fstEn(:, 2), ...
-        Ch(metpars.frameCh, iDat.fstEn(:, 2)), ...
+        Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 2)), ...
         'go', 'Parent', AxHs)
     xlabel(AxHs, 'Time 0.1 ms');
     ylabel(AxHs, 'V')
@@ -307,16 +260,23 @@ else
     lStim.fName = 'no stimulus file';
 end
 
-fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
-    ' second ', num2str(iDat.fstEn(2, :)), '\n'])
+if ~isempty(iDat.fstEn)
+    fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
+        ' second ', num2str(iDat.fstEn(2, :)), '\n'])
+end
 
 % homogenize frames and frametimes
+%   (chops either image stacks or stimuli vectors)
 %   edits iDat fields iDat.fstEn, iDat.FrameN & iDat.StackN
-iDat = homogenize_frame_frametime(...
-    filename, FrameN, iDat, datatype, metpars.mode);
+if ~isempty(iDat.fstEn)
+    iDat = homogenize_frame_frametime(...
+        filename, frame_num, iDat, ...
+        datatype, metpars.mode);
+end
 
 % plot frame-diff
-if metpars.pgate == 1
+if metpars.pgate == 1 && ...
+        ~isempty(iDat.fstEn)
 
     plot(iDat.fstEn(:, 2) - iDat.fstEn(:, 1), ...
         'parent', metpars.AxH);
@@ -326,13 +286,35 @@ if metpars.pgate == 1
 
 end
 
-% chopping stim trace to start and end of imaging + buffer time
-start_end = [iDat.fstEn(1, 1) - metpars.buffer*lStim.fs, ...
-    (iDat.fstEn(end, 2) + metpars.buffer*lStim.fs)];
+% define time before 1st frame and last frame to include
+%   (default is just from 1st to last frame, but it could include some buffer
+%   see metpars.buffer)
+if ~isempty(iDat.fstEn)
+    
+    start_end = [iDat.fstEn(1, 1) - metpars.buffer*lStim.fs, ...
+        (iDat.fstEn(end, 2) + metpars.buffer*lStim.fs)];
+    % set first frame start to index 1
+    iDat.fstEn = iDat.fstEn - start_end(1) + 1;
+    
+else
+    
+    start_end = [1 numel(Ch(1, :))];
+    iDat.fstEn = [1 numel(Ch(1, :))];
+    
+end
+
+% load video related variables (frames and fictrac vars)
+if exist([filename, '_vid.mp4'], 'file')
+    
+    vidDat = extract_video_timestamps(filename, Ch, ...
+        metpars.vid_time_init, metpars.vid_volt_ths, ...
+        metpars.vid_ttl_width, metpars.pgate, start_end);
+        
+end
 
 % chop and pass Ch (stimuli trace) to lStim.trace
 if ~isempty(Ch)
-    Ch = Ch(metpars.lstimCh, :);
+    Ch = Ch(metpars.stimcopy_Ch, :);
 
     if start_end(2) > numel(Ch)
         lStim.trace = Ch(start_end(1):end);
@@ -345,21 +327,6 @@ else
     lStim.trace = zeros(1, iDat.fstEn(end, 2));          
 end
 
-% set first frame start to index 1
-iDat.fstEn = iDat.fstEn - start_end(1) + 1;
-
-% generate sstEn (volume time)
-if iDat.FrameN > 1 && metpars.mode
-
-    preInit = min(reshape(iDat.fstEn(:, 1), ...
-        [iDat.FrameN, iDat.StackN]), [], 1)';
-    preEnd =  max(reshape(iDat.fstEn(:, 1), ...
-        [iDat.FrameN, iDat.StackN]), [], 1)';
-    iDat.sstEn = [preInit, preEnd];
-    clear preInit preEnd
-
-end
-
 % get stim onset and offset and extra metadata
 if contains(stim_file2load, 'prv')
 
@@ -368,7 +335,7 @@ if contains(stim_file2load, 'prv')
 
     [lStim.lstEn, lStim.trace] = ...
         songstim_init_end_rDat(rDat, start_end, ...
-        metpars.lstimrDat, metpars.findstim, ...
+        metpars.stim_oCh, metpars.findstim, ...
         metpars.minwidth, metpars.stimths);
 
     % collect extra metadata
@@ -390,6 +357,8 @@ if contains(stim_file2load, 'prv')
 
 elseif contains(stim_file2load, 'LEDcontroler')
 
+    
+    
     load(['.', filesep, filename, '.mat'], 'sDat');
     lStim.lstEn = optostim_init_end(lStim.trace, ...
         sDat);
@@ -468,9 +437,257 @@ if metpars.mode
         'iDat', 'lStim', '-append')
 end
 
+if exist('vidDat', 'var')
+    save(['.', filesep, filename, '_metadata.mat'], ...
+        'vidDat', '-append')
+end
+
 clear FrameInit FrameEnd order2chop Data NewStart lStim
 
 clear iDat fDat Ch lStim ROI lStim
+
+end
+
+function vidDat = extract_video_timestamps(filename, Ch, ...
+    vid_time_init, vid_volt_ths, vid_ttl_width, plot_flag, start_end)
+% extract_video_timestamps: get frame timestamps from trigger and shutter
+%
+% Usage:
+%   vidDat =  extract_video_timestamps(filename, Ch, ...
+%       vid_time_init, vid_volt_ths, vid_ttl_width, plot_flag)
+% 
+% Args:
+%   filename: file name
+%   Ch: loaded channels
+%   metpars: metadata parameters
+%   vid_time_init: initial time to use for mean substration
+%   vid_volt_ths: voltage threshold to find pulses
+%   vid_ttl_width: expected width of pulses
+%   plot_flag: flag to plot results
+%   start_end: start and end timepoint to use
+
+% load prv-related variable rDat and fictrac-related variable "fictDat"
+vidDat = [];
+try
+    load(['.', filesep, filename, '_vDat.mat'], ...
+        'rDat', 'fictDat')
+    vidDat = fictDat;
+    clear fictDat
+end
+
+% readout video frames info
+vid_obj = VideoReader([filename, '_vid.mp4']);
+read(vid_obj, inf);
+vid_frame_num = vid_obj.NumberOfFrames;
+
+% readout trigger and shutter channels
+if sum(rDat.vidframeCh) || ...
+        sum(rDat.vidtriggerCh)
+    
+    fprintf('video related channels found\n')
+
+    % extract triggered frames
+    trigger_onset_offset = ...
+        get_ttl_start_end(Ch(rDat.vidtriggerCh, :), ...
+        vid_volt_ths(2), vid_time_init, ...
+        vid_ttl_width, rDat.Fs);
+
+    % extract recorded frames        
+    shutter_onset_offset = ...
+        get_ttl_start_end(Ch(rDat.vidframeCh, :), ...
+        vid_volt_ths(1), vid_time_init, ...
+        vid_ttl_width, rDat.Fs);
+
+end
+
+% print comparison
+fprintf(['frames in mp4: ', num2str(vid_frame_num), '\n'])
+fprintf(['frames triggered: ', ...
+    num2str(size(trigger_onset_offset, 1)), '\n'])
+fprintf(['frames readout (from shutter opening): ', ...
+    num2str(size(shutter_onset_offset, 1)), '\n'])
+
+% print video frame rate
+fprintf(['frame rate from trigger: ', ...
+    num2str(rDat.Fs/mean(diff(trigger_onset_offset(:, 1)))), '\n'])
+fprintf(['frame rate from readout (from shutter opening): ', ...
+    num2str(rDat.Fs/mean(diff(shutter_onset_offset(:, 1)))), '\n'])
+
+% chop times outside frame timpoints
+l2chop = find(shutter_onset_offset(:, 1) > start_end(2));
+
+if ~isempty(l2chop)
+    shutter_onset_offset = ...
+        shutter_onset_offset(1:(l2chop - 1), :);
+    trigger_onset_offset = ...
+        trigger_onset_offset(1:(l2chop - 1), :);
+end
+
+% make timpoints units relative to start point
+shutter_onset_offset = ...
+    shutter_onset_offset - start_end(1) + 1;
+trigger_onset_offset = ...
+    trigger_onset_offset - start_end(1) + 1;
+
+if isfield(vidDat, 'var') && ~isempty(vidDat.var)
+    fprintf('fictrac file found\n')
+
+    % reducing timestamps to actual number of frames processed
+    if size(trigger_onset_offset, 1) < vid_frame_num || ...
+            size(shutter_onset_offset, 1) < vid_frame_num
+        
+        % chop vidDat.var
+        idx2use = find(vidDat.var(:, 1) <= min([...
+            size(trigger_onset_offset, 1), ...
+            size(trigger_onset_offset, 1)]));
+        vidDat.var = vidDat.var(idx2use, :);
+        
+    end
+    
+    shutter_onset_offset = ...
+        shutter_onset_offset(vidDat.var(:, 1), :);
+    trigger_onset_offset = ...
+        trigger_onset_offset(vidDat.var(:, 1), :);
+
+end
+
+if plot_flag && ...
+        ~isempty(shutter_onset_offset) && ...
+        ~isempty(trigger_onset_offset)
+    
+    % display camera
+    figure()
+    axH = subplot(1, 1, 1);
+    plot(Ch(rDat.vidtriggerCh, 1:2*10^4), 'k', 'Parent', axH)
+    hold(axH, 'on')
+    plot(Ch(rDat.vidframeCh, 1:2*10^4), 'b', 'Parent', axH)
+
+    plot(shutter_onset_offset(:, 1), ...
+            Ch(rDat.vidframeCh, shutter_onset_offset(:, 1)), ...
+            'o', 'Parent', axH)
+    plot(shutter_onset_offset(:, 2), ...
+        Ch(rDat.vidframeCh, shutter_onset_offset(:, 2)), ...
+        'go', 'Parent', axH)
+    axH.XLim = [0 2*10^4];
+    
+end
+
+% append shutter times
+vidDat.fstEn = shutter_onset_offset;
+
+end
+
+function fstEn = collect_frame_timestamps(Ch, ...
+    Ygalvo_Ch, minframet, frame_num, stim_file2load)
+% collect_frame_timestamps: function that estimates timestamps from galvo
+%   channel readout.
+%
+% Usage:
+%   fstEn = collect_frame_timestamps(Ch, ...
+%     Ygalvo_Ch, minframet, frame_num, stim_file2load)
+% 
+% Args:
+%   Ch: channels extracted from *.bin / *.mat files
+%   Ygalvo_Ch: galvo channel
+%   minframet: minimun frame time
+%   frame_num: frames imaged (obtained from tif)
+%   stim_file2load: string with setup/data acquisition function info
+
+% collect timestamps
+if ~isempty(Ch) && ~isempty(frame_num)
+
+    [FrameInit, FrameEnd] = ...
+        colecttimestamp(Ch(Ygalvo_Ch, :), ...
+        frame_num, minframet, stim_file2load);
+    
+else
+
+    if isempty(frame_num)
+        % no images were collected
+        fprintf('No stacks imaged generating empty fields\n')
+        FrameInit = [];
+        FrameEnd = [];
+        
+    else
+        % images but not galvo channel was collected
+        fprintf('No galvo info provided generating arbitrary timestamps\n')
+
+        % generate arbitrary timestamps
+        %   (in case you dont have a readout of the Y galvo)
+        FrameInit = (0:(frame_num-1))*10^3;
+        FrameInit(1) = 1;
+        FrameEnd = FrameInit + 900;
+        
+    end
+    
+end
+
+fstEn = [FrameInit' FrameEnd'];
+
+end
+
+function Ch = load_galvo_and_stim_channels(...
+    stim_file2load, filename)
+% load_galvo_and_stim_channels: function that loads galvo and stimulus copy
+%   channel(s)
+%
+% Usage:
+%   Ch = load_galvo_and_stim_channels(...
+%       stim_file2load, filename)
+%
+% Args:
+%   stim_file2load: string with setup/data acquisition function info
+%   filename: name of file to load
+
+if contains(stim_file2load, 'prv')
+    
+    % stimuli delivered using prv code
+    bin_file_name = ['.', filesep, filename, '_bin.mat'];
+
+    if exist(bin_file_name, 'file')
+
+        load(bin_file_name, 'data', 'dataScalingFactor')
+        Ch = data';
+        Ch = double(Ch)/dataScalingFactor;
+        clear data
+
+    else
+
+        fprintf('No stimulus & timestamp-related bin file found\n')
+        Ch = [];
+
+    end
+    
+    clear bin_file_name
+    
+elseif contains(stim_file2load, 'LEDcontroler')
+
+    % stimuli delivered using LEDcontroler (old setup)
+    Ch = local_binread(lStim);
+
+elseif contains(stim_file2load, 'fict')
+
+    % stimuli delivered using **
+    data = h5load(['.', filesep, filename, '.h5']);
+    eval(['Ch = ', 'data.input.samples(:,3);']);
+    Ch = double(Ch)';
+    clear data
+    
+    if contains(datatype, 'opto')
+
+        % read stimulus from *.h5 file
+        data = h5load(['.', filesep, filename, '.h5']);
+        eval(['Ch(2, :) = ', 'data.input.samples(:, 2);']);
+        clear data
+    
+    else
+        Ch(2, :) = zeros(size(Ch));
+    end
+
+else
+    fprintf('No stimulus & timestamp-related bin file found\n')
+    Ch = [];
+end
 
 end
 
@@ -694,6 +911,66 @@ else
     fprintf([' # of frames ~= from image (', ...
         num2str(frame_num), ')\n']);
 end
+
+end
+
+function stimuli_onset_offset = ...
+    get_ttl_start_end(volt_trace, ...
+    volt_thrs, time_init, minwidth, ...
+    sampling_rate)
+% get_ttl_start_end: get start and end of ttl pulses
+%
+% Usage:
+%   [Frame_Init, Frame_End] = ...
+%       colecttimestampNew(mirror_y_trace, frame_num, min_frame_time)
+%
+% Args:
+%   volt_trace: input voltage trace
+%   volt_thrs: voltage threshold
+%       (4, default)
+%   time_init: time to ignore
+%       (100, default)
+%   minwidth: minimun width of stimuli timepoints
+%       (20, default)
+%   sampling_rate: sampling rate
+%       (10^4, default)
+
+% voltage threshold
+if ~exist('volt_thrs', 'var') || isempty(volt_thrs)
+    volt_thrs = 4;
+end
+
+% time to ignore
+if ~exist('time_init', 'var') || isempty(time_init)
+    time_init = 100;
+end
+
+% time to ignore
+if ~exist('minwidth', 'var') || isempty(minwidth)
+    minwidth = 20;
+end
+
+if size(volt_trace, 1) > 1
+    volt_trace = volt_trace';
+end
+
+% binarize vector:
+mean_signal_start = ...
+    mean(volt_trace(time_init:0.6*sampling_rate));
+% sd_signal_start = ...
+%     std(volt_trace(time_init:0.6*sampling_rate));
+
+% remove artifact at the beginning of recording
+volt_trace(1:time_init) = mean_signal_start;
+
+% scale volt_trace
+% volt_trace = (volt_trace - mean_signal_start)...
+%     /sd_signal_start;
+
+volt_trace = (volt_trace - mean_signal_start);
+
+stimuli_onset_offset = ...
+    find_stim_int(volt_trace, minwidth, volt_thrs);
 
 end
 
