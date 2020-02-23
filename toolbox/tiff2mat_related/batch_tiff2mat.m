@@ -741,8 +741,15 @@ fDat.DataType = SpMode;
 fDat.fName = fName;
 
 if ~exist('iDat', 'var')
-    fprintf('writing new iDat');
+    fprintf('writing new iDat\n');
     iDat = struct('MetaData', [], 'ZoomFactor', ImMeta.Zoom);
+end
+
+% if Zres provided by scanimage then read that value
+if isfield(ImMeta, 'Z_stepsiz') && ~isempty(ImMeta.Z_stepsiz)
+    Zres = ImMeta.Z_stepsiz;
+    fprintf(['Z step size provided by scanimage: ', ...
+        num2str(Zres), ' um \n'])
 end
 
 % pixel size (symmetric or not)

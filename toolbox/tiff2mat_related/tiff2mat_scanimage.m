@@ -22,6 +22,7 @@ function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose)
 %       (volumerate: volume rate)
 %       (sympixels: flag for symetric pixels)
 %       (Imclass: class of encoding)
+%       (Z_stepsiz: step size in Z)
 
 if ~exist('verbose', 'var') || isempty(verbose)
     verbose = 0;
