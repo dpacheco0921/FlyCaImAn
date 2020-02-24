@@ -100,7 +100,8 @@ tifpars.fileformat = '.tif';
 tifpars.fName = [];
 % max spatial resolution to use (round all values smaller than 1/p.sres)
 tifpars.sres = 10^4;
-tifpars.f2reject = {'.', '..', 'preprocessed', 'BData'};
+tifpars.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+tifpars.fi2reject = {'rawim.tiff', 'Zstack'};
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end
@@ -118,7 +119,7 @@ fprintf('Running Tiff2Mat\n');
 % finding folders and filtering out data that is not selected
 fo2run = dir;
 fo2run = str2match(FolderName, fo2run);
-fo2run = str2rm(tifpars.f2reject, fo2run);
+fo2run = str2rm(tifpars.fo2reject, fo2run);
 fo2run = {fo2run.name};
 
 fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
@@ -151,7 +152,7 @@ function runperfolder(fname, foname, tifpars)
 % checking files inside folder
     
 [BaseFName, ~, ~] = rdir_namesplit([], ...
-    tifpars.fileformat, [], {'Zstack'}, fname);
+    tifpars.fileformat, [], tifpars.fi2reject, fname);
     
 if isempty(BaseFName)
     
@@ -162,7 +163,7 @@ if isempty(BaseFName)
     
     tifpars.fileformat = '.mat';
     [BaseFName, ~, ~] = rdir_namesplit([], ...
-        tifpars.fileformat, [], {'Zstack'}, fname);
+        tifpars.fileformat, [], tifpars.fi2reject, fname);
     
     % change smode to generate empty file
     tifpars.SpMode = [tifpars.SpMode, '_notiff'];
@@ -180,15 +181,16 @@ fprintf(['Running Folder : ', num2str(foname), ...
 % get unique flynum and fly-trials per basename
 for basename_i = 1:numel(BaseFName)
 
-    [~, AnimalNum, TrialNum] = ...
+    [~, AnimalNum, TrialNum, str_length] = ...
         rdir_namesplit(BaseFName(basename_i), ...
-        tifpars.fileformat, [], {'Zstack'}, fname);
+        tifpars.fileformat, [], tifpars.fi2reject, fname);
 
     % get the number of trials per unique AnimalNum and basename
     for ani_i = unique(AnimalNum)
 
         TrialPerAnimal = TrialNum(AnimalNum == ani_i);
-
+        str_length_i = str_length(AnimalNum == ani_i, :); 
+        
         if isempty(TrialPerAnimal)
 
             fprintf(['Does not have any file with', ...
@@ -196,15 +198,25 @@ for basename_i = 1:numel(BaseFName)
 
         else
 
-            Trial2Load = unique(TrialPerAnimal);
+            [Trial2Load, idx2use] = unique(TrialPerAnimal);
+            str_length_i = str_length_i(idx2use, :);
+            clear idx2use
+            
             fprintf([' (n-trials, ', ...
                 num2str(unique(TrialPerAnimal)), ')\n']);
 
             for trial_i = Trial2Load
 
                 % collapsing all timepoints and z-slices to 1 mat file
+                
+                animal_str = sprintf(['%0', ...
+                    num2str(str_length_i(trial_i, 2)), 'd'], ani_i);
+                trial_str = sprintf(['%0', ...
+                    num2str(str_length_i(trial_i, 3)), 'd'], trial_i);
+                
                 NameRoot = [BaseFName{basename_i}, '_', ...
-                    num2str(ani_i), '_', num2str(trial_i), '_'];
+                        animal_str, '_', trial_str, '_'];
+                
                 loadertype(NameRoot, tifpars);
 
             end 
@@ -281,7 +293,7 @@ end
 
 end
 
-function trialcollapsernew(repname, tifpars)
+function trialcollapsernew(tif_name, tifpars)
 % trialcollapsernew: collect all tiffs that belong to a single file and
 % generates the varariable Data(Y, X, Z, T, Ch) or (Y, X, T, Ch)
 %
@@ -292,12 +304,30 @@ function trialcollapsernew(repname, tifpars)
 %   repname: name pattern
 %   tifpars: parameters
 
-% collapsing files with the same animal and trial number to one mat file
-repname_tif = rdir([repname, '0.tif']);
-repname_tif = {repname_tif.name};
-repname_tif = repname_tif{1};
-tif_num = numel(rdir([repname, '*.tif']));
-clear NameRoot
+% compiling files with the same animal and trial number to one mat file
+
+% generate mat file names (remove zero padding
+
+[Basename, AnimalNum, TrialNum, str_length] = ...
+        rdir_namesplit(tif_name, ...
+        tifpars.fileformat, [], tifpars.fi2reject);
+mat_name = [Basename{1}, '_', ...
+    num2str(AnimalNum(1)), '_', ...
+    num2str(TrialNum(1))];
+
+tif_num = numel(rdir([tif_name, '*.tif']));
+
+% tif start number
+if exist([tif_name, ...
+        sprintf(['%0', num2str(str_length(1, 4)), 'd'], 0), ...
+        '.tif'], 'file')
+    start_n = 0;
+else
+    start_n = 1;
+end
+
+% remove last underline
+tif_name = tif_name(1:end-1);
 
 Data = [];
 tempdata_pre = [];
@@ -308,20 +338,20 @@ fprintf(['n-repts = ', num2str(tif_num), '\n'])
 % generate matfile to save Data
 % overwrite
 if exist([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
-    repname_tif(1:(end-6)), '_rawdata.mat'], 'file')
+    mat_name, '_rawdata.mat'], 'file')
     
     delete([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
-        repname_tif(1:(end-6)), '_rawdata.mat'])
+        mat_name, '_rawdata.mat'])
 
     try
         delete([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
-        repname_tif(1:(end-6)), '_refdata.mat'])
+        mat_name, '_refdata.mat'])
     end
 
 end
 
 dataObj = matfile([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
-    repname_tif(1:(end-6)), '_rawdata.mat'], 'Writable', true);
+    mat_name, '_rawdata.mat'], 'Writable', true);
 
 % importing and concatenating Data on the 3r dim
 
@@ -330,8 +360,9 @@ dim2count = 0;
 
 for tif_i = 1:tif_num
     
-    tif_idx = num2str(tif_i - 1);
-    tifpars.fName{1, tif_i} = [repname_tif(1:(end-6)), '_', tif_idx];
+    tif_idx = tif_i + start_n - 1;
+    tif_idx = sprintf(['%0', num2str(str_length(tif_i, 4)), 'd'], tif_idx);  
+    tifpars.fName{1, tif_i} = [tif_name, '_', tif_idx];
     
     try
         % tiff2mat_scanimage output is 4D or 3D (Y, X, frame, pmt)
@@ -474,7 +505,7 @@ ImMeta.DelFrames = [];
 fprintf(['Data final size: ', num2str(size(dataObj.Data)), '\n'])
 
 % generate metadata
-[fDat, iDat] = generatemetadata(repname_tif(1:(end-6)), ImMeta,  ...
+[fDat, iDat] = generatemetadata(mat_name, ImMeta,  ...
     tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
     tifpars.Zres, tifpars.sres, ...
     tifpars.FieldOfView, tifpars.fName);
