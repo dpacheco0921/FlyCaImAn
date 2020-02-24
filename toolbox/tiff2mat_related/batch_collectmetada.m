@@ -204,11 +204,19 @@ if contains(datatype, 'song') || contains(datatype, 'prv') ...
     
 elseif contains(datatype, 'opto') && ~contains(datatype, 'prv') ...
         && ~contains(datatype, 'fict')
+    
     stim_file2load = 'LEDcontroler';
+    
 elseif contains(datatype, 'fict')
+    
     stim_file2load = 'fict';
     metpars.Ygalvo_Ch = 1;
     metpars.stimcopy_Ch = 2;
+    
+else
+    
+   stim_file2load = 'nostim';
+    
 end
 
 % Notes:
@@ -356,8 +364,6 @@ if contains(stim_file2load, 'prv')
     clear rDat
 
 elseif contains(stim_file2load, 'LEDcontroler')
-
-    
     
     load(['.', filesep, filename, '.mat'], 'sDat');
     lStim.lstEn = optostim_init_end(lStim.trace, ...
