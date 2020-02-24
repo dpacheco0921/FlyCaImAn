@@ -94,8 +94,8 @@ metpars.findstim = 0;
 metpars.minwidth = [];
 metpars.stimths = 0;
 metpars.vid_ttl_width = 20;
-metpars.vid_time_init = 100;
-metpars.vid_volt_ths = [2.5 2.5];
+metpars.vid_time_init = 200;
+metpars.vid_volt_ths = [2 2];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
