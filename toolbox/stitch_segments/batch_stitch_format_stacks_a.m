@@ -362,6 +362,13 @@ for rep_i = 1:numel(reps)
     load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
         'iDat', 'fDat', 'mcDat', 'lStim');
     
+    try
+        load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
+            'vidDat');
+    catch
+        vidDat = [];
+    end
+    
     if ~exist('mcDat', 'var')
         mcDat = [];
     end
@@ -528,7 +535,7 @@ for rep_i = 1:numel(reps)
     % get stim metadata
     try
         wDat = getStimInfo(wDat, iDat, fDat, ...
-            lStim, cDat, mcDat, [fname, '_', ...
+            lStim, cDat, mcDat, vidDat, [fname, '_', ...
             num2str(reps(rep_i))], ...
             rep_i, reps, shifts_align, zlength);
     catch

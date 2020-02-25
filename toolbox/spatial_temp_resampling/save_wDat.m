@@ -26,6 +26,12 @@ wDat = [];
 % load all metadata variables
 load(filename, 'iDat', 'fDat', 'mcDat', 'lStim');
 
+try
+    load(filename, 'vidDat');
+catch
+    vidDat = [];
+end
+
 if contains(fDat.DataType, 'opto') && ...
         ~contains(fDat.DataType, 'prv')
     load(filename, 'cDat');
@@ -42,6 +48,11 @@ wDat.Zstitch.Yshift = [];
 wDat.MotCor.Zshift = [];
 wDat.MotCor.sXshift = [];
 wDat.MotCor.sYshift = [];
+
+% video related
+wDat.vid.varNames = [];
+wDat.vid.var = [];
+wDat.vid.fstEn = [];
 
 % flip z-axis (3D data only)
 if contains(datatype, '3DxT')
@@ -96,7 +107,7 @@ end
 
 % get stimuli info
 wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
-    mcDat, strrep(filename, '_metadata', ''), ...
+    mcDat, vidDat, strrep(filename, '_metadata', ''), ...
     1, 1, [], iDat.FrameN);
 
 % find nan-slices

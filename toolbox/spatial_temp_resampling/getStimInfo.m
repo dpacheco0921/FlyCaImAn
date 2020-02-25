@@ -1,12 +1,12 @@
 function wDat = getStimInfo(wDat, iDat, ...
-    fDat, lStim, cDat, mcDat, fname, ...
+    fDat, lStim, cDat, mcDat, vidDat, fname, ...
     rep_i, reps, shifts_align, zlength)
 % getStimInfo: compiles all relevant stimuli 
 %   parameters into wDat structure
 %
 % Usage:
 %   Dat = getStimInfo(wDat, iDat, ...
-%    fDat, lStim, cDat, mcDat, fname, ...
+%    fDat, lStim, cDat, mcDat, vidDat, fname, ...
 %    rep_i, reps, shifts_align, zlength)
 %
 % Args:
@@ -17,6 +17,7 @@ function wDat = getStimInfo(wDat, iDat, ...
 %   lStim: stimuli metadata structure
 %   cDat: LED correction metadata structure
 %   mcDat: motion correction metadata structure
+%   vidDat: video metadata structure
 %   fname: file name
 %   rep_i: rep index
 %   reps: total number of reps
@@ -160,6 +161,15 @@ if ~isempty(mcDat)
         wDat.MotCor.Zshift(:, rep_i) = ...
             zeros(size(wDat.MotCor.sYshift, 1), 1);
     end
+    
+end
+
+% Collect video related
+if ~isempty(vidDat)
+    
+    wDat.vid.varNames = vidDat.varNames;
+    wDat.vid.var{rep_i, 1} = vidDat.var;
+    wDat.vid.fstEn{rep_i, 1} = vidDat.fstEn;
     
 end
 
