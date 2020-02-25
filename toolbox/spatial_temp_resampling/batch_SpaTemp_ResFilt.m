@@ -261,19 +261,33 @@ for i = 1:numel(repnum)
         
     end
     
+    % get original time stamps
+    orig_timestamp = reshape(...
+        iDat.fstEn(:, 2), ...
+        [iDat.FrameN iDat.StackN])/lStim.fs;
+
     if ~isfield(iDat, 'lstEn')
         
         % overwrite stimulus timing
         %   (set first stimulus to time zero)
         
+        orig_timestamp = orig_timestamp - lstEn(1, 1);
         iDat.lstEn = lstEn - lstEn(1, 1);
+        
+        % chop stim trace
+        itIdx = round((res_timestamps(1) + lstEn(1, 1))*lStim.fs);
+        lStim.trace = lStim.trace(itIdx:end);
         
     else
         
+        orig_timestamp = orig_timestamp - iDat.lstEn(1, 1);
         fprintf('Already added lstEn to iDat ')
         
     end
     
+    % update time
+    iDat.Tres = orig_timestamp;
+
     % load video data and edit timestamps
     try
         
@@ -417,18 +431,6 @@ for i = 1:numel(repnum)
     % resample temporally green channel (from plane to plane)
     if ~isfield(iDat, 'tResample') || ...
             iDat.tResample == 0
-        
-        % get original time stamps
-        orig_timestamp = reshape(...
-            iDat.fstEn(:, 2), ...
-            [iDat.FrameN iDat.StackN])/lStim.fs;
-        
-        % zero relative to start of first stimulus
-        orig_timestamp = orig_timestamp - iDat.lstEn(1, 1);
-        
-        % chop stim trace
-        itIdx = round((res_timestamps(1) + iDat.lstEn(1, 1))*lStim.fs);
-        lStim.trace = lStim.trace(itIdx:end);
         
         % resample PMT_fscore
         if isfield(iDat, 'PMT_fscore')
