@@ -192,7 +192,7 @@ if contains(datatype, 'song') || contains(datatype, 'prv') ...
     
     if contains(datatype, 'snd_odor')
         metpars.Ygalvo_Ch = 3;
-    elseif contains(datatype, 'diego')
+    elseif contains(datatype, 'diego_noball')
         metpars.stimcopy_Ch = [];
     elseif contains(datatype, 'diego_FlyOnTheBall')
         metpars.stimcopy_Ch = [3 4];
