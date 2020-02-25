@@ -190,7 +190,7 @@ spte
 
 % generate new timestamps
 lstEn = [];
-endT = spte.time(1):spte.newtimeres:spte.time(2);
+res_timestamps = spte.time(1):spte.newtimeres:spte.time(2);
 
 fprintf(['Running fly : ', strrep(strrep(f2run, ['.', filesep], ''), ...
     '_', ' '), '\n'])
@@ -242,28 +242,50 @@ for i = 1:numel(repnum)
             spte.stack2del, Data);
     end
     
-    % Get stim init-end
+    % Get stim onset-offset using first trial/rep and set zero 
+    %   to start of first stimulus
+    if repnum(i) == repnum(1)
+
+        % it assumes all all trials /reps per file name had the same
+        %   stimulus protocol, otherwise use "spte.idp_run_flag = 1" to 
+        %   process each one independently
+        if ~isfield(lStim, 'lstEn') && ...
+                contains(fDat.DataType, 'opto')
+            lStim.lstEn = ...
+                optostim_init_end(lStim.trace, lStim);
+        end
+
+        % convert from sampling points to seconds
+        %   keep "lstEn" variable to later overwrite other trials/exps
+        lstEn = (lStim.lstEn)/lStim.fs;
+        
+    end
+    
     if ~isfield(iDat, 'lstEn')
         
-        if repnum(i) == repnum(1)
-            
-            % single lstEn for all trials /reps per fly name
-            % convert from sampling points to seconds
-            
-            if ~isfield(lStim, 'lstEn') && contains(fDat.DataType, 'opto')
-                lStim.lstEn = optostim_init_end(lStim.trace, lStim)/lStim.fs;
-            end
-            
-            lstEn = (lStim.lstEn)/lStim.fs;
-            
-        end
+        % overwrite stimulus timing
+        %   (set first stimulus to time zero)
         
         iDat.lstEn = lstEn - lstEn(1, 1);
         
     else
         
-        lstEn = iDat.lstEn;
         fprintf('Already added lstEn to iDat ')
+        
+    end
+    
+    % load video data and edit timestamps
+    try
+        
+        load(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat')
+        
+        % convert from timepoints to seconds
+        vidDat.fstEn = vidDat.fstEn/lStim.fs;
+        
+        % set zero to stimulus start
+        vidDat.fstEn = vidDat.fstEn - iDat.lstEn(1, 1);
+        
+        save(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat', '-append')
         
     end
     
@@ -393,36 +415,46 @@ for i = 1:numel(repnum)
     clear nan_data
     
     % resample temporally green channel (from plane to plane)
-    if ~isfield(iDat, 'tResample') || iDat.tResample == 0
+    if ~isfield(iDat, 'tResample') || ...
+            iDat.tResample == 0
         
-        % get new time stamps
-        iniT = reshape(iDat.fstEn(:, 2), [iDat.FrameN iDat.StackN])/lStim.fs;
-        iniT = iniT - lstEn(1, 1);
+        % get original time stamps
+        orig_timestamp = reshape(...
+            iDat.fstEn(:, 2), ...
+            [iDat.FrameN iDat.StackN])/lStim.fs;
+        
+        % zero relative to start of first stimulus
+        orig_timestamp = orig_timestamp - iDat.lstEn(1, 1);
         
         % chop stim trace
-        itIdx = round((endT(1) + lstEn(1, 1))*lStim.fs);
+        itIdx = round((res_timestamps(1) + iDat.lstEn(1, 1))*lStim.fs);
         lStim.trace = lStim.trace(itIdx:end);
         
         % resample PMT_fscore
         if isfield(iDat, 'PMT_fscore')
-            iDat.PMT_fscore = interp1(iniT(1, :), iDat.PMT_fscore, endT);
+            iDat.PMT_fscore = interp1(...
+                orig_timestamp(1, :), ...
+                iDat.PMT_fscore, res_timestamps);
         end
         
         % show initial time and final re-slicing
-        fprintf(['time_i: ', num2str([max(iniT(:, 1)), ...
-            min(iniT(:, end))]), ' time_e: ', num2str(endT([1 end])), ' \n'])
+        fprintf(['time_i: ', num2str([max(orig_timestamp(:, 1)), ...
+            min(orig_timestamp(:, end))]), ...
+            ' time_e: ', num2str(res_timestamps([1 end])), ' \n'])
         fprintf('Time green ');
         
-        Data = interp3DxTixTj(Data, [1 1], [1 1], iniT, endT);
+        Data = interp3DxTixTj(...
+            Data, [1 1], [1 1], ...
+            orig_timestamp, res_timestamps);
         
         iDat.tResample = 1;
-        iDat.Tres = endT;
-        iDat.StackN = length(endT);
+        iDat.Tres = res_timestamps;
+        iDat.StackN = length(res_timestamps);
         
     else
         
         fprintf('Already TixTj resampled ');
-        iniT = [];
+        orig_timestamp = [];
         
     end
         
@@ -468,11 +500,13 @@ for i = 1:numel(repnum)
                 spte.stack2del, [], Data_ref);
         end
         
-        if ~isfield(iDat_red, 'XYresmatch') || iDat_red.XYresmatch == 0
+        if ~isfield(iDat_red, 'XYresmatch') || ...
+                iDat_red.XYresmatch == 0
         
             % resample functional data
             % (it removes nans prior to resampling and then puts them back)
-            fprintf(['iVoxelsize: ', num2str(iDat_red.MetaData{3}(1:3)), ...
+            fprintf(['iVoxelsize: ', ...
+                num2str(iDat_red.MetaData{3}(1:3)), ...
                 ' XY red ']);
             
             [Data_ref, ~, ~] = ...
@@ -480,7 +514,8 @@ for i = 1:numel(repnum)
                 inpres, spte.newres, nan_idx, nan_idx_2_i, ...
                 iDat.FrameN);
 
-            fprintf([' eVoxelsize: ', num2str(iDat.MetaData{3}(1:3)), ' ']);
+            fprintf([' eVoxelsize: ', ...
+                num2str(iDat.MetaData{3}(1:3)), ' ']);
             clear nan_idx nan_idx_2_i
             
         else
@@ -488,7 +523,9 @@ for i = 1:numel(repnum)
         end
     
         % do spatial smoothing
-        if ~isempty(spte.sigma) && ~isempty(spte.size) && iDat_red.sSmooth == 0
+        if ~isempty(spte.sigma) && ...
+                ~isempty(spte.size) && ...
+                iDat_red.sSmooth == 0
 
             fprintf('XY smoothing ')
 
@@ -513,9 +550,14 @@ for i = 1:numel(repnum)
         end
 
         % resample temporally green channel (from plane to plane)
-        if ~isfield(iDat_red, 'tResample') || iDat_red.tResample == 0
+        if ~isfield(iDat_red, 'tResample') || ...
+                iDat_red.tResample == 0
+            
             fprintf('Time red ');
-            Data_ref = interp3DxTixTj(Data_ref, [1 1], [1 1], iniT, endT);
+            Data_ref = interp3DxTixTj(...
+                Data_ref, [1 1], [1 1], ...
+                orig_timestamp, res_timestamps);
+            
         end
         
         % make file
@@ -537,7 +579,8 @@ for i = 1:numel(repnum)
     end
     
     fprintf('\n')
-    clear iDat lStim iniT Data inpres nantest rep2run
+    clear iDat lStim orig_timestamp ...
+        Data inpres nantest rep2run
     
 end
 
