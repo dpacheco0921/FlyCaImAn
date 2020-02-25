@@ -205,14 +205,13 @@ for basename_i = 1:numel(BaseFName)
             fprintf([' (n-trials, ', ...
                 num2str(unique(TrialPerAnimal)), ')\n']);
 
-            for trial_i = Trial2Load
+            for trial_i = 1:numel(Trial2Load)
 
                 % collapsing all timepoints and z-slices to 1 mat file
-                
                 animal_str = sprintf(['%0', ...
                     num2str(str_length_i(trial_i, 2)), 'd'], ani_i);
                 trial_str = sprintf(['%0', ...
-                    num2str(str_length_i(trial_i, 3)), 'd'], trial_i);
+                    num2str(str_length_i(trial_i, 3)), 'd'], Trial2Load(trial_i));
                 
                 NameRoot = [BaseFName{basename_i}, '_', ...
                         animal_str, '_', trial_str, '_'];
