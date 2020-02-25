@@ -50,6 +50,7 @@ end
 
 f2run = str2match(basename, f2run);
 f2run = {f2run.name};
+
 % remove dir preffix
 f2run = strrep(f2run, ['.', filesep], '');
 
