@@ -85,7 +85,7 @@ cspfa.fi2reject = {'Zstack'};
 cspfa.fsuffix = '_rawdata';
 cspfa.bkgate = 0;
 cspfa.blowcap = 0;
-cspfa.fshift = 6;
+cspfa.fshift = [6 6];
 cspfa.serId = 'int';
 cspfa.corenum = 4;
 cspfa.zrange = 1:7;
@@ -256,11 +256,11 @@ for rep_i = 1:numel(reps)
     end
     
     local(rep_i).RedChaMean = ...
-        local(rep_i).RedChaMean + cspfa.fshift; 
+        local(rep_i).RedChaMean + cspfa.fshift(1); 
     local(rep_i).RedChaMean(local(rep_i).RedChaMean < cspfa.blowcap) = ...
         cspfa.blowcap;
     local(rep_i).GreenChaMean = ...
-        local(rep_i).GreenChaMean + cspfa.fshift; 
+        local(rep_i).GreenChaMean + cspfa.fshift(2); 
     local(rep_i).GreenChaMean(local(rep_i).GreenChaMean < cspfa.blowcap) = ...
         cspfa.blowcap;
     
@@ -360,12 +360,9 @@ for rep_i = 1:numel(reps)
     % Load files
     fprintf('#')
     load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
-        'iDat', 'fDat', 'mcDat', 'lStim');
+        'iDat', 'fDat', 'mcDat', 'lStim', 'vidDat');
     
-    try
-        load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
-            'vidDat');
-    catch
+    if ~exist('vidDat', 'var')
         vidDat = [];
     end
     
@@ -406,9 +403,9 @@ for rep_i = 1:numel(reps)
             wDat.GreenChaMean = wDat.GreenChaMean - iDat.bs(2); 
         end
         
-        wDat.RedChaMean = wDat.RedChaMean + cspfa.fshift; 
+        wDat.RedChaMean = wDat.RedChaMean + cspfa.fshift(1); 
         wDat.RedChaMean(wDat.RedChaMean < cspfa.blowcap) = cspfa.blowcap;
-        wDat.GreenChaMean = wDat.GreenChaMean + cspfa.fshift;
+        wDat.GreenChaMean = wDat.GreenChaMean + cspfa.fshift(2);
         wDat.GreenChaMean(wDat.GreenChaMean < cspfa.blowcap) = cspfa.blowcap;
         
         % size of substack
@@ -444,10 +441,10 @@ for rep_i = 1:numel(reps)
             iDat.GreenChaMean = iDat.GreenChaMean - iDat.bs(2); 
         end
         
-        iDat.RedChaMean = iDat.RedChaMean + cspfa.fshift; 
+        iDat.RedChaMean = iDat.RedChaMean + cspfa.fshift(1); 
         iDat.RedChaMean(iDat.RedChaMean < cspfa.blowcap) = ...
             cspfa.blowcap;
-        iDat.GreenChaMean = iDat.GreenChaMean + cspfa.fshift;
+        iDat.GreenChaMean = iDat.GreenChaMean + cspfa.fshift(2);
         iDat.GreenChaMean(iDat.GreenChaMean < cspfa.blowcap) = ...
             cspfa.blowcap;
         

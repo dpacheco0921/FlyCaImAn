@@ -50,7 +50,7 @@ cspfb.fisuffix = '_rawdata';
 cspfb.oDir = [];
 cspfb.bkgate = 0;
 cspfb.blowcap = 0;
-cspfb.fshift = 6;
+cspfb.fshift = [6 6];
 cspfb.serId = 'int';
 cspfb.corenum = 4;
 cspfb.maxshift_xy = [15 15];
@@ -256,11 +256,11 @@ for rep_i = 1:numel(reps)
         
     end
     
-    Data = Data + cspfb.fshift;
+    Data = Data + cspfb.fshift(2);
     Data(Data < cspfb.blowcap) = cspfb.blowcap;
     
     if regchagate
-        rData = rData + cspfb.fshift;
+        rData = rData + cspfb.fshift(1);
         rData(rData < cspfb.blowcap) = cspfb.blowcap;
     end
     

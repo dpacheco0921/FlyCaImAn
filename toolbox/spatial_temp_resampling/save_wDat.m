@@ -25,10 +25,9 @@ wDat = [];
 
 % load all metadata variables
 load(filename, 'iDat', 'fDat', 'mcDat', 'lStim');
+load(filename, 'vidDat');
 
-try
-    load(filename, 'vidDat');
-catch
+if ~exist('vidDat', 'var')
     vidDat = [];
 end
 

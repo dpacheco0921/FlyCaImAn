@@ -289,10 +289,9 @@ for i = 1:numel(repnum)
     iDat.Tres = orig_timestamp;
 
     % load video data and edit timestamps
-    try
+    load(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat')
         
-        load(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat')
-        
+    if exist('vidDat', 'var')
         % convert from timepoints to seconds
         vidDat.fstEn = vidDat.fstEn/lStim.fs;
         
@@ -300,7 +299,6 @@ for i = 1:numel(repnum)
         vidDat.fstEn = vidDat.fstEn - iDat.lstEn(1, 1);
         
         save(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat', '-append')
-        
     end
     
     % match X and Y resolution
