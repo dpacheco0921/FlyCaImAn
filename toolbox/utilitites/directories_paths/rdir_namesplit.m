@@ -102,6 +102,19 @@ for FNum = 1:numel(f2run)
             [length(animalname{1, FNum}), ...
             length(strrep(TempS{4}, suffixend, ''))];
         
+    elseif nametype == 3
+        
+        % split string into: animalname , animalnum , reps
+        animalname{1, FNum} = TempS{1};
+        animalnum(1, FNum) = str2double(TempS{2});
+        repnum(1, FNum) = str2double(TempS{4});
+        
+        str_length(FNum, :) = ...
+            [length(TempS{1}), ...
+            length(TempS{2}), ...
+            length(TempS{4}), ...
+            length(strrep(TempS{5}, suffixend, ''))];
+        
     end
     
 end

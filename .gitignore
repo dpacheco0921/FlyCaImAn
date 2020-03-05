@@ -7,3 +7,4 @@ toolbox/tiff2nrrd/zstacktiff2mat_maninput.m
 *.ffs_lock
 *.ffs_db
 *.ffs_db
+*.ffs_db
