@@ -43,8 +43,7 @@ if exist('nbins', 'var') && ~isempty(nbins)
         intrange = nbins;
     end
     
-    cormap_int = ...
-        colormapgen(2, max(wDat.Zstitch.Zidx));
+    cormap_int = jet(max(wDat.Zstitch.Zidx));
     
     for i = 1:numel(intrange)-1
         
@@ -71,7 +70,7 @@ else
             wDat.Zstitch.Zidx(wDat.plane2keep ~= 0);
     end
     
-    cormap_int = colormapgen(2, max(wDat.Zstitch.Zidx));
+    cormap_int = jet(max(wDat.Zstitch.Zidx));
     
     for i = 1:max(wDat.Zstitch.Zidx)
         

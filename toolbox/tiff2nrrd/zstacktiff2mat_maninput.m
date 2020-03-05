@@ -3,9 +3,9 @@
 
 %% 1) plot max fluorescence per channel per frame
 figure();
-plot(MaxPerTime_g, 'g');
+plot(maxpertime_g, 'g');
 hold on;
-plot(MaxPerTime_r, 'r')
+plot(maxpertime_r, 'r')
 
 %% 2) display slices to replace (with values below threshold)
 find(isinf(M(:, 1)))'
@@ -17,6 +17,7 @@ find(isinf(M(:, 2)))'
 pi = [];
 pi.lag = 0.01;
 pi.sizY = [size(avgim, 1), size(avgim, 2), size(avgim, 3)];
+pi.range
 
 slice3Dmatrix(avgim(:, :, :, 1), pi)
 slice3Dmatrix(avgim(:, :, :, 2), pi)

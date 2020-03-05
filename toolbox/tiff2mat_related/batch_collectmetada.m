@@ -673,7 +673,7 @@ elseif contains(stim_file2load, 'LEDcontroler')
 
 elseif contains(stim_file2load, 'fict')
 
-    % stimuli delivered using **
+    % stimuli delivered using FlyVR
     data = h5load(['.', filesep, filename, '.h5']);
     eval(['Ch = ', 'data.input.samples(:,3);']);
     Ch = double(Ch)';

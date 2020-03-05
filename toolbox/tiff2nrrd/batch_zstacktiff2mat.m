@@ -29,7 +29,7 @@ zt2m = [];
 zt2m.cDir = pwd;
 zt2m.FieldOfView = 768;
 zt2m.FileName = []; 
-zt2m.suffix = 'Zstack';
+zt2m.suffix = 'Zstack_*_*.tif';
 zt2m.ch2save = [1 2]; 
 zt2m.SpMode = '3DxT'; 
 zt2m.ths = 55;
@@ -40,150 +40,142 @@ zt2m.redo = 0;
 zt2m.zres = 1;
 zt2m.pixelsym = 0;
 zt2m.integrate_flag = 1;
-
-if ~exist('iparams', 'var'); iparams = []; end
-zt2m = loparam_updater(zt2m, iparams);
+zt2m.shift_f = [5 5];
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
+if ~exist('iparams', 'var'); iparams = []; end
+zt2m = loparam_updater(zt2m, iparams);
 
-% Finding folders and filtering out data that is not selected
+fprintf('Running Tiff2Mat for Zstack\n');
 
+% finding folders and filtering out data that is not selected
 fo2run = dir;
 fo2run = str2match(FolderName, fo2run);
 fo2run = str2rm(zt2m.fo2reject, fo2run);
 fo2run = {fo2run.name};
 
-fprintf('Running Tiff2Mat\n');
 fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
 
-% Checking files inside folder
+fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
 
 for folder_i = 1:numel(fo2run)
     
-    zt2m.Folder2Run = fo2run{folder_i}; 
+    fprintf(['Running folder : ', fo2run{folder_i}, '\n']);
     cd(fo2run{folder_i}); 
-    
-    % NameSplitter: select all 'year_filenum_ 'zt2m.suffix' _*_*.tiff' names
-    [filename_all, ~, ~] = NameSplitter([], FileName, zt2m.suffix);
-    
-    filename_u = unique(filename_all); 
-    clear filename_all
-    
-    fprintf(['Running Folder : ', num2str(fo2run{folder_i}), ...
-        ' (n-exp-types, ', num2str(numel(filename_u)),'),'])
-    
-    % running each exptype (u_fname)
-    % get unique filenum and file-trials per basename
-    for filename_i = 1:numel(filename_u)
-        
-        [~, flyi_all, trial_all] = NameSplitter(filename_u(filename_i), FileName, zt2m.suffix);
-        
-        for file_i = unique(flyi_all) 
-            
-            % get the number of trials per unique filenum and basename            
-            zt2m.figH = figure();
-            zt2m.AxH(1) = subplot(2, 1, 1);
-            zt2m.AxH(2) = subplot(2, 1, 2);
-            zt2m.figH.Name = [filename_u{filename_i}, '-', num2str(file_i)];
-            triali_all = trial_all(flyi_all == file_i);
-            
-            if isempty(triali_all)
-                
-                fprintf(['Does not have any file with flynumber :', num2str(file_i), ' \n'])
-                
-            else
-                
-                fprintf([' (n-trials, ', num2str(unique(triali_all)), ')\n']); 
-                
-                for trial_i = unique(triali_all)
-                    
-                    % Collapsing all timepoints and z-slices to 1 mat file
-                    rootname = [filename_u{filename_i}, '_', ...
-                        num2str(file_i), '_Zstack_', num2str(trial_i), '_'];
-                    
-                    if ~exist([rootname(1:end-1), '.nrrd'], 'file') || zt2m.redo
-                        
-                        tic;
-                        collalltrials(rootname, zt2m);
-                        clear rootname;
-                        toc
-                        
-                    else
-                        
-                        fprintf(['File ', rootname(1:end-1), '.nrrd already exist - skipping \n'])
-                        
-                    end
-                    
-                end
-                
-            end
-            
-            clear triali_all
-            
-        end
-        
-        clear flyi_all trial_i
-        
-    end
-    
+    zt2m.Folder2Run = fo2run{folder_i};
+    runperfolder(FileName, fo2run{folder_i}, zt2m);
     cd(zt2m.cDir)
-    fprintf('\n')
     
 end
 
-fprintf('\n ********** Done **********\n')
+fprintf('... Done\n')
 
 end
 
-function [basename, filenum, repnum] = ...
-    NameSplitter(foldername, filename, isuffix)
-% NameSplitter: splits name into: basename, file-number and rep/trial-number
-% 
+function runperfolder(fname, foname, zt2m)
+% runperfolder: function 
+%
 % Usage:
-%   [basename, flynum, repnum] = ...
-%       NameSplitter(foldername, filename, isuffix)
+%   runperfolder(fname, foname, tifpars)
 %
 % Args:
-%   foldername: folders to use (name)
-%   filename: filename to use (name)
-%   isuffix: suffix to select files
-%
-% Notes:
+%   fname: file name
+%   foname: folder name
+%   zt2m: parameters
 
-if ~exist('foldername', 'var'); foldername = []; end
+% checking files inside folder
+[BaseFName, ~, ~] = ...
+    rdir_namesplit([], zt2m.suffix, [], [], fname, 3);
+BaseFName = unique(BaseFName);
 
-% hardcoded for current format naming
-alltiff = rdir(['*', isuffix, '_*_*.tif']);
+fprintf(['Running Folder : ', num2str(foname), ...
+    ' (n-exp-types, ', num2str(numel(BaseFName)), ') ,'])
 
-alltiff = str2match(filename, alltiff);
-alltiff = str2match(foldername, alltiff);
-alltiff = {alltiff.name};
+% running each exptype (basename)
 
-basename = cell(1, numel(alltiff)); 
-filenum = zeros(1, numel(alltiff)); 
-repnum = zeros(1, numel(alltiff));
+% get unique flynum and fly-trials per basename
+for basename_i = 1:numel(BaseFName)
 
-for FNum = 1:numel(alltiff)
-    
-    TempS = strsplit2(alltiff{FNum}, '_');
-    basename{1, FNum} = TempS{1};
-    filenum(1, FNum) = str2double(TempS{2});
-    repnum(1, FNum) = str2double(TempS{4});
-    
+    [~, AnimalNum, TrialNum, str_length] = ...
+        rdir_namesplit(BaseFName(basename_i), ...
+        zt2m.suffix, [], [], fname, 3);
+
+    % get the number of trials per unique AnimalNum and basename
+    for ani_i = unique(AnimalNum)
+
+        % plot results (intensity)
+        zt2m.figH = figure();
+        zt2m.AxH(1) = subplot(2, 1, 1);
+        zt2m.AxH(2) = subplot(2, 1, 2);
+        zt2m.figH.Name = [BaseFName{basename_i}, '-', num2str(ani_i)];
+        
+        TrialPerAnimal = TrialNum(AnimalNum == ani_i);
+        str_length_i = str_length(AnimalNum == ani_i, :); 
+        
+        if isempty(TrialPerAnimal)
+
+            fprintf(['Does not have any file with', ...
+                ' flynumber :', num2str(ani_i), ' \n'])
+
+        else
+
+            [Trial2Load, idx2use] = unique(TrialPerAnimal);
+            str_length_i = str_length_i(idx2use, :);
+            clear idx2use
+            
+            fprintf([' (n-trials, ', ...
+                num2str(unique(TrialPerAnimal)), ')\n']);
+
+            for trial_i = 1:numel(Trial2Load)
+
+                % collapsing all timepoints and z-slices to 1 mat file
+                animal_str = sprintf(['%0', ...
+                    num2str(str_length_i(trial_i, 2)), 'd'], ani_i);
+                trial_str = sprintf(['%0', ...
+                    num2str(str_length_i(trial_i, 3)), 'd'], Trial2Load(trial_i));
+                
+                NameRoot = [BaseFName{basename_i}, '_', ...
+                        animal_str, '_Zstack_', trial_str, '_'];
+                nrrd_name = [BaseFName{basename_i}, '_', ...
+                        num2str(ani_i), '_Zstack_', ...
+                        num2str(Trial2Load(trial_i))];
+                    
+                if ~exist([nrrd_name, '.nrrd'], 'file') || zt2m.redo
+
+                    tic;
+                    collalltrials(NameRoot, zt2m);
+                    clear rootname;
+                    toc
+
+                else
+
+                    fprintf(['File ', nrrd_name, ...
+                        '.nrrd already exist - skipping \n'])
+
+                end
+
+            end 
+
+        end
+
+    end
+
+    clear AnimalNum TrialNum str_length
+
 end
 
 end
 
-function collalltrials(rootname, zt2m)
+function collalltrials(tif_name, zt2m)
 % collalltrials: parse all tiffs with 'rootname*.tif', 
 %   average trials, and generate a 3D matrix
 %
 % Usage:
-%   collalltrials(rootname, zt2m)
+%   collalltrials(tif_name, zt2m)
 %
 % Args:
-%   rootname: suffix of tif files to use
+%   tif_name: suffix of tif files to use
 %   zt2m: input params
 %       (FieldOfView: 768 um, hard coded constant (microscope dependent variable)
 %       (FileName: files to use)
@@ -197,25 +189,42 @@ function collalltrials(rootname, zt2m)
 %
 % Notes:
 
-% collapsing files with the same fly and trial number to one mat files
-t_fname = rdir([rootname, '0.tif']);
-t_fname = {t_fname.name};
-t_fname = t_fname{1};
-t_fname = strprune(t_fname, '_', 4);
-t_num = numel(rdir([rootname, '*.tif']));
-clear rootname
+% generate mat file names (remove zero padding
 
-% importing tiff files
+[Basename, AnimalNum, TrialNum, str_length] = ...
+        rdir_namesplit(tif_name, ...
+        zt2m.suffix, [], [], [], 3);
+mat_name = [Basename{1}, '_', ...
+    num2str(AnimalNum(1)), '_Zstack_', ...
+    num2str(TrialNum(1))];
+
+tif_num = numel(rdir([tif_name, '*.tif']));
+
+% tif start number
+if exist([tif_name, ...
+        sprintf(['%0', num2str(str_length(1, 3)), 'd'], 0), ...
+        '.tif'], 'file')
+    start_n = 0;
+else
+    start_n = 1;
+end
+
+% remove last underline
+tif_name = tif_name(1:end-1);
 Data = []; 
-fprintf(['n-repts = ', num2str(t_num), '\n']) 
 
-for rep_i = 1:t_num
+fprintf(['n-repts = ', num2str(tif_num), '\n']) 
+
+for tif_i = 1:tif_num
+    
+    tif_idx = tif_i + start_n - 1;
+    tif_idx = sprintf(['%0', num2str(str_length(tif_i, 3)), 'd'], tif_idx);  
     
     % load and concatenate all files
     try
         
         [tempdata, ImMeta] = ...
-            tiff2mat_scanimage([t_fname, '_', num2str(rep_i - 1)], zt2m.SpMode, 1);
+            tiff2mat_scanimage([tif_name, '_', tif_idx], zt2m.SpMode, 1);
         
         % tiff2mat_scanimage output is always 4D (X, Y, frame, pmt)
         Data = cat(3, Data, tempdata);
@@ -225,7 +234,8 @@ for rep_i = 1:t_num
     
     fprintf('*');
     
-    if mod(rep_i, 60) == 0 || rep_i == t_num
+    if mod(tif_i, 60) == 0 || ...
+            tif_i == tif_num
         fprintf('\n');
     end
     
@@ -252,7 +262,11 @@ clear ch_num
 fprintf(['Data original size: ', num2str(size(Data)), '\n'])
 
 % shift distribution by 5 values to the right and make negative values 0
-Data = Data + 5; Data(Data < 0) = 0;
+Data(:, :, :, 1) = ...
+    Data(:, :, :, 1) + zt2m.shift_f(1);
+Data(:, :, :, 2) = ...
+    Data(:, :, :, 2) + zt2m.shift_f(2);
+Data(Data < 0) = 0;
 ImMeta.RepeatNum = floor(size(Data, 3)/ImMeta.Z); 
 ImMeta.FrameNum = ImMeta.Z;
 
@@ -309,13 +323,13 @@ display(['Max val per channel ', ...
 
 % generate metadata
 
-[fDat, iDat] = generatemetadata(t_fname, ImMeta, zt2m);
+[fDat, iDat] = generatemetadata(mat_name, ImMeta, zt2m);
 
 siz = size(Data); 
 Data = reshape(Data, [siz(1:2), prod(siz(3:4))]);
 
 % save data as nrrd image
-nrrdWriter([t_fname, '.nrrd'], mat2uint16(Data, 0), ...
+nrrdWriter([mat_name, '.nrrd'], mat2uint16(Data, 0), ...
     iDat.MetaData{3}, [0 0 0], zt2m.format);
 
 % save metadata
@@ -357,7 +371,19 @@ fDat.FolderTrace = zt2m.cDir((max(strfind(zt2m.cDir, filesep)) + 1):end);
 fDat.DataType = zt2m.SpMode; 
 fDat.fName = []; 
 
-iDat = struct('MetaData', [], 'ZoomFactor', ImMeta.Zoom);
+if ~exist('iDat', 'var')
+    fprintf('writing new iDat\n');
+    iDat = struct('MetaData', [], 'ZoomFactor', ImMeta.Zoom);
+end
+
+% if Zres provided by scanimage then read that value
+if isfield(ImMeta, 'Z_stepsiz') && ~isempty(ImMeta.Z_stepsiz)
+    Zres = ImMeta.Z_stepsiz;
+    fprintf(['Z step size provided by scanimage: ', ...
+        num2str(Zres), ' um \n'])
+else
+    Zres = zt2m.zres;
+end
 
 % pixel size (symmetric or not)
 if zt2m.pixelsym == 0
@@ -365,22 +391,29 @@ if zt2m.pixelsym == 0
     iDat.MetaData = {'voxelsize', 'x y z', ...
         round([zt2m.FieldOfView/(ImMeta.Zoom*ImMeta.X), ...
         zt2m.FieldOfView/(ImMeta.Zoom*ImMeta.Y), ...
-        zt2m.zres]*zt2m.unitres)/zt2m.unitres};
+        Zres]*zt2m.unitres)/zt2m.unitres};
     
 else
     
     iDat.MetaData = {'voxelsize', 'x y z', ...
         round([zt2m.FieldOfView/(ImMeta.Zoom*ImMeta.X), ...
         zt2m.FieldOfView/(ImMeta.Zoom*ImMeta.X), ...
-        zt2m.zres]*zt2m.unitres)/zt2m.unitres};
+        Zres]*zt2m.unitres)/zt2m.unitres};
     
 end
 
 iDat.FrameN = ImMeta.FrameNum; 
 iDat.StackN = ImMeta.RepeatNum;
-iDat.FrameSize = [ImMeta.Y, ImMeta.X]; %[lines, pixels per line, slices] [y, x, z]
+
+%[lines, pixels per line, slices] [y, x, z]
+iDat.FrameSize = [ImMeta.Y, ImMeta.X];
+
 iDat.Power = ImMeta.Power; 
 iDat.f_ths = zt2m.ths;
+
+% add rate variables (in Hz)
+iDat.framerate = ImMeta.framerate;
+iDat.volumerate = ImMeta.volumerate;
 
 end
 

@@ -124,12 +124,12 @@ fo2run = {fo2run.name};
 
 fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
 
-for i = 1:numel(fo2run)
+for folder_i = 1:numel(fo2run)
     
-    fprintf(['Running folder : ', fo2run{i}, '\n']);
-    cd(fo2run{i}); 
-    tifpars.Folder2Run = fo2run{i};
-    runperfolder(FileName, fo2run{i}, tifpars);
+    fprintf(['Running folder : ', fo2run{folder_i}, '\n']);
+    cd(fo2run{folder_i}); 
+    tifpars.Folder2Run = fo2run{folder_i};
+    runperfolder(FileName, fo2run{folder_i}, tifpars);
     cd(tifpars.cDir)
     
 end
@@ -150,7 +150,6 @@ function runperfolder(fname, foname, tifpars)
 %   tifpars: parameters
 
 % checking files inside folder
-    
 [BaseFName, ~, ~] = rdir_namesplit([], ...
     tifpars.fileformat, [], tifpars.fi2reject, fname);
     
@@ -222,12 +221,10 @@ for basename_i = 1:numel(BaseFName)
 
         end
 
-        clear TNPFlyNum
-
     end
 
-    clear FlyNum TrialNum
-
+    clear AnimalNum TrialNum str_length
+    
 end
 
 end
