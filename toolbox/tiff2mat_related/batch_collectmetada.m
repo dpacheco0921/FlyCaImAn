@@ -183,7 +183,7 @@ datatype = fDat.DataType;
 
 % input data to load
 stim_file2load = [];
-if contains(datatype, 'song') || contains(datatype, 'prv') ...
+if contains(datatype, 'song') && contains(datatype, 'prv') ...
         && ~contains(datatype, 'fict')
     
     stim_file2load = 'prv';
@@ -225,7 +225,7 @@ end
 
 % collect galvo and stimuli copy channel(s)
 Ch = load_galvo_and_stim_channels(...
-    stim_file2load, filename);
+    stim_file2load, filename, datatype);
 
 % if metadata iDat variable already has framerate information, then use it
 if isfield(iDat, 'framerate') && ...
@@ -633,17 +633,18 @@ fstEn = [FrameInit' FrameEnd'];
 end
 
 function Ch = load_galvo_and_stim_channels(...
-    stim_file2load, filename)
+    stim_file2load, filename, datatype)
 % load_galvo_and_stim_channels: function that loads galvo and stimulus copy
 %   channel(s)
 %
 % Usage:
 %   Ch = load_galvo_and_stim_channels(...
-%       stim_file2load, filename)
+%       stim_file2load, filename, datatype)
 %
 % Args:
 %   stim_file2load: string with setup/data acquisition function info
 %   filename: name of file to load
+%   datatype: string with info on stimuli delivered
 
 if contains(stim_file2load, 'prv')
     
@@ -801,9 +802,11 @@ function [Frame_Init, Frame_End] = ...
 % Notes:
 % regular vs resonant galvo
 
-if size(mirror_y_trace, 1) > 1; mirror_y_trace = mirror_y_trace'; end
+if size(mirror_y_trace, 1) > 1
+    mirror_y_trace = mirror_y_trace';
+end
 
-% edit trace for resonant galvo
+% edit trace for resonant galvo (initial timepoints are negative)
 if contains(stim_file2load, 'fict')
     idx_start = find(mirror_y_trace < -1, 1, 'last');
     mirror_y_trace(1, 1:idx_start) = mirror_y_trace(idx_start + 1);
@@ -812,13 +815,28 @@ end
 % calculate the diff of the smooth vector
 tracet = -diff(diff(smooth(mirror_y_trace(1, :), 10)));
 
+% estimate inter-frame interval (deprecated)
+% [~, Frame_End] = findpeaks(tracet, 'MinPeakHeight', max_pred);
+% Frame_End(diff(Frame_End) < min_frame_time*0.8) = [];
+% Frame_End = Frame_End';
+% mode_frame_width = mode(diff(Frame_End))*0.9;
+
 % amplitude threshold
 max_pred = prctile(tracet, 99.8)*0.5;
 
-% find frame ends & delete peaks that are shorter than expected frame interval
-[~, Frame_End] = findpeaks(tracet, 'MinPeakHeight', max_pred);
-Frame_End(diff(Frame_End) < min_frame_time*0.8) = [];
+% use frame rate to find peaks at the right interval
+[~, Frame_End] = findpeaks(tracet, ...
+    'MinPeakHeight', max_pred, ...
+    'MinPeakDistance', min_frame_time*0.8);
 Frame_End = Frame_End';
+
+% amplitude threshold
+max_pred = prctile(-tracet, 99.8)*0.5;
+
+[~, Frame_Init] = findpeaks(-tracet, ...
+    'MinPeakHeight', max_pred, ...
+    'MinPeakDistance', min_frame_time*0.8);
+Frame_Init = Frame_Init';
 
 % correct for artifact peak at the beginning
 if Frame_End(1) > min_frame_time*0.8
@@ -830,82 +848,25 @@ else
     Frame_End = Frame_End(2:end);
 end
 
-% amplitude threshold
-max_pred = prctile(-tracet, 99.8)*0.5;
-
-% find frame inits delete peaks that are shorter than expected frame interval
-[~, Frame_Init] = findpeaks(-tracet, 'MinPeakHeight', max_pred);
-Frame_Init(diff(Frame_Init) < min_frame_time*0.8) = [];
-Frame_Init = Frame_Init';
-
-% if first time init is missed, add one
-if Frame_Init(1) > min_frame_time*0.8
-    fprintf(['missing first frame start time: ', num2str(Frame_Init(1)), ' '])
-	Frame_Init = [Frame_Init(1) - round(mean(Frame_Init(2:2:10^2) ...
-        - Frame_Init(1:2:10^2))), Frame_Init];
-end
-
-if Frame_Init(1) <= 0; Frame_Init(1) = 1; end
-
-Frame_Init = Frame_Init(1:numel(Frame_End));
-
-fprintf([' FrameTimePoints ( ', num2str(numel(Frame_Init)), ' )'])
-
-if frame_num == numel(Frame_Init)
-    fprintf('\n');
-else
-    fprintf([' # of frames ~= from image (', ...
-        num2str(frame_num), ')\n']);
-end
-
-% get the mode
-mode_frame_width = mode(Frame_End - Frame_Init)*0.9;
-
-% recalculate frame times
-
-tracet = -diff(diff(smooth(mirror_y_trace(1, :), 10)));
-% tracet_detrend = prctfilt(mirror_y_trace, 10, 10^3, 10, 0);
-% think more about which detrending would be better
-
-% amplitude threshold
-max_pred = prctile(tracet, 99.8)*0.5;
-
-% find frame ends & delete peaks that are closer than expected frame interval
-[~, Frame_End] = findpeaks(tracet, 'MinPeakHeight', max_pred, ...
-    'MinPeakDistance', mode_frame_width);
-Frame_End(diff(Frame_End) < min_frame_time*0.8) = [];
-Frame_End = Frame_End';
-
-% correct for artifact peak at the beginning
-if Frame_End(1) > min_frame_time*0.8
-    Frame_End = Frame_End(1:end);
-else
-    Frame_End = Frame_End(2:end);
-end
-
-% amplitude threshold
-max_pred = prctile(-tracet, 99.8)*0.5;
-
-% find frame inits delete peaks that are closer than expected frame interval
-[~, Frame_Init] = findpeaks(-tracet, 'MinPeakHeight', max_pred, ...
-    'MinPeakDistance', mode_frame_width);
-Frame_Init(diff(Frame_Init) < min_frame_time*0.8) = [];
-Frame_Init = Frame_Init';
-
 % manual shift of onset/offset
 if ~contains(stim_file2load, 'fict')
+    % why?
     Frame_Init = Frame_Init + 15;
 else
     Frame_End = Frame_End - 2;
     Frame_Init = Frame_Init + 4;
 end
 
+% if first time onset is missed, add one
 if Frame_Init(1) > min_frame_time*0.8
+    fprintf(['missing first frame start time: ', num2str(Frame_Init(1)), ' '])
 	Frame_Init = [Frame_Init(1) - round(mean(Frame_Init(2:2:10^2) ...
         - Frame_Init(1:2:10^2))), Frame_Init];
 end
 
-if Frame_Init(1) <= 0; Frame_Init(1) = 1; end
+if Frame_Init(1) <= 0
+    Frame_Init(1) = 1;
+end
 
 Frame_Init = Frame_Init(1:numel(Frame_End));
 
@@ -917,6 +878,14 @@ else
     fprintf([' # of frames ~= from image (', ...
         num2str(frame_num), ')\n']);
 end
+
+fprintf([' Interframe (start) stats min( ', num2str(min(diff(Frame_Init))), ' ) ', ...
+    'max( ', num2str(max(diff(Frame_Init))), ' ) ', ...
+    'mean( ', num2str(mean(diff(Frame_Init))), ' )\n'])
+
+fprintf([' Interframe (end) stats min( ', num2str(min(diff(Frame_End))), ' ) ', ...
+    'max( ', num2str(max(diff(Frame_End))), ' ) ', ...
+    'mean( ', num2str(mean(diff(Frame_End))), ' )\n'])
 
 end
 
