@@ -35,6 +35,32 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (10^4)
 %       (fileformat: format of files to look for)
 %           ('.tif', default)
+%       %%%%%%%%%%%% video settings %%%%%%%%%%%%
+%       (vgate: save gate)
+%       (vquality: video quality)
+%       (frate: frame rate)
+%       (cmap: foreground image colormap)
+%       (range: intensity range for each type of video)
+%       (axisratio: axis ratio to use, see variable within 'slice3Dmatrix')
+%       %%%%%%%%%%%% DF calculation %%%%%%%%%%%%
+%       (baseline_tp: baseline timepoints)
+%       (sign2use: use positive or negative changes (by multipliying it by 1/-1))
+%           (default, 0 (absolute))
+%           (-1 (negative))
+%           (0 (absolute))
+%       (df_flag: flag to calculate DF (if 1), or DF/Fo otherwise)
+%           (default, [0 1 2] (get all))
+%           (0 (get DF/Fo))
+%           (1 (get DF))
+%           (2 (get Max F))
+%       (chunk_size: size of chunks)
+%       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
+%       (serId: server id)
+%           (default, 'int')
+%       (corenum: number of cores)
+%           (default, 4)
+%       %%%%%%%%%%%% histogram related %%%%%%%%%%%%
+%       (hbins: range to generate histogram plot)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -95,6 +121,20 @@ tifpars.fStrain = [];
 tifpars.region2crop = [];
 tifpars.fs_stim = 10^4;
 tifpars.fileformat = '.tif';
+tifpars.vgate = 0;
+tifpars.vquality = 100;
+tifpars.frate = 10;
+tifpars.cmap = parula;
+tifpars.range = [0 1; 0 1; 0 1; 0 7];
+tifpars.axisratio = 1;
+tifpars.baseline_tp = 1:20;
+tifpars.sign2use = 0;
+tifpars.df_flag = [0 1 2 3];
+tifpars.chunk_size = 10;
+tifpars.serId = [];
+tifpars.corenumber = 4;
+tifpars.hbins = -10^3:3*10^3;
+tifpars.oDir = [pwd, filesep, 'rawtiff'];
 
 % internal variables
 tifpars.fName = [];
@@ -115,6 +155,11 @@ if isempty(tifpars.SpMode)
 end
 
 fprintf('Running Tiff2Mat\n');
+
+if ~isempty(tifpars.oDir) && ...
+        ~exist(tifpars.oDir, 'dir')
+    mkdir(tifpars.oDir)
+end
 
 % finding folders and filtering out data that is not selected
 fo2run = dir;
@@ -246,7 +291,7 @@ if ~contains(tifpars.SpMode, ...
 
         % collapsing files with the same animal and trial number to one mat
         % files (old)
-        trialcollapser(NameRoot, tifpars);
+        collect_tiffs_per_exp_trial_old(NameRoot, tifpars);
 
     elseif contains(tifpars.SpMode, ...
                 {'2DxT_single'})
@@ -257,10 +302,11 @@ if ~contains(tifpars.SpMode, ...
     else
 
         % collapsing files with the same animal and trial number to one mat files
-        % for example {'2DxT', '3DxT', '2DxT_song', '3DxT_song', '2DxT_opto', '3DxT_opto', ...
+        % for example {'2DxT', '3DxT', '2DxT_song', ...
+        %   '3DxT_song', '2DxT_opto', '3DxT_opto', ...
         %   '3DxT_opto_prv'}
 
-        trialcollapsernew(NameRoot, tifpars)
+        collect_tiffs_per_exp_trial(NameRoot, tifpars)
 
     end
     
@@ -289,12 +335,13 @@ end
 
 end
 
-function trialcollapsernew(tif_name, tifpars)
-% trialcollapsernew: collect all tiffs that belong to a single file and
-% generates the varariable Data(Y, X, Z, T, Ch) or (Y, X, T, Ch)
+function collect_tiffs_per_exp_trial(tif_name, tifpars)
+% collect_tiffs_per_exp_trial: collect all tiffs that belong 
+%   to a single file and generates the varariable:
+%   Data(Y, X, Z, T, Ch) or (Y, X, T, Ch)
 %
 % Usage:
-%   trialcollapsernew(repname)
+%   collect_tiffs_per_exp_trial(repname)
 %
 % Args:
 %   repname: name pattern
@@ -302,8 +349,7 @@ function trialcollapsernew(tif_name, tifpars)
 
 % compiling files with the same animal and trial number to one mat file
 
-% generate mat file names (remove zero padding
-
+% generate mat file names (remove zero padding)
 [Basename, AnimalNum, TrialNum, str_length] = ...
         rdir_namesplit(tif_name, ...
         tifpars.fileformat, [], tifpars.fi2reject);
@@ -474,9 +520,19 @@ for tif_i = 1:tif_num
     end
     
     if tif_i == 1
-        fprintf(['Channels imported: ', num2str(ImMeta.ChNum), '\n'])
-        try fprintf(['Frame rate: ', num2str(ImMeta.framerate), '\n']); end
-        try fprintf(['Volume rate: ', num2str(ImMeta.volumerate), '\n']); end
+        
+        fprintf(['Channels imported: ', ...
+            num2str(ImMeta.ChNum), '\n'])
+        
+        try
+            fprintf(['Frame rate: ', ...
+                num2str(ImMeta.framerate), '\n']);
+        end
+        try
+            fprintf(['Volume rate: ', ...
+                num2str(ImMeta.volumerate), '\n']);
+        end
+        
     end
     
     fprintf('*');
@@ -488,6 +544,7 @@ end
 
 clear tempdata_pre
 
+% overwrite pixel symmetry flag if not provided by tiff
 if ~isfield(ImMeta, 'sympixels') || ...
         (isfield(ImMeta, 'sympixels') && ...
         isempty(ImMeta.sympixels))
@@ -498,31 +555,44 @@ end
 ImMeta.RepeatNum = dim2count;
 ImMeta.DelFrames = [];
 
-fprintf(['Data final size: ', num2str(size(dataObj.Data)), '\n'])
+data_siz = size(dataObj.Data);
+fprintf(['Data final size: ', num2str(data_siz), '\n'])
 
-% generate metadata
+% generate image and directory metadata
 [fDat, iDat] = generatemetadata(mat_name, ImMeta,  ...
     tifpars.cDir, tifpars.Folder2Run, tifpars.SpMode, ...
     tifpars.Zres, tifpars.sres, ...
     tifpars.FieldOfView, tifpars.fName);
 
-% save metadata
-if contains(tifpars.SpMode, 'song') || ...
-        contains(tifpars.SpMode, 'prv')
+% save image and directory metadata
+if contains(tifpars.SpMode, 'prv')
     
-    % all prv (for song or opto)
+    % stimuli delivery code using prv (for song or opto)
     SavingDataNew([], fDat, iDat, 3, ...
         tifpars.cDir, tifpars.Folder2Run, ...
         tifpars.fStrain, tifpars.fs_stim)
     
-elseif ~contains(tifpars.SpMode, 'prv')
+else
     
-    % old opto using LEDcontroler
+    % old stimuli delivery code using LEDcontroler
     SavingDataNew([], fDat, iDat, 1, ...
         tifpars.cDir, tifpars.Folder2Run, ...
         tifpars.fStrain, tifpars.fs_stim)
     
 end
+
+% collect and plot basic stats
+%   maxF and DF video
+
+if tifpars.vgate
+    plot_df_per_file(mat_name, tifpars, data_siz)
+end
+
+% collect and plot basic stats
+%   histogram of each channel
+%   trend overtime
+
+plot_hist_and_ftrend_per_file(mat_name, tifpars, iDat, data_siz)
 
 clear Data iDat fDat ImMeta
 
@@ -599,9 +669,10 @@ for acqIdx = 1:numel(TemplateFile)
     fprintf('\n')
     
 end
+
 end
 
-function trialcollapser(NameRoot, tifpars)
+function collect_tiffs_per_exp_trial_old(NameRoot, tifpars)
 
 % collapsing files with the same fly and trial number to one mat files
 TemplateFile = rdir([NameRoot, '001.tif']);
@@ -910,6 +981,299 @@ save([o_file_name_preffix, '_metadata.mat'], ...
 
 end
 
+function plot_df_per_file(ifilename, tifpars, data_siz)
+% plot_df_per_file: plot and save videos of raw data
+%
+% Usage:
+%   plot_df_per_file(ifilename, tifpars)
+%
+% Args:
+%   ifilename: file name
+%   tifpars: parameters
+%   data_siz: data size
+
+% get MIP from raw data
+MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
+    [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
+    [], 1, data_siz, [], ...
+    tifpars.sign2use, tifpars.df_flag, ...
+    tifpars.chunk_size, tifpars.corenumber, ...
+    tifpars.serId);
+
+image_range = tifpars.range;
+
+% generate videos
+tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DF_1'];
+tifpars.range = image_range(1, :);
+
+if sum(ismember(tifpars.df_flag, 0))
+    fprintf('plot DF \n')
+    slice3Dmatrix(flip(MIP_proj{1}, 2), tifpars)
+end
+
+tifpars.range = image_range(2, :);
+tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DFoF_1'];
+
+if sum(ismember(tifpars.df_flag, 1))
+    fprintf('plot DFoF \n')
+    slice3Dmatrix(flip(MIP_proj{2}, 2), tifpars)
+end
+
+tifpars.range = image_range(3, :);
+tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_maxF_1'];
+
+if sum(ismember(tifpars.df_flag, 2))
+    fprintf('plot maxF \n')
+    slice3Dmatrix(flip(MIP_proj{3}, 2), tifpars)
+end
+
+tifpars.range = image_range(4, :);
+tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_snr_1'];
+
+if sum(ismember(tifpars.df_flag, 3))
+    fprintf('plot snr \n')
+    slice3Dmatrix(flip(MIP_proj{4}, 2), tifpars)
+end
+
+if length(data_siz) > 4
+   
+    % get MIP from raw data
+    MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
+        [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
+        [], 2, data_siz, [], ...
+        tifpars.sign2use, tifpars.df_flag, ...
+        tifpars.chunk_size, tifpars.corenumber, ...
+        tifpars.serId);
+
+    % generate videos
+    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DF_2'];
+    tifpars.range = image_range(1, :);
+
+    if sum(ismember(tifpars.df_flag, 0))
+        fprintf('plot DF \n')
+        slice3Dmatrix(flip(MIP_proj{1}, 2), tifpars)
+    end
+
+    tifpars.range = image_range(2, :);
+    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DFoF_2'];
+
+    if sum(ismember(tifpars.df_flag, 1))
+        fprintf('plot DFoF \n')
+        slice3Dmatrix(flip(MIP_proj{2}, 2), tifpars)
+    end
+
+    tifpars.range = image_range(3, :);
+    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_maxF_2'];
+
+    if sum(ismember(tifpars.df_flag, 2))
+        fprintf('plot maxF \n')
+        slice3Dmatrix(flip(MIP_proj{3}, 2), tifpars)
+    end
+
+    tifpars.range = image_range(4, :);
+    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_snr_2'];
+
+    if sum(ismember(tifpars.df_flag, 3))
+        fprintf('plot snr \n')
+        slice3Dmatrix(flip(MIP_proj{4}, 2), tifpars)
+    end
+    
+end
+
+end
+
+function plot_hist_and_ftrend_per_file(...
+    ifilename, tifpars, iDat, data_siz)
+% plot_hist_and_ftrend_per_file: plot histogram and fluorescence over time
+%
+% Usage:
+%   plot_hist_and_ftrend_per_file(...
+%    ifilename, tifpars, iDat, data_siz)
+%
+% Args:
+%   ifilename: file name
+%   tifpars: parameters
+%   iDat: image parameters
+%   data_siz: data size
+
+dataObj = matfile([ifilename, '_rawdata.mat']);
+time2load = 2:iDat.StackN;
+[~, ~, chunk_idx] = ...
+        ppool_makechunks(tifpars.chunk_size, ....
+        tifpars.corenumber, numel(time2load), 1);
+hist_o = [];
+
+% time patches    
+for i = 1:numel(chunk_idx)
+
+    if i == 1; t0 = stic; end
+
+    batch2run = chunk_idx{i};
+
+    jobs2run = min([numel(batch2run) tifpars.corenumber]);
+    t_idx = cell(jobs2run, 1);
+    hist_ = cell(jobs2run, 1);
+    f_over_time_ = cell(jobs2run, 1);
+    
+    for ii = 1:numel(batch2run)
+
+        t_idx{ii, 1} = (batch2run(ii):min(batch2run(ii) + ...
+            tifpars.chunk_size - 1, numel(time2load)))';
+        iv = 1;
+
+        for iii = t_idx{ii, 1}'
+
+            [hist_{ii}(:, :, iv), ...
+                f_over_time_{ii}(iv, :)] = ...
+                get_hist_and_f_per_timepoint(...
+                dataObj, time2load(iii), ...
+                length(data_siz), tifpars.hbins);
+
+            iv = iv + 1;
+
+        end
+
+        hist_{ii} = sum(hist_{ii}, 3);
+        hist_{ii} = hist_{ii}(:);
+    end
+
+    t_idx = cell2mat(t_idx);
+
+    if length(data_siz) == 5 && data_siz(5) > 1
+        hist_o(:, :, i) = sum(reshape(cell2mat(hist_), ...
+            [numel(tifpars.hbins) data_siz(5) numel(batch2run)]), 3);
+    else
+        hist_o(:, :, i) = sum(reshape(cell2mat(hist_), ...
+            [numel(tifpars.hbins) 1 numel(batch2run)]), 3);        
+    end
+    f_over_time_o(t_idx, :) = cell2mat(f_over_time_);
+    
+    if i == 1 
+        stocf(t0, 'Time per chunk ');
+        fprintf(['Estimated time ', ...
+            num2str(stoc(t0)*numel(chunk_idx)/60), ...
+            ' minutes\n'])
+    end
+
+    if mod(i, 10) == 0
+        fprintf('%2.1f%% of chunks completed \n', ...
+            i*100/numel(chunk_idx));
+    end
+
+end
+
+hist_o = sum(hist_o, 3);
+
+% plot figure
+figH = figure('position', genfigpos(1, 'center', [1000 700]));
+axH(1) = subplot(2, 2, 1);
+axH(2) = subplot(2, 2, 3);
+axH(3) = subplot(2, 2, 2);
+axH(4) = subplot(2, 2, 4);
+color_vect = [1 0 0; 0 0.5 0];
+
+% plot traces
+for i = 1:size(hist_o, 2)
+    
+    lineH(i) = plot(tifpars.hbins, hist_o(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(1));
+    hold(axH(1), 'on')
+    
+    plot(tifpars.hbins, hist_o(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(2))
+    hold(axH(2), 'on')
+    
+    plot(f_over_time_o(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(3))
+    hold(axH(3), 'on')
+
+    plot(zscorebigmem(f_over_time_o(:, i)'), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(4))
+    hold(axH(4), 'on')
+    
+    strH{i} = ['cha-', num2str(i)];
+    
+end
+
+% add labels
+axH(1).XLabel.String = 'F (a.u)';
+axH(2).XLabel.String = 'F (a.u)';
+axH(3).XLabel.String = 'time (stacks)';
+axH(4).XLabel.String = 'time (stacks)';
+
+axH(1).YLabel.String = 'Count';
+axH(2).YLabel.String = 'Count';
+axH(3).YLabel.String = 'F (a.u)';
+axH(4).YLabel.String = 'F (Z-score)';
+
+axH(2).YScale = 'log';
+axH(1).XLim = tifpars.hbins([1 end]);
+axH(2).XLim = tifpars.hbins([1 end]);
+axH(3).XLim = [1 size(f_over_time_o, 1)];
+axH(4).XLim = [1 size(f_over_time_o, 1)];
+
+legH = legend(axH(1), lineH, strH);
+
+% figure format
+figformat = [1 0 0 0 0 0 0 0 1];
+resolution_ = '-r300';
+
+% save figure
+figEdit(axH, figH);
+savefig_int(figH, tifpars.oDir, ...
+    [ifilename, '_hist_trend'], figformat, resolution_);
+close(figH)
+
+end
+
+function [hist_, f_over_time_] = ...
+    get_hist_and_f_per_timepoint(...
+    dataObj, time_idx, n_d, hbins)
+% load_process_and_project_Y: load single stacks and gets histogram and
+%   mean signal epr channel
+%
+% Usage:
+%   [hist_, f_over_time_] = ...
+%   get_hist_and_f_per_timepoint(...
+%       dataObj, time_idx, n_d)
+%
+% Args:
+%   dataObj: data object, data is stored at Y.
+%   time_idx: timepoints to load.
+%   n_d: data dimensions.
+
+temp_i = [];
+
+% load raw data
+if n_d == 5
+    temp_ = double(dataObj.Data(:, :, :, time_idx, :));
+else
+    temp_ = double(dataObj.Data(:, :, :, time_idx));
+end
+
+if n_d == 5
+    
+    for i = 1:size(temp_, 5)
+        temp_i = temp_(:, :, :, :, i);
+        [hist_(:, i), ~] = hist(temp_i(:), hbins);
+        f_over_time_(1, i) = mean(temp_i(:));
+    end
+        
+else
+    
+    temp_i = temp_(:, :, :, :);
+    [hist_(:, 1), ~] = hist(temp_i(:), hbins);
+    f_over_time_(1, 1) = mean(temp_i(:));
+    
+end
+
+end
+
+% To delete
 % function SavingData(Data, fDat, iDat, saveType)
 % 
 % global p
