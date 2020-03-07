@@ -41,7 +41,6 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %           (default, 0)
 %       (vstr: input stimuli name)
 %           (default, [])
-%       (axisratio: axis ratio)
 %       (time2load: timestamps to load)
 %       (slices2project: slices to use for MIP projection, this is a cell that
 %           can have different set of slices to collect)
@@ -59,6 +58,7 @@ ipars.vquality = 100;
 ipars.frate = 10;
 ipars.cmap = parula;
 ipars.range = [0 1; 0 1; 0 1; 0 1];
+ipars.axisratio = 1;
 ipars.baseline_tp = 1:50;
 ipars.sign2use = 0;
 ipars.df_flag = [0 1 2 3];
@@ -67,7 +67,6 @@ ipars.serId = [];
 ipars.corenumber = [];
 ipars.dir_depth = 0;
 ipars.vstr = [];
-ipars.axisratio = 1;
 ipars.time2load = [];
 ipars.slices2project = [];
 
@@ -83,7 +82,8 @@ if ~exist('iparams', 'var'); iparams = []; end
 ipars = loparam_updater(ipars, iparams);
 image_range = ipars.range;
 
-if ~isempty(oDir) && exist('oDir', 'var')
+if exist('oDir', 'var') && ...
+        ~isempty(oDir) && ~exist(oDir, 'dir')
     mkdir(oDir)
 end
 
