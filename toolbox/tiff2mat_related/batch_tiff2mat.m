@@ -985,7 +985,7 @@ function plot_df_per_file(ifilename, tifpars, data_siz)
 % plot_df_per_file: plot and save videos of raw data
 %
 % Usage:
-%   plot_df_per_file(ifilename, tifpars)
+%   plot_df_per_file(ifilename, tifpars, data_siz)
 %
 % Args:
 %   ifilename: file name
@@ -1084,11 +1084,12 @@ end
 
 function plot_hist_and_ftrend_per_file(...
     ifilename, tifpars, iDat, data_siz)
-% plot_hist_and_ftrend_per_file: plot histogram and fluorescence over time
+% plot_hist_and_ftrend_per_file: plot histogram 
+%   and fluorescence over time
 %
 % Usage:
 %   plot_hist_and_ftrend_per_file(...
-%    ifilename, tifpars, iDat, data_siz)
+%       ifilename, tifpars, iDat, data_siz)
 %
 % Args:
 %   ifilename: file name
@@ -1233,8 +1234,8 @@ end
 function [hist_, f_over_time_] = ...
     get_hist_and_f_per_timepoint(...
     dataObj, time_idx, n_d, hbins)
-% load_process_and_project_Y: load single stacks and gets histogram and
-%   mean signal epr channel
+% load_process_and_project_Y: load single 
+%   stacks and gets histogram and mean signal per channel
 %
 % Usage:
 %   [hist_, f_over_time_] = ...
@@ -1245,6 +1246,7 @@ function [hist_, f_over_time_] = ...
 %   dataObj: data object, data is stored at Y.
 %   time_idx: timepoints to load.
 %   n_d: data dimensions.
+%   hbins: range of bins for histogram
 
 temp_i = [];
 
