@@ -131,7 +131,7 @@ tifpars.baseline_tp = 1:20;
 tifpars.sign2use = 0;
 tifpars.df_flag = [0 1 2 3];
 tifpars.chunk_size = 10;
-tifpars.serId = [];
+tifpars.serId = 'int';
 tifpars.corenumber = 4;
 tifpars.hbins = -10^3:3*10^3;
 tifpars.oDir = [pwd, filesep, 'rawtiff'];
@@ -1104,6 +1104,8 @@ time2load = 2:iDat.StackN;
         tifpars.corenumber, numel(time2load), 1);
 hist_o = [];
 
+setup_parpool(tifpars.serId, tifpars.corenumber);
+
 % time patches    
 for i = 1:numel(chunk_idx)
 
@@ -1116,7 +1118,7 @@ for i = 1:numel(chunk_idx)
     hist_ = cell(jobs2run, 1);
     f_over_time_ = cell(jobs2run, 1);
     
-    for ii = 1:numel(batch2run)
+    parfor ii = 1:numel(batch2run)
 
         t_idx{ii, 1} = (batch2run(ii):min(batch2run(ii) + ...
             tifpars.chunk_size - 1, numel(time2load)))';

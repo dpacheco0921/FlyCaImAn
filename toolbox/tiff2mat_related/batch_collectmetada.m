@@ -17,10 +17,9 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %           (default, 1)
 %       (buffer: time to chop from recording end 0 (ms))
 %           (default, 0)
-%       (pgate: plot frame width time for each file per folder)
-%           (default, 0)
-%       (pgates: plot raw Y trace, start and end of each frame)
-%           (default, 0)
+%       (pgate: plot raw Y trace, start and end of each frame, 
+%           frame width time for each file per folder, and video frames)
+%           (default, 1)
 %       (cDir: current directory)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
@@ -81,8 +80,7 @@ metpars.Ygalvo_Ch = 2;
 metpars.stimcopy_Ch = 1;
 metpars.stim_oCh = 1;
 metpars.buffer = 0;
-metpars.pgate = 0;
-metpars.pgates = 0;
+metpars.pgate = 1;
 metpars.cDir = pwd;
 metpars.fo2reject = {'.', '..', 'preprocessed', 'BData'};
 metpars.fi2reject = [];
@@ -96,12 +94,18 @@ metpars.stimths = 0;
 metpars.vid_ttl_width = 20;
 metpars.vid_time_init = 200;
 metpars.vid_volt_ths = [2 2];
+metpars.oDir = [pwd, filesep, 'rawtiff'];
 
 % update variables
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 metpars = loparam_updater(metpars, iparams);
+
+if ~isempty(metpars.oDir) && ...
+        ~exist(metpars.oDir, 'dir')
+    mkdir(metpars.oDir)
+end
 
 % find folders
 fo2run = dir;
@@ -115,7 +119,7 @@ for i = 1:numel(fo2run)
     
     fprintf(['Running folder : ', fo2run{i}, '\n']);
     cd(fo2run{i}); 
-    runperfolder(FileName, fo2run{i}, metpars);
+    runperfolder(FileName, metpars);
     cd(metpars.cDir)
     
 end
@@ -124,12 +128,12 @@ fprintf('... Done\n')
 
 end
 
-function runperfolder(fname, foname, metpars)
+function runperfolder(fname, metpars)
 % runperfolder: function collects timestamps and stimulus from bin file 
 %   with "metpars.fsuffix" suffix and fDat info
 %
 % Usage:
-%   runperfolder(fname, foname, metpars)
+%   runperfolder(fname, metpars)
 %
 % Args:
 %   fname: file name template string
@@ -144,12 +148,6 @@ fi2run = str2rm(metpars.fi2reject, fi2run);
 fi2run = {fi2run.name};
 fi2run = strrep(fi2run, ['.', filesep], '');
 fi2run = strrep(fi2run, '_rawdata.mat', '');
-
-% plot times
-if metpars.pgate == 1
-    metpars.figH = figure('Name', foname);
-    metpars.AxH = subplot(1, 1, 1);
-end
 
 for F2R_idx = 1:numel(fi2run)
     
@@ -241,22 +239,30 @@ iDat.fstEn = collect_frame_timestamps(Ch, ...
     frame_num, stim_file2load);
 
 % plot stim trace
-if metpars.pgates == 1 && ...
-        ~isempty(Ch) && ~isempty(iDat.fstEn)
+if metpars.pgate == 1 
 
-    figure('Name', filename);
-    AxHs = subplot(1, 1, 1);
-    plot(Ch(metpars.Ygalvo_Ch, :), 'Parent', AxHs);
-    hold(AxHs, 'on');
-    plot(iDat.fstEn(:, 1), ...
-        Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 1)), ...
-        'o', 'Parent', AxHs)
-    plot(iDat.fstEn(:, 2), ...
-        Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 2)), ...
-        'go', 'Parent', AxHs)
-    xlabel(AxHs, 'Time 0.1 ms');
-    ylabel(AxHs, 'V')
+    figH = figure('Name', filename);
+    axH(1) = subplot(3, 1, 1);
+    axH(2) = subplot(3, 1, 2);
+    axH(3) = subplot(3, 1, 3);
+    
+    if ~isempty(Ch) && ~isempty(iDat.fstEn)
+        plot(Ch(metpars.Ygalvo_Ch, :), 'Parent', axH(1));
+        hold(axH(1), 'on');
+        plot(iDat.fstEn(:, 1), ...
+            Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 1)), ...
+            'o', 'Parent', axH(1))
+        plot(iDat.fstEn(:, 2), ...
+            Ch(metpars.Ygalvo_Ch, iDat.fstEn(:, 2)), ...
+            'go', 'Parent', axH(1))
+        xlabel(axH(1), 'Time 0.1 ms');
+        ylabel(axH(1), 'V')
+    end
+    
+else
 
+    axH = [];
+    
 end
 
 % update lStim field 'fName'
@@ -287,10 +293,10 @@ if metpars.pgate == 1 && ...
         ~isempty(iDat.fstEn)
 
     plot(iDat.fstEn(:, 2) - iDat.fstEn(:, 1), ...
-        'parent', metpars.AxH);
-    hold(metpars.AxH,'on')
-    xlabel(metpars.AxH, 'Frame');
-    ylabel(metpars.AxH, 'Frame width 0.1 ms')
+        'parent', axH(2));
+    hold(axH(2),'on')
+    xlabel(axH(2), 'Frame');
+    ylabel(axH(2), 'Frame width 0.1 ms')
 
 end
 
@@ -316,7 +322,7 @@ if exist([filename, '_vid.mp4'], 'file')
     
     vidDat = extract_video_timestamps(filename, Ch, ...
         metpars.vid_time_init, metpars.vid_volt_ths, ...
-        metpars.vid_ttl_width, metpars.pgate, start_end);
+        metpars.vid_ttl_width, metpars.pgate, start_end, axH);
         
 end
 
@@ -448,6 +454,18 @@ if exist('vidDat', 'var')
         'vidDat', '-append')
 end
 
+if metpars.pgate
+    % figure format
+    figformat = [1 0 0 0 0 0 0 0 1];
+    resolution_ = '-r300';
+
+    % save figure
+    figEdit(axH, figH);
+    savefig_int(figH, metpars.oDir, ...
+        [filename, '_im_vid_frame_info'], figformat, resolution_);
+    close(figH)
+end
+
 clear FrameInit FrameEnd order2chop Data NewStart lStim
 
 clear iDat fDat Ch lStim ROI lStim
@@ -455,12 +473,14 @@ clear iDat fDat Ch lStim ROI lStim
 end
 
 function vidDat = extract_video_timestamps(filename, Ch, ...
-    vid_time_init, vid_volt_ths, vid_ttl_width, plot_flag, start_end)
+    vid_time_init, vid_volt_ths, vid_ttl_width, plot_flag, ...
+    start_end, axH)
 % extract_video_timestamps: get frame timestamps from trigger and shutter
 %
 % Usage:
 %   vidDat =  extract_video_timestamps(filename, Ch, ...
-%       vid_time_init, vid_volt_ths, vid_ttl_width, plot_flag)
+%       vid_time_init, vid_volt_ths, vid_ttl_width, ...
+%       plot_flag, axH)
 % 
 % Args:
 %   filename: file name
@@ -471,6 +491,7 @@ function vidDat = extract_video_timestamps(filename, Ch, ...
 %   vid_ttl_width: expected width of pulses
 %   plot_flag: flag to plot results
 %   start_end: start and end timepoint to use
+%   axH: axes handle
 
 % load prv-related variable rDat and fictrac-related variable "fictDat"
 vidDat = [];
@@ -561,20 +582,21 @@ if plot_flag && ...
         ~isempty(shutter_onset_offset) && ...
         ~isempty(trigger_onset_offset)
     
+    % edit channel
+    Ch = Ch(:, start_end(1):start_end(2));
+    
     % display camera
-    figure()
-    axH = subplot(1, 1, 1);
-    plot(Ch(rDat.vidtriggerCh, 1:2*10^4), 'k', 'Parent', axH)
-    hold(axH, 'on')
-    plot(Ch(rDat.vidframeCh, 1:2*10^4), 'b', 'Parent', axH)
+    plot(Ch(rDat.vidtriggerCh, 1:2*10^4), 'k', 'Parent', axH(3))
+    hold(axH(3), 'on')
+    plot(Ch(rDat.vidframeCh, 1:2*10^4), 'b', 'Parent', axH(3))
 
     plot(shutter_onset_offset(:, 1), ...
             Ch(rDat.vidframeCh, shutter_onset_offset(:, 1)), ...
-            'o', 'Parent', axH)
+            'ro', 'Parent', axH(3))
     plot(shutter_onset_offset(:, 2), ...
         Ch(rDat.vidframeCh, shutter_onset_offset(:, 2)), ...
-        'go', 'Parent', axH)
-    axH.XLim = [0 2*10^4];
+        'go', 'Parent', axH(3))
+    axH(3).XLim = [0 2*10^4];
     
 end
 
