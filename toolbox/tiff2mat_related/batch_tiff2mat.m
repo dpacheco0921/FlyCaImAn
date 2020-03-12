@@ -131,7 +131,7 @@ tifpars.baseline_tp = 1:20;
 tifpars.sign2use = 0;
 tifpars.df_flag = [0 1 2 3];
 tifpars.chunk_size = 10;
-tifpars.serId = 'int';
+tifpars.serverid = 'int';
 tifpars.corenumber = 4;
 tifpars.hbins = -10^3:3*10^3;
 tifpars.oDir = [pwd, filesep, 'rawtiff'];
@@ -184,7 +184,7 @@ fprintf('... Done\n')
 end
 
 function runperfolder(fname, foname, tifpars)
-% runperfolder: function 
+% runperfolder: function that runs all files per directory
 %
 % Usage:
 %   runperfolder(fname, foname, tifpars)
@@ -205,7 +205,7 @@ if isempty(BaseFName)
         ', searching for *.mat metadata files\n', ...
         '*************************************\n '])
     
-    tifpars.fileformat = '.mat';
+    tifpars.fileformat = '_vDat.mat';
     [BaseFName, ~, ~] = rdir_namesplit([], ...
         tifpars.fileformat, [], tifpars.fi2reject, fname);
     
@@ -290,7 +290,7 @@ if ~contains(tifpars.SpMode, ...
     if contains(tifpars.SpMode, 'old')
 
         % collapsing files with the same animal and trial number to one mat
-        % files (old)
+        %   files (old)
         collect_tiffs_per_exp_trial_old(NameRoot, tifpars);
 
     elseif contains(tifpars.SpMode, ...
@@ -302,9 +302,9 @@ if ~contains(tifpars.SpMode, ...
     else
 
         % collapsing files with the same animal and trial number to one mat files
-        % for example {'2DxT', '3DxT', '2DxT_song', ...
-        %   '3DxT_song', '2DxT_opto', '3DxT_opto', ...
-        %   '3DxT_opto_prv'}
+        %   for example {'2DxT', '3DxT', '2DxT_song', ...
+        %       '3DxT_song', '2DxT_opto', '3DxT_opto', ...
+        %       '3DxT_opto_prv'}
 
         collect_tiffs_per_exp_trial(NameRoot, tifpars)
 
@@ -998,7 +998,7 @@ MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
     [], 1, data_siz, [], ...
     tifpars.sign2use, tifpars.df_flag, ...
     tifpars.chunk_size, tifpars.corenumber, ...
-    tifpars.serId);
+    tifpars.serverid);
 
 image_range = tifpars.range;
 
@@ -1043,7 +1043,7 @@ if length(data_siz) > 4
         [], 2, data_siz, [], ...
         tifpars.sign2use, tifpars.df_flag, ...
         tifpars.chunk_size, tifpars.corenumber, ...
-        tifpars.serId);
+        tifpars.serverid);
 
     % generate videos
     tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DF_2'];
@@ -1104,7 +1104,8 @@ time2load = 2:iDat.StackN;
         tifpars.corenumber, numel(time2load), 1);
 hist_o = [];
 
-setup_parpool(tifpars.serId, tifpars.corenumber);
+% set up parpool
+setup_parpool(tifpars.serverid, tifpars.corenumber);
 
 % time patches    
 for i = 1:numel(chunk_idx)

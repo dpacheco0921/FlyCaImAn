@@ -51,7 +51,7 @@ cspfb.oDir = [];
 cspfb.bkgate = 0;
 cspfb.blowcap = 0;
 cspfb.fshift = [6 6];
-cspfb.serId = 'int';
+cspfb.serverid = 'int';
 cspfb.corenum = 4;
 cspfb.maxshift_xy = [15 15];
 cspfb.direction = 'invert';
@@ -63,7 +63,7 @@ if ~exist('iparams', 'var'); iparams = []; end
 cspfb = loparam_updater(cspfb, iparams);
 
 % start pararell pool if not ready yet
-ppobj = setup_parpool(cspfb.serId, cspfb.corenum);
+ppobj = setup_parpool(cspfb.serverid, cspfb.corenum);
 
 if ~isempty(cspfb.oDir)
     

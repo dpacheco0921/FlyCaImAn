@@ -86,7 +86,7 @@ cspfa.fsuffix = '_rawdata';
 cspfa.bkgate = 0;
 cspfa.blowcap = 0;
 cspfa.fshift = [6 6];
-cspfa.serId = 'int';
+cspfa.serverid = 'int';
 cspfa.corenum = 4;
 cspfa.zrange = 1:7;
 cspfa.maxshift = 8;
@@ -114,7 +114,7 @@ if ~exist(cspfa.oDir, 'dir')
 end
 
 % start pararell pool if not ready yet
-ppobj = setup_parpool(cspfa.serId, cspfa.corenum);
+ppobj = setup_parpool(cspfa.serverid, cspfa.corenum);
 
 % Selecting folders
 f2run = dir;

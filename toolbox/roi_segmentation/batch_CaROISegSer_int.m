@@ -34,7 +34,7 @@ roipars.rfisuffix = '_prosref';
 roipars.rfosuffix = '_prosref'; 
 roipars.c_ths = []; % threshold used for C during segmentation
 % params parpool related
-roipars.serId = 'int';
+roipars.serverid = 'int';
 roipars.corenum = 1;
 
 if ~exist('iparams', 'var'); iparams = []; end
@@ -44,7 +44,7 @@ if ~exist('FolderName','var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 
 % set up parpool
-ppobj = setup_parpool(roipars.serId, roipars.corenum);
+ppobj = setup_parpool(roipars.serverid, roipars.corenum);
 
 % Selecting folders
 f2run = dir;

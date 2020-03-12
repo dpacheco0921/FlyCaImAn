@@ -1,7 +1,7 @@
 function MIP_proj = get_df_MIP_from_raw(...
     rawdata_name, metadata_name, baseline_tp, ...
     slices2project, channel2use, data_siz, time2load, sign2use, ...
-    df_flag, chunk_size, corenumber, serId)
+    df_flag, chunk_size, corenumber, serverid)
 % get_df_MIP_from_raw: generate maximun intensity projection
 %   from raw data (previous to motion correction)
 %
@@ -35,7 +35,7 @@ function MIP_proj = get_df_MIP_from_raw(...
 %       (3 (get baseline-zscored, SNR))
 %   chunk_size: size of chunks.
 %   corenumber: number of cores to use.
-%   serId: server ID.
+%   serverid: server ID.
 %       ('int' | ispc or ismac, to run locally)
 %
 % Notes:
@@ -77,12 +77,12 @@ if ~exist('corenumber', 'var') || isempty(corenumber)
     corenumber = 4;
 end
 
-if ~exist('serId', 'var') || isempty(serId)
-    serId = 'int';
+if ~exist('serverid', 'var') || isempty(serverid)
+    serverid = 'int';
 end
 
 % set parpool
-setup_parpool(serId, corenumber);
+setup_parpool(serverid, corenumber);
 
 % load and mat required variables
 dataObj = matfile(rawdata_name);

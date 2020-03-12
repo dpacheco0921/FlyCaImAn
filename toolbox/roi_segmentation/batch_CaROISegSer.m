@@ -182,7 +182,6 @@ if ~isempty(filename)
     param_file = datestr(now, 'yymmddHHMMSS');
     
     % pass some input variables
-    CaRp.serId = serverid;
     CaRp.corenum = corenum;
     CaRp.jobpart = jobpart;
     p = CaRp;

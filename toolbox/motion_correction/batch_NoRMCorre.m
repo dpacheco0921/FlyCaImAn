@@ -15,7 +15,7 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %       (fsuffix: suffix of files to load)
 %       (fo2reject: folders to reject)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -122,7 +122,7 @@ pMC.redo = 0;
 pMC.debug = 0;
 pMC.fsuffix = '_rawdata.mat';
 pMC.fo2reject = {'.', '..', 'preprocessed', 'BData'};
-pMC.serId = 'int';
+pMC.serverid = 'int';
 pMC.corenum = 4; 
 pMC.stack2del = [];
 pMC.rigidg = 1;
@@ -173,7 +173,7 @@ if pMC.iter_num ~= numel(pMC.sgate)
 end
 
 % start pararell pool if not ready yet
-ppobj = setup_parpool(pMC.serId, pMC.corenum);
+ppobj = setup_parpool(pMC.serverid, pMC.corenum);
 
 % Selecting folders
 f2run = dir;

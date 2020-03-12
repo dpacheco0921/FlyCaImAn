@@ -15,7 +15,7 @@ p.orawfsuffix = '_prosdata';
 p.orefsuffix = '_prosref';
 p.osuffix = '_prosroi';
 p.redo = 0;
-p.serId = 'int';
+p.serverid = 'int';
 p.corenum = 1;
 
 if ~exist('iparams', 'var'); iparams = []; end
@@ -25,14 +25,7 @@ if exist('FolderName','var'); p.FolderName = FolderName; end
 if exist('FileName','var'); p.FileName = FileName; end
 
 % set up parpool
-if isempty(strfind(p.serId, 'int')) && isempty(strfind(p.serId, 'PC'))
-    pc = parcluster('local');
-    pc.JobStorageLocation = strcat('/tmp/', getenv('USER'), '-', getenv('SLURM_JOB_ID'));
-else
-    pc = parcluster('local');
-end
-
-parpool(pc, p.corenum);
+setup_parpool(p.serverid, p.corenum);
 
 % Selecting folders
 f2run = dir;

@@ -85,7 +85,7 @@ pSM.minsize = 5;
 pSM.per2use = 0.8;
 pSM.type2run = [0 0 1];
 pSM.btn = 10^4;
-pSM.serId = 'int';
+pSM.serverid = 'int';
 pSM.corenum = 4;
 pSM.chunksiz = 80;
 pSM.febgate = 0;
@@ -106,7 +106,7 @@ if ~exist('iparams', 'var'); iparams = []; end
 pSM = loparam_updater(pSM, iparams);
 
 % start pararell pool if not ready yet
-ppobj = setup_parpool(pSM.serId, pSM.corenum);
+ppobj = setup_parpool(pSM.serverid, pSM.corenum);
 
 % Selecting folders
 f2run = dir;
