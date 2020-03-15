@@ -236,7 +236,7 @@ for i = 1:numel(repnum)
     iDat.FrameN = size(Data, 3);
     
     % remove unwanted stacks
-    if ~isempty(spte.stack2del)
+    if ~isempty(spte.stack2del) && ~isempty(Data)
         [lStim, iDat, Data] =  ...
             volumeprunner(lStim, iDat, ...
             spte.stack2del, Data);
@@ -262,10 +262,17 @@ for i = 1:numel(repnum)
     end
     
     % get original time stamps
-    orig_timestamp = reshape(...
-        iDat.fstEn(:, 2), ...
-        [iDat.FrameN iDat.StackN])/lStim.fs;
-
+    if ~isempty(iDat.FrameN) && ~isempty(iDat.StackN)
+        orig_timestamp = reshape(...
+            iDat.fstEn(:, 2), ...
+            [iDat.FrameN iDat.StackN])/lStim.fs;
+    else
+        orig_timestamp = iDat.fstEn;       
+    end
+    
+    % load video data and edit timestamps
+    load(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat')
+    
     if ~isfield(iDat, 'lstEn')
         
         % overwrite stimulus timing
@@ -278,6 +285,18 @@ for i = 1:numel(repnum)
         itIdx = round((res_timestamps(1) + lstEn(1, 1))*lStim.fs);
         lStim.trace = lStim.trace(itIdx:end);
         
+        if exist('vidDat', 'var')
+            
+            % convert from timepoints to seconds
+            vidDat.fstEn = vidDat.fstEn/lStim.fs;
+
+            % set zero to stimulus start
+            vidDat.fstEn = vidDat.fstEn - lstEn(1, 1);
+
+            save(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat', '-append')
+            
+        end
+        
     else
         
         orig_timestamp = orig_timestamp - iDat.lstEn(1, 1);
@@ -287,31 +306,25 @@ for i = 1:numel(repnum)
     
     % update time
     iDat.Tres = orig_timestamp;
-
-    % load video data and edit timestamps
-    load(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat')
-        
-    if exist('vidDat', 'var')
-        % convert from timepoints to seconds
-        vidDat.fstEn = vidDat.fstEn/lStim.fs;
-        
-        % set zero to stimulus start
-        vidDat.fstEn = vidDat.fstEn - iDat.lstEn(1, 1);
-        
-        save(strrep(rep2run, '_rawdata', '_metadata'), 'vidDat', '-append')
-    end
     
     % match X and Y resolution
     inpres = round(iDat.MetaData{3}*spte.fres)/spte.fres;
     
     if isempty(spte.newres)
-        spte.newres = inpres;
+        
+        if isnan(inpres(1)) || isnan(inpres(1))
+            spte.newres = nan(size(inpres));
+        else
+            spte.newres = inpres;
+        end
+        
     end
     
     % make a copy for red channel to replicate same preprocessing
     iDat_red = iDat;
     
-    if ~isfield(iDat, 'XYresmatch') || iDat.XYresmatch == 0
+    if ~isfield(iDat, 'XYresmatch') || ...
+            iDat.XYresmatch == 0 && ~isempty(Data)
         
         % resample functional data
         % (it removes nans prior to resampling and then puts them back)
@@ -359,11 +372,19 @@ for i = 1:numel(repnum)
         fprintf([' eVoxelsize: ', num2str(iDat.MetaData{3}(1:3)), ' ']);
         
     else
-        fprintf('Already XY resampled ')
+        
+        if isempty(Data)
+            fprintf('No spatial resampling (raw image not found) ')
+        else
+            fprintf('Already XY resampled ')
+        end
+        
     end
     
     % do spatial smoothing
-    if ~isempty(spte.sigma) && ~isempty(spte.size) && iDat.sSmooth == 0
+    if ~isempty(spte.sigma) && ...
+            ~isempty(spte.size) && ...
+            iDat.sSmooth == 0 && ~isempty(Data)
         
         fprintf('XY smoothing ')
         
@@ -401,34 +422,40 @@ for i = 1:numel(repnum)
         
         if isempty(spte.sigma) || isempty(spte.size)
             fprintf('Not XY-smoothing data ')
+        elseif isempty(Data)
+            fprintf('Not XY-smoothing data (raw image not found) ')
         else 
             fprintf('Already XY-smoothed ')
         end
         
     end
     
-    % Report when whole slices are nan
-    nan_data = isnan(Data);
-    nan_data = squeeze(sum(sum(nan_data, 1), 2)) ...
-        == size(Data, 1)*size(Data, 2);
-    
-    if sum(nan_data(:) == 1) ~= 0
+    if ~isempty(Data)
         
-        fprintf([' ', num2str(sum(nan_data(:) == 1)), ...
-            ' whole slices are nan\n'])
-        if spte.debug == 1
-            figure();
-            imagesc(nan_data);
-            keyboard;
+        % Report when whole slices are nan
+        nan_data = isnan(Data);
+        nan_data = squeeze(sum(sum(nan_data, 1), 2)) ...
+            == size(Data, 1)*size(Data, 2);
+
+        if sum(nan_data(:) == 1) ~= 0
+
+            fprintf([' ', num2str(sum(nan_data(:) == 1)), ...
+                ' whole slices are nan\n'])
+            if spte.debug == 1
+                figure();
+                imagesc(nan_data);
+                keyboard;
+            end
+
         end
+
+        clear nan_data
         
     end
     
-    clear nan_data
-    
     % resample temporally green channel (from plane to plane)
     if ~isfield(iDat, 'tResample') || ...
-            iDat.tResample == 0
+            iDat.tResample == 0 && ~isempty(Data)
         
         % resample PMT_fscore
         if isfield(iDat, 'PMT_fscore')
@@ -453,13 +480,19 @@ for i = 1:numel(repnum)
         
     else
         
-        fprintf('Already TixTj resampled ');
+        if isempty(Data)
+            fprintf('No temporal resampling (raw image not found) ');
+            iDat.Tres = res_timestamps;
+        else
+            fprintf('Already TixTj resampled ');
+        end
+        
         orig_timestamp = [];
         
     end
         
     % Report when whole volumes are nan
-    if iDat.FrameN > 1
+    if iDat.FrameN > 1 && ~isempty(Data)
         nan_data = isnan(Data);
         nan_data = squeeze(sum(sum(sum(nan_data, 1), 2), 3)) ...
             == size(Data, 1)*size(Data, 2)*size(Data, 3);
@@ -611,10 +644,18 @@ end
 if ~check_gate
 
     for i = 1:numel(repnum)
+        
         load([f2run, '_', num2str(repnum(i)), '_metadata.mat'], 'iDat', 'lStim')
         iniT_t = (iDat.fstEn(:, 2)' - lStim.lstEn(1, 1))/lStim.fs;
-        iniT_t = reshape(iniT_t, [iDat.FrameN iDat.StackN]);
-        iniT(i, :) = [max(iniT_t(:, 1)), min(iniT_t(:, end))];
+        
+        if isempty(iDat.FrameN) || isempty(iDat.StackN)
+            iniT_t0 = (iDat.fstEn(:, 1)' - lStim.lstEn(1, 1))/lStim.fs;
+            iniT(i, :) = [max(iniT_t0), min(iniT_t)];
+        else
+            iniT_t = reshape(iniT_t, [iDat.FrameN iDat.StackN]);
+            iniT(i, :) = [max(iniT_t(:, 1)), min(iniT_t(:, end))];            
+        end
+        
     end
 
     fprintf('All onset-offset times:/n')
