@@ -55,10 +55,20 @@ wDat.vid.fstEn = [];
 
 % flip z-axis (3D data only)
 if contains(datatype, '3DxT')
+    
     if contains(imdirection, 'invert')
-        iDat.RedChaMean = flip(iDat.RedChaMean, 3);
-        iDat.GreenChaMean = flip(iDat.GreenChaMean, 3);
+        
+        if ~isfield(iDat, 'RedChaMean') || ...
+                ~isfield(iDat, 'RedChaMean')
+            iDat.RedChaMean = [];
+            iDat.GreenChaMean = [];
+        else
+            iDat.RedChaMean = flip(iDat.RedChaMean, 3);
+            iDat.GreenChaMean = flip(iDat.GreenChaMean, 3);
+        end
+        
     end
+    
 end
 
 % generate mean-channels
@@ -76,32 +86,35 @@ end
 
 if isempty(wDat.GreenChaMean) ...
         && isempty(wDat.RedChaMean)
+    
     fprintf('***********************************************************************\n')
-    fprintf(['File failed at motion correction ', ...
+    fprintf(['File probably failed at motion correction ', ...
         '(did not generate mean fields (RedChaMean GreenChaMean) in iDat)\n'])
     fprintf('***********************************************************************\n')
-    return
-end
-
-% background correction
-if bkgate
-    wDat.RedChaMean = wDat.RedChaMean - iDat.bs(1); 
-    wDat.GreenChaMean = wDat.GreenChaMean - iDat.bs(2); 
-end
-
-if isfield(iDat, 'bs')
-    wDat.bs = iDat.bs;
+    
 else
-    wDat.bs = [];
-end
+    
+    % background correction
+    if bkgate
+        wDat.RedChaMean = wDat.RedChaMean - iDat.bs(1); 
+        wDat.GreenChaMean = wDat.GreenChaMean - iDat.bs(2); 
+    end
 
-wDat.RedChaMean = wDat.RedChaMean + fshift; 
-wDat.RedChaMean(wDat.RedChaMean < blowcap) = blowcap;
-wDat.GreenChaMean = wDat.GreenChaMean + fshift;
-wDat.GreenChaMean(wDat.GreenChaMean < blowcap) = blowcap;
+    if isfield(iDat, 'bs')
+        wDat.bs = iDat.bs;
+    else
+        wDat.bs = [];
+    end
 
-if bkgate
-    wDat.prepros.bsSubs = 1;
+    wDat.RedChaMean = wDat.RedChaMean + fshift; 
+    wDat.RedChaMean(wDat.RedChaMean < blowcap) = blowcap;
+    wDat.GreenChaMean = wDat.GreenChaMean + fshift;
+    wDat.GreenChaMean(wDat.GreenChaMean < blowcap) = blowcap;
+
+    if bkgate
+        wDat.prepros.bsSubs = 1;
+    end
+    
 end
 
 % get stimuli info
@@ -109,69 +122,80 @@ wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
     mcDat, vidDat, strrep(filename, '_metadata', ''), ...
     1, 1, [], iDat.FrameN);
 
-% find nan-slices
-if iDat.FrameN > 1
+if isempty(wDat.GreenChaMean) ...
+        && isempty(wDat.RedChaMean)
     
-    try
-        siz = size(wDat.GreenChaMean);
-        nan_pix = isnan(wDat.GreenChaMean);
-    catch
-        siz = size(wDat.RedChaMean);
-        nan_pix = isnan(wDat.RedChaMean);        
+    fprintf('***********************************************************************\n')
+    fprintf(['File probably failed at motion correction ', ...
+        '(did not generate mean fields (RedChaMean GreenChaMean) in iDat)\n'])
+    fprintf('***********************************************************************\n')
+    
+else
+    
+    % find nan-slices
+    if iDat.FrameN > 1
+
+        try
+            siz = size(wDat.GreenChaMean);
+            nan_pix = isnan(wDat.GreenChaMean);
+        catch
+            siz = size(wDat.RedChaMean);
+            nan_pix = isnan(wDat.RedChaMean);        
+        end
+
+        plane2keep = sum(reshape(nan_pix, ...
+            [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
+
     end
-    
-    plane2keep = sum(reshape(nan_pix, ...
-        [prod(siz([1 2])) siz(3)])) ~= prod(siz([1 2]));
-    
-end
 
-% tag and remove nan-xy pixels
-if iDat.FrameN > 1
-    if ~isempty(wDat.RedChaMean)
-        wDat.mask = max(isnan(...
-            wDat.RedChaMean(:, :, plane2keep)), [], 3);
+    % tag and remove nan-xy pixels
+    if iDat.FrameN > 1
+        if ~isempty(wDat.RedChaMean)
+            wDat.mask = max(isnan(...
+                wDat.RedChaMean(:, :, plane2keep)), [], 3);
+        else
+            wDat.mask = max(isnan(...
+                wDat.GreenChaMean(:, :, plane2keep)), [], 3);
+        end
     else
-        wDat.mask = max(isnan(...
-            wDat.GreenChaMean(:, :, plane2keep)), [], 3);
+        if ~isempty(wDat.RedChaMean)
+            wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+        else
+            wDat.mask = max(isnan(wDat.GreenChaMean), [], 3);
+        end    
     end
-else
+
+    % bmask, use all pixels (2D data only)
+    if iDat.FrameN == 1
+        wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
+    end
+
+    % update size
     if ~isempty(wDat.RedChaMean)
-        wDat.mask = max(isnan(wDat.RedChaMean), [], 3);
+        wDat.fSize = [size(wDat.RedChaMean, 1), ...
+            size(wDat.RedChaMean, 2)];
     else
-        wDat.mask = max(isnan(wDat.GreenChaMean), [], 3);
-    end    
-end
+        wDat.fSize = [size(wDat.GreenChaMean, 1), ...
+            size(wDat.GreenChaMean, 2)];
+    end
 
-% bmask, use all pixels (2D data only)
-if iDat.FrameN == 1
-    wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
-end
+    if iDat.FrameN > 1
 
-% update size
-if ~isempty(wDat.RedChaMean)
-    wDat.fSize = [size(wDat.RedChaMean, 1), ...
-        size(wDat.RedChaMean, 2)];
-else
-    wDat.fSize = [size(wDat.GreenChaMean, 1), ...
-        size(wDat.GreenChaMean, 2)];
-end
+        if ~isempty(wDat.RedChaMean)
+            wDat.vSize = [wDat.fSize, ...
+                size(wDat.RedChaMean, 3)];
+        else
+            wDat.vSize = [wDat.fSize, ...
+                size(wDat.GreenChaMean, 3)];
+        end    
+        wDat.vOrient = imdirection;
 
-if iDat.FrameN > 1
-    
-    if ~isempty(wDat.RedChaMean)
-        wDat.vSize = [wDat.fSize, ...
-            size(wDat.RedChaMean, 3)];
     else
-        wDat.vSize = [wDat.fSize, ...
-            size(wDat.GreenChaMean, 3)];
-    end    
-    wDat.vOrient = imdirection;
-    
-else
-    
-    wDat.vSize = [wDat.fSize, 1];
-    wDat.vOrient = [];
-    
+
+        wDat.vSize = [wDat.fSize, 1];
+        wDat.vOrient = [];
+
+    end
 end
 
 save(filename, 'wDat', '-append');
