@@ -85,7 +85,7 @@ spte.wDat_gen = 1;
 spte.direction = 'invert';
 spte.bkgate = 0;
 spte.blowcap = 0;
-spte.fshift = 6;
+spte.fshift = [6 6];
 spte.stack2del = [];
 spte.idp_run_flag = 0;
 
@@ -263,9 +263,18 @@ for i = 1:numel(repnum)
     
     % get original time stamps
     if ~isempty(iDat.FrameN) && ~isempty(iDat.StackN)
-        orig_timestamp = reshape(...
-            iDat.fstEn(:, 2), ...
-            [iDat.FrameN iDat.StackN])/lStim.fs;
+        
+        try
+            orig_timestamp = reshape(...
+                iDat.fstEn(:, 2), ...
+                [iDat.FrameN iDat.StackN])/lStim.fs;
+        catch
+            fprintf('Size dont match, file might have run already\n');
+            orig_timestamp = reshape(...
+                iDat.fstEn(:, 2), iDat.FrameN, ...
+                [])/lStim.fs;
+        end
+        
     else
         orig_timestamp = iDat.fstEn;       
     end
@@ -303,10 +312,7 @@ for i = 1:numel(repnum)
         fprintf('Already added lstEn to iDat ')
         
     end
-    
-    % update time
-    iDat.Tres = orig_timestamp;
-    
+        
     % match X and Y resolution
     inpres = round(iDat.MetaData{3}*spte.fres)/spte.fres;
     

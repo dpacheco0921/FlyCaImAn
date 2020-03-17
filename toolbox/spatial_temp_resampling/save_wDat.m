@@ -106,9 +106,9 @@ else
         wDat.bs = [];
     end
 
-    wDat.RedChaMean = wDat.RedChaMean + fshift; 
+    wDat.RedChaMean = wDat.RedChaMean + fshift(1); 
     wDat.RedChaMean(wDat.RedChaMean < blowcap) = blowcap;
-    wDat.GreenChaMean = wDat.GreenChaMean + fshift;
+    wDat.GreenChaMean = wDat.GreenChaMean + fshift(2);
     wDat.GreenChaMean(wDat.GreenChaMean < blowcap) = blowcap;
 
     if bkgate
