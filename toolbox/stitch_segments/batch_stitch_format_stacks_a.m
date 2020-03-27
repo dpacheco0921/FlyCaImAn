@@ -226,6 +226,12 @@ for rep_i = 1:numel(reps)
     load([fname, '_', num2str(reps(rep_i)), '_metadata.mat'], ...
         'iDat', 'mcDat');
     
+    % for files with empty imaging data
+    if isempty(iDat.StackN)
+        fprintf('No imaging data found\n')
+        return
+    end
+    
     % Correct for inverse z order
     if strcmp(cspfa.direction, 'invert')
         local(rep_i).RedChaMean = flip(iDat.RedChaMean, 3);

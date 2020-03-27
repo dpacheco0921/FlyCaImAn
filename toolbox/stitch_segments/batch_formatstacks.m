@@ -190,6 +190,11 @@ function fcompiler(fname, cspf)
 load([fname, '_metadata.mat'], 'wDat');
 wDat.cDir = pwd;
 
+if ~isfield(wDat, 'vSize')
+    fprintf('No imaging data found\n')
+    return
+end
+
 % add local folder
 if isfield(wDat, 'min_f')
     wDat = rmfield(wDat, 'min_f');

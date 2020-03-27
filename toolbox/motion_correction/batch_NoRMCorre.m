@@ -293,6 +293,12 @@ fprintf(['Correcting file: ', ...
 load(strrep(f2run, '_rawdata', '_metadata'), ...
     'iDat', 'lStim', 'fDat')
 
+% for files with empty imaging data
+if isempty(iDat.StackN)
+    fprintf('No imaging data found\n')
+    return
+end        
+
 if iDat.MotCorr == 0 || pMC.redo == 1
 
     % Loading Data (uint16) and keeping the format as double

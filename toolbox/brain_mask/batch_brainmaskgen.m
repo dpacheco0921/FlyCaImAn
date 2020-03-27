@@ -123,7 +123,8 @@ load([f2run, '_', strrep(pbm.fsuffix, '_', ''), ...
     '.mat'], 'wDat')
 
 if pbm.redo || (~isfield(wDat, 'bSide') ...
-        && ~isfield(wDat, 'bMask'))
+        && ~isfield(wDat, 'bMask')) ...
+        && isfield(wDat, 'vSize')
     
     % Input brain side used
     if pbm.manual
@@ -203,9 +204,13 @@ if pbm.redo || (~isfield(wDat, 'bSide') ...
     save([f2run, '_', strrep(pbm.fsuffix, '_', ''), '.mat'], ...
         'wDat', '-append')
     
-else
+elseif isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask')
     
-    fprintf('bMask already generated\n')
+    fprintf('No imaging data found\n')
+    
+elseif isfield(wDat, 'vSize')
+
+    fprintf('no \n')
     
 end
 
