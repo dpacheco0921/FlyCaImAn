@@ -23,7 +23,8 @@ slice3Dmatrix(avgim(:, :, :, 1), pi)
 slice3Dmatrix(avgim(:, :, :, 2), pi)
 
 % 3.2) selected planes
-planes2plot = 20:30;
+planes2plot = 10:25;
+pi.lag = 0.5;
 pi.sizY = [size(avgim, 1), size(avgim, 2), length(planes2plot)];
 
 slice3Dmatrix(avgim(:, :, planes2plot, 1), pi)
@@ -31,7 +32,12 @@ slice3Dmatrix(avgim(:, :, planes2plot, 2), pi)
 
 %% 4) replace planes (using info from 2) and 3))
 
-plane2replace = [127:139];
+plane2replace = find(isinf(M(:, 1)))';
+channel2use = 1;
+avgim(:, :, :, channel2use) = ...
+    framegapfill(plane2replace, avgim(:, :, :, channel2use));
+
+plane2replace = find(isinf(M(:, 2)))';
 channel2use = 2;
 avgim(:, :, :, channel2use) = ...
     framegapfill(plane2replace, avgim(:, :, :, channel2use));
