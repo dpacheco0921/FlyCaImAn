@@ -260,7 +260,8 @@ if jobpart == 1 || jobpart == 3
             
             % split into a pre-defined size patches
             patchnum = length(construct_patches(wDat.vSize, ...
-                roiparams.patch_size, roiparams.overlap));
+                roiparams.patch_size, roiparams.overlap, ...
+                roiparams.patch_minsiz));
             
         else
             
@@ -283,7 +284,7 @@ if jobpart == 1 || jobpart == 3
         
     end
     
-elseif jobpart == 2
+elseif jobpart == 2 || jobpart == 4
     
     filename = f2run;
     

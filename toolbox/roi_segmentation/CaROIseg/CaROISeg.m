@@ -109,7 +109,7 @@ classdef CaROISeg < handle
         
         % 4) construct patches
         function makepatch(obj, patch_size, ...
-                overlap, patchtype, seg_idx)
+                overlap, patchtype, seg_idx, min_siz)
             
             if ~exist('patchtype', 'var') || ...
                     isempty(patchtype)
@@ -121,10 +121,15 @@ classdef CaROISeg < handle
                 seg_idx = [];
             end
             
+            if ~exist('min_siz', 'var') || ...
+                    isempty(min_siz)
+                min_siz = [];
+            end
+            
             if patchtype == 0
                 obj.patches = construct_patches(...
                     obj.sizeY(1:end-1), ...
-                    patch_size, overlap);
+                    patch_size, overlap, min_siz);
             else
                 fprintf('Using segment idx to split patches\n')
                 obj.patches = construct_patches_seg(...
@@ -178,7 +183,20 @@ classdef CaROISeg < handle
                 obj.patches, tau, p, obj.options, patchidx, ...
                 filename, rfisuffix);
             
-        end  
+        end
+        
+        % 9) compile RESULTS and finish segmentation
+        function initComponents_part4(obj, ...
+                K, tau, p, filename)
+            
+            [obj.A, obj.b, obj.C, obj.f, obj.S, obj.P] = ...
+                run_CNMF_patches_int_compile_2(obj.data, ...
+                K, obj.patches, tau, p, obj.options, filename);
+            
+            % update centers
+            updatecenter(obj)
+            
+        end 
         
         % 9) manual refinement
         function refineComponents(obj, sx)
@@ -311,8 +329,9 @@ classdef CaROISeg < handle
             end
             
             % map red channel if it exist
-            if exist('filename', 'var') ...
-                    && ~isempty(filename)
+            if exist('filename', 'var') && ...
+                    ~isempty(filename) && ...
+                    exist(filename, 'file')
                 
                 try
                     obj.data_ = matfile(filename, 'Writable', true);
@@ -340,8 +359,9 @@ classdef CaROISeg < handle
             end
             
             % map red channel if it exist
-            if exist('filename', 'var') ...
-                    && ~isempty(filename)
+            if exist('filename', 'var') && ...
+                    ~isempty(filename) && ...
+                    exist(filename, 'file')
                 
                 try
                     obj.data_ = matfile(filename, 'Writable', true);

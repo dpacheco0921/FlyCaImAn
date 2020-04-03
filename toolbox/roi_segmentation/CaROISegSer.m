@@ -114,7 +114,8 @@ loaddata(obj, [filename, p.fisuffix])
 % generate patches using set parameters
 if roiparams.patchtype == 0
     makepatch(obj, ...
-        roiparams.patch_size, roiparams.overlap)
+        roiparams.patch_size, roiparams.overlap, ...
+        [], [], roiparams.patch_minsiz)
 else
     makepatch(obj, ...
         roiparams.patch_size, roiparams.overlap, ...
@@ -240,6 +241,8 @@ elseif p.jobpart == 2
         
         initComponents_part2(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
+        % edit run_CNMF_patches_int_compile
+        
         rawsignal(obj, [filename, p.rfisuffix])
         %bas_estimate(obj)
         roi = snapshot(obj);
@@ -286,7 +289,7 @@ elseif p.jobpart == 3
                 initComponents_part3(obj, roiparams.K, ...
                     roiparams.tau, roiparams.p, patchidx(i), ...
                     filename, p.rfisuffix)
-                % edit run_CNMF_patches_int_runperseg
+                % edit run_CNMF_patches_selected_segment
                 
             else
                 
@@ -308,6 +311,42 @@ elseif p.jobpart == 3
             error.cause
             
         end
+        
+    end
+    
+elseif p.jobpart == 4
+    
+    % 4) Compile intermediate results without 
+    %   merging across planes, it also removes 
+    %   any weight from out of plane ROI pixels
+    
+    if ~exist([p.cDir, filesep, filename, '_prosroi.mat'], 'file')
+        
+        initComponents_part4(obj, roiparams.K, ...
+            roiparams.tau, roiparams.p, filename)
+        % edit run_CNMF_patches_int_compile_2
+        
+        rawsignal(obj, [filename, p.rfisuffix])
+        %bas_estimate(obj)
+        roi = snapshot(obj);
+        roi.userparams = roiparams;
+        
+        % saves files locally
+        save([filename, '_prosroi'], 'roi', '-v7.3')
+        
+        % plot ROI coverage results
+        if ~exist([p.cDir, filesep, 'roicov'], 'dir')
+            mkdir([p.cDir, filesep, 'roicov'])
+        end
+        
+        plot_roi_coverage_int(filename, ...
+            [p.cDir, filesep, 'roicov'], ...
+            p.fimetsuffix);
+        
+    else
+        
+        fprintf(['Already compiled fly: ', filename, '.\n']);
+        display([p.cDir, filesep, filename, '_prosroi.mat'])
         
     end
     

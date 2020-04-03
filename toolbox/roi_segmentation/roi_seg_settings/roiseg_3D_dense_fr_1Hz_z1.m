@@ -13,6 +13,7 @@ roiparams.K = 800;                              % number of components to be fou
                                                 % for sparser labelling reduce this number (500)
 roiparams.patch_size = [280, 280, 15];          % size of each patch along each dimension (optional, default: [32,32])
 roiparams.overlap = [10, 10, 3];                % amount of overlap in each dimension (optional, default: [4,4])
+roiparams.patch_minsiz = [4, 4, 1];             % minimun size of patch
 roiparams.cropseg = 0;                          % lines to prune from border
 roiparams.ssub = 1;                             % spatial subsampling   
 roiparams.tsub = 1;                             % temporal subsampling
