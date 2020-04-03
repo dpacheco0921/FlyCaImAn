@@ -370,6 +370,10 @@ if ~isempty(wDat.GreenChaMean)
     wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
 end
 
+if ~isempty(wDat.bMask)
+    wDat.bMask = pruneIm(wDat.bMask, wDat.mask);
+end
+
 % update size
 if ~isempty(wDat.RedChaMean)
     wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
@@ -488,7 +492,14 @@ fprintf('\n')
 
 dataObj_out.nY = min(minval);
 if wDat.vSize(3) > 1
+    
     dataObj_out.sizY = [wDat.vSize, wDat.Tn];
+    
+    % prune bMask
+    if ~isempty(wDat.bMask)
+        wDat.bMask = wDat.bMask(:, :, wDat.plane2keep);
+    end
+    
 else
     dataObj_out.sizY = [wDat.vSize(1:2), wDat.Tn];
 end
@@ -504,7 +515,6 @@ elseif contains(cha2use, 'red')
     movefile([fname, '_refdata_temp.mat'], ...
         [fname, '_refdata.mat']);
 end
-% rename new:
 
 fprintf([num2str(toc(tinit)), ' seconds\n'])
 
