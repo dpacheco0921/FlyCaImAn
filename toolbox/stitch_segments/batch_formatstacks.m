@@ -224,6 +224,7 @@ vList = whos('-file', [fname, '_rawdata']);
 if ~contains([vList.name], 'Y')
     
     % saves Y and Yr
+    wDat_red = wDat;
     wDat = savedata_per_cha(fname, 'green', wDat, ...
         cspf.green_field2save, ...
         cspf.bkgate, cspf.fshift(2), ...
@@ -232,13 +233,25 @@ if ~contains([vList.name], 'Y')
     
     % saves Y and Yr
     try
-        wDat = savedata_per_cha(fname, 'red', wDat, ...
+        wDat_red = savedata_per_cha(fname, 'red', wDat_red, ...
             cspf.red_field2save, ...
             cspf.bkgate, cspf.fshift(1), ...
             cspf.blowcap, cspf.patch_z_size, ...
             cspf.patch_overlap);
+       wDat.RedTrend = wDat_red.RedTrend;
     end
     
+end
+
+% prune bmask
+if ~isempty(wDat.bMask)
+    wDat.bMask = pruneIm(wDat.bMask, wDat.mask);
+end
+
+if wDat.vSize(3) > 1
+    if ~isempty(wDat.bMask)
+        wDat.bMask = wDat.bMask(:, :, wDat.plane2keep);
+    end
 end
 
 % Correct for side of the brain imaged
@@ -370,10 +383,6 @@ if ~isempty(wDat.GreenChaMean)
     wDat.GreenChaMean = pruneIm(wDat.GreenChaMean, wDat.mask);
 end
 
-if ~isempty(wDat.bMask)
-    wDat.bMask = pruneIm(wDat.bMask, wDat.mask);
-end
-
 % update size
 if ~isempty(wDat.RedChaMean)
     wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
@@ -492,14 +501,7 @@ fprintf('\n')
 
 dataObj_out.nY = min(minval);
 if wDat.vSize(3) > 1
-    
     dataObj_out.sizY = [wDat.vSize, wDat.Tn];
-    
-    % prune bMask
-    if ~isempty(wDat.bMask)
-        wDat.bMask = wDat.bMask(:, :, wDat.plane2keep);
-    end
-    
 else
     dataObj_out.sizY = [wDat.vSize(1:2), wDat.Tn];
 end
