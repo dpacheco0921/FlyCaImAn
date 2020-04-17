@@ -1,6 +1,7 @@
 function Data3DxT = interp3DxT(Data3DxT, ...
     XYZinit, XYZend, LastDim, intmethod)
-% interp3DxT: resampling 3DxT volumes (or 3DxTxCh), but just up to the 3rd dimention
+% interp3DxT: resampling 3DxT volumes (or 3DxTxCh),
+%   but just up to the 3rd dimention
 %
 % Usage:
 %   Data3DxT = interp3DxT(Data3DxT, ...
@@ -26,8 +27,13 @@ nDim = length(Dims);
 DimEnd = (Dims(1:3)-1).*XYZinit;
 
 % last dimention to interpolate
-if ~exist('LastDim', 'var'); LastDim = 3; end
-if ~exist('intmethod', 'var'); intmethod = 'linear'; end
+if ~exist('LastDim', 'var')
+    LastDim = 3;
+end
+
+if ~exist('intmethod', 'var')
+    intmethod = 'linear';
+end
 
 % Order of dimentions to resample
 AxesOrder = [1 2 3 4 5; 2 1 3 4 5; 3 1 2 4 5]; %(height, width, depth)
