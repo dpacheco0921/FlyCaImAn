@@ -162,6 +162,15 @@ if pbm.redo || (~isfield(wDat, 'bSide') ...
         if pbm.blurflag
             bGreen = imblur(wDat.GreenChaMean, ...
                 [2 2 2], [5 5 3], 3);
+            
+            if size(bGreen, 3) > 1
+                siz = size(bGreen);
+                planes2replace = reshape(bGreen, [prod(siz(1:end-1)) siz(end)]);
+                planes2replace = sum(isnan(planes2replace), 1);
+                planes2replace = find(planes2replace == prod(siz(1:end-1)));
+                bGreen = framegapfill(planes2replace, bGreen);
+            end
+            
         end
 
         % plot fluorescence histograms per sub-segment

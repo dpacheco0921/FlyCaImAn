@@ -31,18 +31,27 @@ if ~isempty(tp2fill)
         str2run{2} = 'Y(:, :, :, tNext, :)';
         dstr = num2str(tEnd);
         
-    else
+    elseif length(siz) == 3
         
         str2run{1} = 'Y(:, :, t_idx)'; 
         str2run{2} = 'Y(:, :, tNext)';
         dstr = num2str(length(siz));
         tEnd = 3;
         
+    else
+        
+        str2run{1} = 'Y(:, t_idx)'; 
+        str2run{2} = 'Y(:, tNext)';
+        dstr = num2str(length(siz));
+        tEnd = 2;
+        
     end
     
     fprintf(' filling empty frames:\n')
     
-    if size(tp2fill, 1) > 1; tp2fill = tp2fill'; end
+    if size(tp2fill, 1) > 1
+        tp2fill = tp2fill';
+    end
     
     for t_idx = tp2fill
         
@@ -82,7 +91,7 @@ if ~isempty(tp2fill)
             else
                 
                 fprintf(' b');
-                eval([str2run{1},' = mean(', str2run{2}, ', ', dstr,');'])
+                eval([str2run{1},' = nanmean(', str2run{2}, ', ', dstr,');'])
                 
             end
             

@@ -61,4 +61,12 @@ if rmsmall_flag
     
 end
 
+% replace edges by preceading planes
+if size(brainmask, 3) > 1
+    brainmask(:, :, 1) = brainmask(:, :, 2);
+    if size(brainmask, 3) > 2
+        brainmask(:, :, end) = brainmask(:, :, end-1);
+    end
+end
+
 end
