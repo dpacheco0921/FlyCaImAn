@@ -8,6 +8,10 @@ function Y = sdnormbigmem(Y, chunk_siz)
 % Args:
 %   Y: 1DxT or 2DxT or 3DxT matrix
 %   chunk_siz: chunk size to run at a time in dimension 1
+%
+% Notes
+% equation used: 
+%   S = ((1/N)sum((Ai??)^2))^0.5 (equivalent to std(A, 1))
 
 if ~exist('chunk_siz', 'var') || isempty(chunk_siz)
     chunk_siz = 5e3;
