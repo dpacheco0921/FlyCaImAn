@@ -201,7 +201,12 @@ plot_distribution_all(corrcoef_hist, ...
 CaRaw = roi.filtered.dfof;
 
 % load signal from ref channel
-CaRef = roi.filtered_.df + roi.filtered_.F;
+if isfield(roi, 'filtered_') && ...
+        ~isempty(roi.filtered_)
+    CaRef = roi.filtered_.df + roi.filtered_.F;
+else
+    CaRef = zeros(size(CaRaw));
+end
 
 temp_stim = zeros(length(sMod.stim), ...
     size(sMod.stimM, 2));

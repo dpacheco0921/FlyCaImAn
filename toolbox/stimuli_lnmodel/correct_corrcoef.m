@@ -14,8 +14,8 @@ function [pcor_stat, pcor_raw, pcor_shuffle] = ...
 % Notes: 
 % Zero nans
 % interpration of nans: intuitively one would think that a nan means that
-% the regression did not find a suitable filter so the rank correlation of
-% the predicted to raw responses should be 0.
+%   the regression did not find a suitable filter so the rank correlation of
+%   the predicted to raw responses should be 0.
 
 pcor_raw(isnan(pcor_raw)) = 0;
 pcor_shuffle(isnan(pcor_shuffle)) = 0;

@@ -59,8 +59,10 @@ function batch_getStimModulation(FolderName, FileName, iparams)
 %           (default, pwd)
 %
 % Notes:
-% see runRidgeOnly (ridge regression function)
+% for info about regression algorithm see:
+%   runRidgeOnly (ridge regression using empirical Bayes)
 % for info about surrogate data see https://en.wikipedia.org/wiki/Surrogate_data_testing
+% for info about crossvalidation see https://en.wikipedia.org/wiki/Cross-validation_(statistics)
 % 
 % 01/18/19:
 %   add option to define trial start and end (customtrial_init, and customtrial_end fields)
@@ -91,7 +93,6 @@ pSM.chunksiz = 80;
 pSM.febgate = 0;
 
 pSMplot = [];
-pSMplot.fsuffix = '_prosroi.mat';
 pSMplot.hbins = -1:0.01:1;
 pSMplot.hbinsp = 0:0.01:1.1;
 pSMplot.prct2use = 30;
@@ -104,6 +105,9 @@ if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pSM = loparam_updater(pSM, iparams);
+
+pSMplot.fsuffix = [pSM.fsuffix, '.mat'];
+pSMplot.fmetsuffix = [pSM.metsuffix, '.mat'];
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSM.serverid, pSM.corenum);

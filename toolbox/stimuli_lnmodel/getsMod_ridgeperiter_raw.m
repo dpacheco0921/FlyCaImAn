@@ -35,7 +35,6 @@ for iter_i = 1:size(train_idx, 1)
     LN_filter(:, iter_i) = runRidgeOnly(zs_stim_i, zs_Y_i', stimSiz, 1);
     
     % Test model on test indeces
-    
     zs_Y = zscorebigmem(Y(1, test_idx(iter_i, :)));
     zs_stim = zscorebigmem(stimM(test_idx(iter_i, :), :)')';
     LN_pcor(iter_i, 1) = corr(zs_Y', (zs_stim*LN_filter(:, iter_i)));
