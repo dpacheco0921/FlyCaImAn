@@ -1,13 +1,15 @@
 function batch_CaROISegSer(fname, inputparams, ...
     serverid, jobpart, memreq, patchtype, ...
-    corenum, roi_n_init, stitch_flag, jobtime)
+    corenum, roi_n_init, stitch_flag, jobtime, ...
+    oDir, jobsperbatch)
 % batch_CaROISegSer: batch function to ROI segment files within
 %   subdirectory
 %
 % Usage:
 %   batch_CaROISegSer(fname, inputparams, ...
 %       serverid, jobpart, memreq, patchtype, ...
-%       corenum, roi_n_init, stitch_flag, jobtime)
+%       corenum, roi_n_init, stitch_flag, jobtime, ...
+%       oDir, jobsperbatch)
 %
 % Args:
 %   fname: name of files to run
@@ -15,11 +17,11 @@ function batch_CaROISegSer(fname, inputparams, ...
 %       ROI segmentation parameters
 %       (default, roiseg_3D_dense_fr_2Hz_z2)
 %   serverid: server ID 'int', 'spock', 'della'
-%       (deafult, 'spock')
+%       (default, 'spock')
 %   jobpart: type of job to run
 %       1) run roi segmentation for patches of whole volume
 %       2) compile patches
-%       (deafult, 1)
+%       (default, 1)
 %       3) extract processed signal
 %   memreq: RAM memory to request
 %       (deafult, 48)
@@ -28,13 +30,17 @@ function batch_CaROISegSer(fname, inputparams, ...
 %       (alternatively, for stitched volumes, it splits them into segments
 %       of the same stack)
 %   corenum: number of cores to request
-%       (deafult, 4)
+%       (default, 4)
 %   roi_n_init: number of ROIs to segment
-%       (deafult, [])
+%       (default, [])
 %   stitch_flag: flag indicating that file is stitched (used to then find input files)
-%       (deafult, 1)
+%       (default, 1)
 %   jobtime: time to run each job
-%       (deafult, 4 hours)
+%       (default, 4 hours)
+%   oDir: alternative output directory (the default is to save data to current directory)
+%       (default, [])
+%   jobsperbatch: jobs run per batch
+%       (default, 4)
 % 
 % Notes:
 % it requires that the script is run in the data folder
@@ -59,7 +65,11 @@ CaRp.fimetsuffix = [];
 CaRp.rfisuffix = [];
 CaRp.functype = {'CaROISegSer.m'};
 CaRp.cDir = pwd;
-maxjobs = 4;
+
+if ~exist('jobsperbatch', 'var') || ...
+        isempty(jobsperbatch)
+   jobsperbatch = 4;
+end
 
 if ~exist('fname', 'var') || ...
         isempty(fname)
@@ -104,6 +114,11 @@ end
 if ~exist('jobtime', 'var') || ...
         isempty(jobtime)
    jobtime = 4;
+end
+
+if ~exist('oDir', 'var') || ...
+        isempty(oDir)
+   oDir = [];
 end
 
 % 1) define string patter to find input files
@@ -163,7 +178,7 @@ tDir = [temporary_dir, 'jobsub', filesep, 'roirel'];
 % Find input files withing data folder CaRp.cDir
 [filename, patchidx] = getinputfiles(...
     CaRp.fisuffix, CaRp.fimetsuffix, ...
-   fname, maxjobs, jobpart, ....
+   fname, jobsperbatch, jobpart, ....
     roiparams, patchtype);
 
 % Submitting job or running it
@@ -184,6 +199,7 @@ if ~isempty(filename)
     % pass some input variables
     CaRp.corenum = corenum;
     CaRp.jobpart = jobpart;
+    CaRp.oDir = oDir;
     p = CaRp;
     roiparams.patchtype = patchtype;
 

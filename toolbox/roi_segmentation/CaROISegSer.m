@@ -182,9 +182,21 @@ if isnan(obj.options.l_df)
     obj.options.l_df = 0;
 end
 
+% update target output directory
+if isfield(p, 'oDir') && ~isempty(p.oDir)
+    target_dir = p.oDir;
+else
+    target_dir = p.cDir;
+end
+
+fprintf(['Files are saved at: ', target_dir])
+
 if p.jobpart == 1
     
-    if ~exist([p.cDir, filesep, filename, '_prosroi.mat'], 'file')
+    % move to target folder
+    cd(target_dir)
+    
+    if ~exist([target_dir, filesep, filename, '_prosroi.mat'], 'file')
 
         % 1) run each patch and save intermediate results
     
@@ -196,7 +208,7 @@ if p.jobpart == 1
 
             try
 
-                if ~exist([p.cDir, filesep, filename, '_t_', ...
+                if ~exist([target_dir, filesep, filename, '_t_', ...
                         num2str(patchidx(i)), '.mat'], 'file')
 
                     initComponents_part1(obj, roiparams.K, ...
@@ -208,7 +220,7 @@ if p.jobpart == 1
                     fprintf(['Already processed patch # ', ...
                         num2str(patchidx(i)), ' out of ',...
                         num2str(length(obj.patches)), '.\n']);
-                    display([p.cDir, filesep, filename, '_t_', ...
+                    display([target_dir, filesep, filename, '_t_', ...
                         num2str(patchidx(i)), '.mat'])
 
                 end
@@ -229,46 +241,52 @@ if p.jobpart == 1
     else
         
         fprintf(['Already compiled fly: ', filename, '.\n']);
-        display([p.cDir, filesep, filename, '_prosroi.mat'])
+        display([target_dir, filesep, filename, '_prosroi.mat'])
         
     end
-        
+   
+    cd(p.cDir)
+    
 elseif p.jobpart == 2
     
     % 2) Compile intermediate results
     
-    if ~exist([p.cDir, filesep, filename, '_prosroi.mat'], 'file')
+    if ~exist([target_dir, filesep, filename, '_prosroi.mat'], 'file')
         
         initComponents_part2(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
         % edit run_CNMF_patches_int_compile
         
         rawsignal(obj, [filename, p.rfisuffix])
-        %bas_estimate(obj)
+        % bas_estimate(obj)
         roi = snapshot(obj);
         roi.userparams = roiparams;
         
         % saves files locally
-        save([filename, '_prosroi'], 'roi', '-v7.3')
+        save([target_dir, filesep, filename, '_prosroi'], 'roi', '-v7.3')
         
         % plot ROI coverage results
-        if ~exist([p.cDir, filesep, 'roicov'], 'dir')
-            mkdir([p.cDir, filesep, 'roicov'])
+        if ~exist([target_dir, filesep, 'roicov'], 'dir')
+            mkdir([target_dir, filesep, 'roicov'])
         end
         
-        plot_roi_coverage_int(filename, ...
-            [p.cDir, filesep, 'roicov'], ...
-            p.fimetsuffix);
+        plot_roi_coverage_int(...
+            [p.cDir, filesep, filename, p.fimetsuffix], ...
+            [target_dir, filesep, filename, '_prosroi'], ...
+            [target_dir, filesep, 'roicov']);
         
     else
         
         fprintf(['Already compiled fly: ', filename, '.\n']);
-        display([p.cDir, filesep, filename, '_prosroi.mat'])
+        display([target_dir, filesep, filename, '_prosroi.mat'])
         
     end
     
 elseif p.jobpart == 3
 
+    % move to target folder
+    cd(target_dir)
+    
     % 3) run each patch and save results directly
     %   it does: 1), and saves all ROI segmentation 
     %   parameters as in 2)
@@ -283,7 +301,7 @@ elseif p.jobpart == 3
         
         try
             
-            if ~exist([p.cDir, filesep, filename, '_t_', ...
+            if ~exist([target_dir, filesep, filename, '_t_', ...
                     num2str(patchidx(i)), '.mat'], 'file')
                 
                 initComponents_part3(obj, roiparams.K, ...
@@ -296,7 +314,7 @@ elseif p.jobpart == 3
                 fprintf(['Already processed patch # ', ...
                     num2str(patchidx(i)), ' out of ',...
                     num2str(length(obj.patches)), '.\n']);
-                display([p.cDir, filesep, filename, '_t_', ...
+                display([target_dir, filesep, filename, '_t_', ...
                     num2str(patchidx(i)), '.mat'])
                 
             end
@@ -314,39 +332,42 @@ elseif p.jobpart == 3
         
     end
     
+    cd(p.cDir)
+    
 elseif p.jobpart == 4
     
     % 4) Compile intermediate results without 
     %   merging across planes, it also removes 
     %   any weight from out of plane ROI pixels
     
-    if ~exist([p.cDir, filesep, filename, '_prosroi.mat'], 'file')
+    if ~exist([target_dir, filesep, filename, '_prosroi.mat'], 'file')
         
         initComponents_part4(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
         % edit run_CNMF_patches_int_compile_2
         
         rawsignal(obj, [filename, p.rfisuffix])
-        %bas_estimate(obj)
+        % bas_estimate(obj)
         roi = snapshot(obj);
         roi.userparams = roiparams;
         
         % saves files locally
-        save([filename, '_prosroi'], 'roi', '-v7.3')
+        save([target_dir, filesep, filename, '_prosroi'], 'roi', '-v7.3')
         
         % plot ROI coverage results
-        if ~exist([p.cDir, filesep, 'roicov'], 'dir')
-            mkdir([p.cDir, filesep, 'roicov'])
+        if ~exist([target_dir, filesep, 'roicov'], 'dir')
+            mkdir([target_dir, filesep, 'roicov'])
         end
         
-        plot_roi_coverage_int(filename, ...
-            [p.cDir, filesep, 'roicov'], ...
-            p.fimetsuffix);
+        plot_roi_coverage_int(...
+            [p.cDir, filesep, filename, p.fimetsuffix], ...
+            [target_dir, filesep, filename, '_prosroi'], ...
+            [target_dir, filesep, 'roicov']);
         
     else
         
         fprintf(['Already compiled fly: ', filename, '.\n']);
-        display([p.cDir, filesep, filename, '_prosroi.mat'])
+        display([target_dir, filesep, filename, '_prosroi.mat'])
         
     end
     
@@ -355,23 +376,26 @@ end
 end
 
 function plot_roi_coverage_int(...
-    filename, oDir, filesuffix)
+    metadata_fullpath, roi_fullpath, oDir)
 % plot_roi_coverage_int: plot roi coverage
 %   it plot both sum of max norm weights and binarized voxels
 %
 % Usage:
 %   plot_roi_coverage_int(...
-%       filename, oDir, filesuffix)
+%       metadata_fullpath, roi_fullpath, oDir)
 %
 % Args:
-%   filename: file name
+%   metadata_fullpath: full file path of *_metadata.mat
+%   roi_fullpath: full file path of *_prosroi.mat
 %   oDir: output directory
-%   filesuffix: metadata suffix
 
 % load metadata file
-load([filename, filesuffix], 'wDat')
+load(metadata_fullpath, 'wDat')
 % load ROI file
-load([filename, '_prosroi'], 'roi')
+load(roi_fullpath, 'roi')
+
+[filename, ~] = ...
+    split_path(strrep(roi_fullpath, '_prosroi', ''));
 
 % plot videos
 plot_roi_coverage(filename, ...
