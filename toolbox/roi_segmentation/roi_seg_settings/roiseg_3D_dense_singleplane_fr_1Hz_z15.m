@@ -6,7 +6,7 @@
 
 roiparams = [];
 roiparams.init_method = 'greedy';               % 'sparse_NMF'; % 'greedy'
-roiparams.merge_thr = 1;                     % merging threshold
+roiparams.merge_thr = 1;                        % merging threshold
 roiparams.p = 0;                                % order of autoregressive system
                                                 %(p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)
 roiparams.K = 400;                              % number of components to be found
