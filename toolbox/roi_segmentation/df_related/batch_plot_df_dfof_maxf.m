@@ -1,6 +1,6 @@
 function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
-% batch_plot_df_dfof_maxf: Generate
-%   raw data videos (DF, DF\Fo, and MaxF) for a designated directory
+% batch_plot_df_dfof_maxf: Generate raw data videos 
+%   (DF, DF\Fo, MaxF, and SNR) for a designated directory
 %
 % Usage:
 %   batch_plot_df_dfof_maxf(Filename, oDir, iparams)
@@ -175,42 +175,24 @@ for i = 1:numel(filename)
         end
         ipars.vstrt = ipars.vstrt(time2load);
 
-        ipars.range = image_range(1, :);
-        ipars.vname = [oDir, filesep, filename{i}, '_MIP_DFoF'];
+        video_suffix = {'_MIP_DFoF', '_MIP_DF', '_MIP_maxF', '_MIP_snr'};
 
-        if sum(ismember(ipars.df_flag, 0)) && ...
-                (~exist([ipars.vname, '.avi'], 'file') || ipars.redo)
-            fprintf('plot DFoF \n')
-            slice3Dmatrix(flip(MIP_proj{2}, 2), ipars)
-        end
-        
-        ipars.vname = [oDir, filesep, filename{i}, '_MIP_DF'];
-        ipars.range = image_range(2, :);
-        
-        if sum(ismember(ipars.df_flag, 1)) && ...
-                (~exist([ipars.vname, '.avi'], 'file') || ipars.redo)
-            fprintf('plot DF \n')
-            slice3Dmatrix(flip(MIP_proj{1}, 2), ipars)
-        end
+        % generate videos
+        for ii = 1:numel(video_suffix)
 
-        ipars.range = image_range(3, :);
-        ipars.vname = [oDir, filesep, filename{i}, '_MIP_maxF'];
-
-        if sum(ismember(ipars.df_flag, 2)) && ...
+            ipars.vname = [oDir, filesep, filename{i}, video_suffix{ii}];
+            
+            if sum(ismember(ipars.df_flag, ii - 1)) && ...
                 (~exist([ipars.vname, '.avi'], 'file') || ipars.redo)
-            fprintf('plot maxF \n')
-            slice3Dmatrix(flip(MIP_proj{3}, 2), ipars)
-        end
-        
-        ipars.range = image_range(4, :);
-        ipars.vname = [oDir, filesep, filename{i}, '_MIP_snr'];
+            
+                fprintf(['plot ', strrep(video_suffix{ii}, '_MIP_', ''), ' \n'])
+                ipars.range = image_range(ii, :);
+                slice3Dmatrix(flip(MIP_proj{ii}, 2), ipars)
+                
+            end
 
-        if sum(ismember(ipars.df_flag, 3)) && ...
-                (~exist([ipars.vname, '.avi'], 'file') || ipars.redo)
-            fprintf('plot snr \n')
-            slice3Dmatrix(flip(MIP_proj{4}, 2), ipars)
         end
-        
+                
         clear wDat
         toc
 

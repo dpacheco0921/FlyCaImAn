@@ -36,7 +36,6 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %       (fileformat: format of files to look for)
 %           ('.tif', default)
 %       %%%%%%%%%%%% video settings %%%%%%%%%%%%
-%       (vgate: save gate)
 %       (vquality: video quality)
 %       (frate: frame rate)
 %       (cmap: foreground image colormap)
@@ -53,6 +52,10 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (0 (get DF/Fo))
 %           (1 (get DF))
 %           (2 (get Max F))
+%       (ch2plot: channels to use for videos)
+%           (default, [], does not plot any videos)
+%           (1, red)
+%           (2, green)
 %       (chunk_size: size of chunks)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
 %       (serId: server id)
@@ -121,7 +124,6 @@ tifpars.fStrain = [];
 tifpars.region2crop = [];
 tifpars.fs_stim = 10^4;
 tifpars.fileformat = '.tif';
-tifpars.vgate = 0;
 tifpars.vquality = 100;
 tifpars.frate = 10;
 tifpars.cmap = parula;
@@ -129,7 +131,8 @@ tifpars.range = [0 1; 0 1; 0 1; 0 7];
 tifpars.axisratio = 1;
 tifpars.baseline_tp = 1:20;
 tifpars.sign2use = 0;
-tifpars.df_flag = [0 1 2 3];
+tifpars.df_flag = [0 2];
+tifpars.ch2plot = [];
 tifpars.chunk_size = 10;
 tifpars.serverid = 'int';
 tifpars.corenumber = 4;
@@ -584,7 +587,7 @@ end
 % collect and plot basic stats
 %   maxF and DF video
 
-if tifpars.vgate
+if ~isempty(tifpars.ch2plot)
     plot_df_per_file(mat_name, tifpars, data_siz)
 end
 
@@ -992,50 +995,32 @@ function plot_df_per_file(ifilename, tifpars, data_siz)
 %   tifpars: parameters
 %   data_siz: data size
 
-% get MIP from raw data
-MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
-    [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
-    [], 1, data_siz, [], ...
-    tifpars.sign2use, tifpars.df_flag, ...
-    tifpars.chunk_size, tifpars.corenumber, ...
-    tifpars.serverid);
-
 image_range = tifpars.range;
+video_suffix = {'_MIP_DFoF', '_MIP_DF', '_MIP_maxF', '_MIP_snr'};
 
-% generate videos
-tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DF_1'];
-tifpars.range = image_range(1, :);
+if sum(ismember(tifpars.ch2plot, 1))
+    % get MIP from raw data
+    MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
+        [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
+        [], 1, data_siz, [], ...
+        tifpars.sign2use, tifpars.df_flag, ...
+        tifpars.chunk_size, tifpars.corenumber, ...
+        tifpars.serverid);
 
-if sum(ismember(tifpars.df_flag, 0))
-    fprintf('plot DF \n')
-    slice3Dmatrix(flip(MIP_proj{1}, 2), tifpars)
+    % generate videos
+    for i = 1:numel(video_suffix)
+
+        if sum(ismember(tifpars.df_flag, i - 1))
+            fprintf(['plot ', strrep(video_suffix{i}, '_MIP_', ''), ' (channel = 1) \n'])
+            tifpars.range = image_range(i, :);
+            tifpars.vname = [tifpars.oDir, filesep, ifilename, [video_suffix{i}, '_1']];
+            slice3Dmatrix(flip(MIP_proj{i}, 2), tifpars)
+        end
+
+    end
 end
 
-tifpars.range = image_range(2, :);
-tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DFoF_1'];
-
-if sum(ismember(tifpars.df_flag, 1))
-    fprintf('plot DFoF \n')
-    slice3Dmatrix(flip(MIP_proj{2}, 2), tifpars)
-end
-
-tifpars.range = image_range(3, :);
-tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_maxF_1'];
-
-if sum(ismember(tifpars.df_flag, 2))
-    fprintf('plot maxF \n')
-    slice3Dmatrix(flip(MIP_proj{3}, 2), tifpars)
-end
-
-tifpars.range = image_range(4, :);
-tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_snr_1'];
-
-if sum(ismember(tifpars.df_flag, 3))
-    fprintf('plot snr \n')
-    slice3Dmatrix(flip(MIP_proj{4}, 2), tifpars)
-end
-
-if length(data_siz) > 4
+if length(data_siz) > 4 && sum(ismember(tifpars.ch2plot, 2))
    
     % get MIP from raw data
     MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
@@ -1046,36 +1031,15 @@ if length(data_siz) > 4
         tifpars.serverid);
 
     % generate videos
-    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DF_2'];
-    tifpars.range = image_range(1, :);
+    for i = 1:numel(video_suffix)
 
-    if sum(ismember(tifpars.df_flag, 0))
-        fprintf('plot DF \n')
-        slice3Dmatrix(flip(MIP_proj{1}, 2), tifpars)
-    end
+        if sum(ismember(tifpars.df_flag, i - 1))
+            fprintf(['plot ', strrep(video_suffix{i}, '_MIP_', ''), ' (channel = 2) \n'])
+            tifpars.range = image_range(i, :);
+            tifpars.vname = [tifpars.oDir, filesep, ifilename, [video_suffix{i}, '_2']];
+            slice3Dmatrix(flip(MIP_proj{i}, 2), tifpars)
+        end
 
-    tifpars.range = image_range(2, :);
-    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_DFoF_2'];
-
-    if sum(ismember(tifpars.df_flag, 1))
-        fprintf('plot DFoF \n')
-        slice3Dmatrix(flip(MIP_proj{2}, 2), tifpars)
-    end
-
-    tifpars.range = image_range(3, :);
-    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_maxF_2'];
-
-    if sum(ismember(tifpars.df_flag, 2))
-        fprintf('plot maxF \n')
-        slice3Dmatrix(flip(MIP_proj{3}, 2), tifpars)
-    end
-
-    tifpars.range = image_range(4, :);
-    tifpars.vname = [tifpars.oDir, filesep, ifilename, '_MIP_snr_2'];
-
-    if sum(ismember(tifpars.df_flag, 3))
-        fprintf('plot snr \n')
-        slice3Dmatrix(flip(MIP_proj{4}, 2), tifpars)
     end
     
 end

@@ -2,8 +2,9 @@ function MIP_proj = get_df_MIP_from_raw(...
     rawdata_name, metadata_name, baseline_tp, ...
     slices2project, channel2use, data_siz, time2load, sign2use, ...
     df_flag, chunk_size, corenumber, serverid)
-% get_df_MIP_from_raw: generate maximun intensity projection
-%   from raw data (previous to motion correction)
+% get_df_MIP_from_raw: generate maximun intensity projection of
+%   DF, DF\Fo, MaxF, or baseline-zscored (SNR) from 
+%   raw data (previous to motion correction)
 %
 % Usage:
 %   MIP_proj = get_df_MIP_from_raw(...
@@ -210,14 +211,14 @@ for i = 1:numel(z)
     end
     
     % collect projections
-    if sum(ismember(df_flag, 1))
-        MIP_proj{i, 1} = temp_o_i/max(temp_o_i(:));
-    end
-    
     if sum(ismember(df_flag, 0))
-        MIP_proj{i, 2} = temp_o_ii;
+        MIP_proj{i, 1} = temp_o_ii;
     end
     
+    if sum(ismember(df_flag, 1))
+        MIP_proj{i, 2} = temp_o_i/max(temp_o_i(:));
+    end
+        
     if sum(ismember(df_flag, 2))
         MIP_proj{i, 3} = temp_o_iii/max(temp_o_iii(:));
     end

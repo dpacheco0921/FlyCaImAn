@@ -1,8 +1,9 @@
 function MIP_proj = get_df_MIP(...
     rawdata_name, metadata_name, baseline_tp, ...
     slices2project, time2load, sign2use, ...
-    df_flag, chunk_size, corenumber, serId)
-% get_df_MIP: generate maximun intensity projection
+    df_flag, chunk_size, corenumber, serverid)
+% get_df_MIP: generate maximun intensity projection of
+%   DF, DF\Fo, MaxF, or baseline-zscored (SNR).
 %
 % Usage:
 %   MIP_proj = get_df_MIP(...
@@ -31,7 +32,7 @@ function MIP_proj = get_df_MIP(...
 %       (3 (get baseline-zscored, SNR))
 %   chunk_size: size of chunks.
 %   corenumber: number of cores to use.
-%   serId: server ID.
+%   serverid: server ID.
 %       ('int' | ispc or ismac, to run locally)
 %
 % Notes:
@@ -71,12 +72,12 @@ if ~exist('corenumber', 'var') || isempty(corenumber)
     corenumber = 4;
 end
 
-if ~exist('serId', 'var') || isempty(serId)
-    serId = 'int';
+if ~exist('serverid', 'var') || isempty(serverid)
+    serverid = 'int';
 end
 
 % set parpool
-setup_parpool(serId, corenumber);
+setup_parpool(serverid, corenumber);
 
 % load and mat required variables
 dataObj = matfile(rawdata_name);
@@ -198,13 +199,13 @@ for i = 1:numel(z)
 
     end
     
-    % collect projections
-    if sum(ismember(df_flag, 1))
-        MIP_proj{i, 1} = temp_o_i/max(temp_o_i(:));
+    % collect projections      
+    if sum(ismember(df_flag, 0))
+        MIP_proj{i, 1} = temp_o_ii;
     end
     
-    if sum(ismember(df_flag, 0))
-        MIP_proj{i, 2} = temp_o_ii;
+    if sum(ismember(df_flag, 1))
+        MIP_proj{i, 2} = temp_o_i/max(temp_o_i(:));
     end
     
     if sum(ismember(df_flag, 2))
