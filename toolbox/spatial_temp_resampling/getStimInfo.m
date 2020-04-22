@@ -167,8 +167,14 @@ end
 % Collect video related
 if ~isempty(vidDat)
     
-    wDat.vid.varNames = vidDat.varNames;
-    wDat.vid.var{rep_i, 1} = vidDat.var;
+    if isfield(vidDat, 'varNames')
+        wDat.vid.varNames = vidDat.varNames;
+    end
+    
+    if isfield(vidDat, 'var')
+        wDat.vid.var{rep_i, 1} = vidDat.var;
+    end
+    
     wDat.vid.fstEn{rep_i, 1} = vidDat.fstEn;
     
 end
