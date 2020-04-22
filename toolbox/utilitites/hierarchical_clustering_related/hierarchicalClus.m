@@ -51,19 +51,19 @@ function [clus] = hierarchicalClus(...
 % see pdist linkage dendrogram
 % to explore more: I = inconsistent(Z);
 
-if ~exist('pmethod','var') || isempty(pmethod)
+if ~exist('pmethod', 'var') || isempty(pmethod)
     pmethod = 'correlation';
 end
 
-if ~exist('lmethod','var') || isempty(lmethod)
+if ~exist('lmethod', 'var') || isempty(lmethod)
     lmethod = 'complete';
 end
 
-if ~exist('clus_n','var') || isempty(clus_n)
+if ~exist('clus_n', 'var') || isempty(clus_n)
     clus_n = 20;
 end
 
-if ~exist('clus_type','var') || isempty(clus_type)
+if ~exist('clus_type', 'var') || isempty(clus_type)
     clus_type = 0;
 end
 

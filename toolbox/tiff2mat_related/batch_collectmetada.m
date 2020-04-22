@@ -181,7 +181,7 @@ datatype = fDat.DataType;
 
 % input data to load
 stim_file2load = [];
-if contains(datatype, 'song') && contains(datatype, 'prv') ...
+if contains(datatype, 'prv') ...
         && ~contains(datatype, 'fict')
     
     stim_file2load = 'prv';
