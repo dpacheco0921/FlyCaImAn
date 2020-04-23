@@ -999,6 +999,9 @@ image_range = tifpars.range;
 video_suffix = {'_MIP_DFoF', '_MIP_DF', '_MIP_maxF', '_MIP_snr'};
 
 if sum(ismember(tifpars.ch2plot, 1))
+    
+    tifpars.vgate = 1;
+    
     % get MIP from raw data
     MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
         [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
@@ -1022,6 +1025,8 @@ end
 
 if length(data_siz) > 4 && sum(ismember(tifpars.ch2plot, 2))
    
+    tifpars.vgate = 1;
+    
     % get MIP from raw data
     MIP_proj = get_df_MIP_from_raw([ifilename, '_rawdata.mat'], ...
         [ifilename, '_metadata.mat'], tifpars.baseline_tp, ...
