@@ -245,6 +245,7 @@ if p.jobpart == 1
         
     end
    
+    % move back to origin folder
     cd(p.cDir)
     
 elseif p.jobpart == 2
@@ -253,9 +254,15 @@ elseif p.jobpart == 2
     
     if ~exist([target_dir, filesep, filename, '_prosroi.mat'], 'file')
         
+        % move to target folder
+        cd(target_dir)
+    
         initComponents_part2(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
         % edit run_CNMF_patches_int_compile
+        
+        % move back to origin folder
+        cd(p.cDir)
         
         rawsignal(obj, [filename, p.rfisuffix])
         % bas_estimate(obj)
@@ -332,6 +339,7 @@ elseif p.jobpart == 3
         
     end
     
+    % move back to origin folder
     cd(p.cDir)
     
 elseif p.jobpart == 4
@@ -342,9 +350,15 @@ elseif p.jobpart == 4
     
     if ~exist([target_dir, filesep, filename, '_prosroi.mat'], 'file')
         
+        % move to target folder
+        cd(target_dir)
+        
         initComponents_part4(obj, roiparams.K, ...
             roiparams.tau, roiparams.p, filename)
         % edit run_CNMF_patches_int_compile_2
+        
+        % move back to origin folder
+        cd(p.cDir)
         
         rawsignal(obj, [filename, p.rfisuffix])
         % bas_estimate(obj)
