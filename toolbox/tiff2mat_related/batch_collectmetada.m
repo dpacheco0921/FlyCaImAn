@@ -82,7 +82,9 @@ metpars.stim_oCh = 1;
 metpars.buffer = 0;
 metpars.pgate = 1;
 metpars.cDir = pwd;
-metpars.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+metpars.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 metpars.fi2reject = [];
 metpars.fsuffix = '_rawdata.mat';
 metpars.fmetsuffix = '_metadata.mat';

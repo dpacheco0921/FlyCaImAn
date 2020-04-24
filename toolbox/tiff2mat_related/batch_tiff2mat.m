@@ -143,7 +143,9 @@ tifpars.oDir = [pwd, filesep, 'rawtiff'];
 tifpars.fName = [];
 % max spatial resolution to use (round all values smaller than 1/p.sres)
 tifpars.sres = 10^4;
-tifpars.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+tifpars.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 tifpars.fi2reject = {'rawim.tiff', 'Zstack'};
 
 % update variables
@@ -890,6 +892,9 @@ iDat.XYresmatch = 0;
 iDat.sSmooth = 0;
 iDat.tResample = 0;
 iDat.tSmooth = 0;
+
+% remove field from motion correction
+iDat = rmfield(iDat, 'timepointsdel');
 
 % remove some fields produced later
 f2rem = {'lstEn', 'fstEn', 'GreenChaMean', ...

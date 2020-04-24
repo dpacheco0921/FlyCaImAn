@@ -70,7 +70,9 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 spte = [];
 spte.cDir = pwd;
 spte.debug = 0;
-spte.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+spte.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 spte.fi2reject = {'Zstack'};
 spte.fsuffix = '_rawdata';
 spte.newtimeres = 0.5;

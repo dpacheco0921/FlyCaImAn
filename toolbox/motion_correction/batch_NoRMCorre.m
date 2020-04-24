@@ -99,6 +99,8 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 % Notes:
 % This function uses NoRMCorre (https://github.com/flatironinstitute/NoRMCorre)
 % see NoRMCorre functions: NoRMCorreSetParms, normcorre_batch
+% To avoid cropping videos iteratively, it generates 'iDat.timepointsdel'
+%   (it stores stack2del, this field is removed by batch_tiff2mat to reset file)
 %
 % 20191015:
 %   1) added option to shift fluorescence distribution for both
@@ -121,7 +123,9 @@ pMC.cDir = pwd;
 pMC.redo = 0;
 pMC.debug = 0;
 pMC.fsuffix = '_rawdata.mat';
-pMC.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+pMC.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 pMC.serverid = 'int';
 pMC.corenum = 4; 
 pMC.stack2del = [];
@@ -995,6 +999,7 @@ function [lStim, iDat] = ...
 
 % Prune Data
 if ~isempty(stack2del)
+    fprintf(['Pruning ', num2str(stack2del), ' timepoints\n'])
     
     % load data
     data = data_obj.Data;

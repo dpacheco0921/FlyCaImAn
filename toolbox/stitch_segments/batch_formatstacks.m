@@ -49,7 +49,9 @@ function batch_formatstacks(FolderName, FileName, iparams)
 % default params
 cspf = [];
 cspf.cDir = pwd;
-cspf.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+cspf.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 cspf.fi2reject = {'Zstack'};
 cspf.fisuffix = '_rawdata';
 cspf.oDir = [];

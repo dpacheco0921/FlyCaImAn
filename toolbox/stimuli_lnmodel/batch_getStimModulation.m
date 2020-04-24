@@ -71,7 +71,9 @@ function batch_getStimModulation(FolderName, FileName, iparams)
 % Default params
 pSM = []; 
 pSM.cDir = pwd;
-pSM.fo2reject = {'.', '..', 'preprocessed', 'BData'}; 
+pSM.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'}; 
 pSM.fi2reject = {'Zstack'};
 pSM.fsuffix = '_prosroi'; 
 pSM.metsuffix = '_prosmetadata';

@@ -80,7 +80,9 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 
 cspfa = [];
 cspfa.cDir = pwd;
-cspfa.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+cspfa.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 cspfa.fi2reject = {'Zstack'};
 cspfa.fsuffix = '_rawdata';
 cspfa.bkgate = 0;

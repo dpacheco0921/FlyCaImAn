@@ -40,7 +40,9 @@ pbm = [];
 pbm.cDir = pwd;
 pbm.redo = 0;
 pbm.fsuffix = '_prosmetadata'; 
-pbm.fo2reject = {'.', '..', 'preprocessed', 'BData'};
+pbm.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'smod', 'roicov'};
 pbm.fi2reject = {'Zstack'};
 pbm.tsuffix = 0;
 pbm.minsize = 5^3;
