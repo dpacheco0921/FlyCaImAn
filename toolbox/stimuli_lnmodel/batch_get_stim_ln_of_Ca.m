@@ -1,9 +1,9 @@
-function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
-% batch_get_stim_ln_of_motor: Use Linear model to fit motor
-%   variables using stimuli delivered as regressors
+function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
+% batch_get_stim_ln_of_Ca: Use Linear model to fit calcium traces
+%   using stimuli as regressors
 %
 % Usage:
-%   batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
+%   batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: folders to use
@@ -12,8 +12,12 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %       (cDir: current directory)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
+%       (fsuffix: suffix of files with roi varaiable)
+%           (default, '_prosroi')
 %       (metsuffix: suffix of files with wDat variable)
 %           (default, '_prosmetadata')
+%       (field2load: metadata variable 'wDat' or 'iDat')
+%           (default, 'wDat')
 %       (redo: redo even if sMod exis, redo raw, redo shuffle)
 %           (default, [0 0 0])
 %       (varname: output variable name
@@ -29,8 +33,6 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %           (default, [])
 %       (stim2use: which stimuli to use)
 %           (default, [], or all)
-%       (mot2use: motor variables to use)
-%           (default, {'speed', 'fV', 'lV', 'yaw', 'pitch', 'roll'})
 %       (trials2use: trials to use, by default it 
 %           uses the min number of trials across stimuli)
 %           (default, [], or min number of trials across stimuli)
@@ -54,52 +56,52 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %           (default, 80)
 %       (febgate: gate to generate filter error bounds)
 %           (default, 0)
-%       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
-%       (ball_radious: depth of directory search)
-%           (default, 0)
-%       (sig: std of gaussian kernel to smooth motor variable)
-%       (siz: size of kernel  to smooth motor variable)
-%       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
 %       (oDir: output directory to save summary results)
-%           (default, [pwd, filesep, 'sMod_motvar'])
+%           (default, pwd)
 %
 % Notes:
 % for info about regression algorithm see:
 %   runRidgeOnly (ridge regression using empirical Bayes)
 % for info about surrogate data see https://en.wikipedia.org/wiki/Surrogate_data_testing
 % for info about crossvalidation see https://en.wikipedia.org/wiki/Cross-validation_(statistics)
+% 
+% 01/18/19:
+%   add option to define trial start and end (customtrial_init, and customtrial_end fields)
+%   add option to define trials to use (trials2use)
+%
+% To do:
+%   confirm it works with opto
+%   make sure it is robust to randomized stimuli (specially the stim2use variable)
 
 % Default params
-pSMMot = []; 
-pSMMot.cDir = pwd;
-pSMMot.fo2reject = {'.', '..', 'preprocessed', ...
+pSM = []; 
+pSM.cDir = pwd;
+pSM.fo2reject = {'.', '..', 'preprocessed', ...
     'BData', 'rawtiff', 'motcor', 'stitch', ...
     'dfrel_vid', 'smod', 'roicov'}; 
-pSMMot.fi2reject = {'Zstack'};
-pSMMot.metsuffix = '_metadata';
-pSMMot.redo = [0 0 0];
-pSMMot.varname = 'sMod_motvar';
-pSMMot.filterlength_stim = [];
-pSMMot.customtrial_init = [];
-pSMMot.customtrial_end = [];
-pSMMot.stim2use = [];
-pSMMot.mot2use = {'speed', 'fV', 'lV', 'yaw', 'pitch', 'roll'};
-pSMMot.trials2use = [];
-pSMMot.minsize = 5;
-pSMMot.per2use = 0.8;
-pSMMot.type2run = [0 0 1];
-pSMMot.btn = 10^4;
-pSMMot.serverid = 'int';
-pSMMot.corenum = 4;
-pSMMot.chunksiz = 80;
-pSMMot.febgate = 0;
-pSMMot.ball_radious = 9;
-pSMMot.sig = 3;
-pSMMot.siz = 10;
+pSM.fi2reject = {'Zstack'};
+pSM.fsuffix = '_prosroi'; 
+pSM.metsuffix = '_metadata';
+pSM.field2load = 'wDat'; 
+pSM.redo = [0 0 0];
+pSM.varname = 'sMod2';
+pSM.filterlength = [];
+pSM.customtrial_init = [];
+pSM.customtrial_end = [];
+pSM.stim2use = [];
+pSM.trials2use = [];
+pSM.minsize = 5;
+pSM.per2use = 0.8;
+pSM.type2run = [0 0 1];
+pSM.btn = 10^4;
+pSM.serverid = 'int';
+pSM.corenum = 4;
+pSM.chunksiz = 80;
+pSM.febgate = 0;
 
 pSMplot = [];
-pSMplot.hbins = 0:0.001:1;
-pSMplot.hbinsp = 0:0.001:1.1;
+pSMplot.hbins = -1:0.01:1;
+pSMplot.hbinsp = 0:0.01:1.1;
 pSMplot.prct2use = 30;
 pSMplot.fdr = 0.01;
 pSMplot.mccor_method = 'dep';
@@ -109,17 +111,18 @@ pSMplot.dir_depth = 1;
 if ~exist('FileName', 'var'); FileName = []; end
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
-pSMMot = loparam_updater(pSMMot, iparams);
+pSM = loparam_updater(pSM, iparams);
 
-pSMplot.fmetsuffix = [pSMMot.metsuffix, '.mat'];
+pSMplot.fsuffix = [pSM.fsuffix, '.mat'];
+pSMplot.fmetsuffix = [pSM.metsuffix, '.mat'];
 
 % start pararell pool if not ready yet
-ppobj = setup_parpool(pSMMot.serverid, pSMMot.corenum);
+ppobj = setup_parpool(pSM.serverid, pSM.corenum);
 
 % Selecting folders
 f2run = dir;
 f2run = str2match(FolderName, f2run);
-f2run = str2rm(pSMMot.fo2reject, f2run);
+f2run = str2rm(pSM.fo2reject, f2run);
 f2run = {f2run.name};
 fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
 
@@ -129,13 +132,12 @@ for i = 1:numel(f2run)
     
     cd(f2run{i});
     
-    oDir = [pwd, filesep, 'smod_motvar'];
+    oDir = [pwd, filesep, 'smod'];
     
-    runperfolder(FileName, pSMMot);
+    runperfolder(FileName, pSM);
+    cd(pSM.cDir);
     
-    cd(pSMMot.cDir);
-    
-    batch_plot_stim_ln_motor_results(FolderName, FileName, oDir, pSMplot)
+    batch_plot_stim_ln_of_Ca_results(f2run{i}, FileName, oDir, pSMplot)
     
     fprintf('\n')
     
@@ -147,7 +149,7 @@ fprintf('... Done\n')
 
 end
 
-function runperfolder(FileName, pSMMot)
+function runperfolder(FileName, pSM)
 % runperfolder: run all files per folder
 %
 % Usage:
@@ -155,10 +157,10 @@ function runperfolder(FileName, pSMMot)
 %
 % Args:
 %   fname: file name pattern
-%   pSMMot: parameter variable
+%   pSM: parameter variable
 
 % Files to load
-f2run = rdir(['.', filesep, '*', pSMMot.metsuffix, '*.mat']);
+f2run = rdir(['.', filesep, '*', pSM.fsuffix, '*.mat']);
 f2run = str2match(FileName, f2run); 
 f2run = {f2run.name};
 
@@ -168,88 +170,95 @@ fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
 for i = 1:numel(f2run)
     
     fprintf(['Running file : ', strrep(f2run{i}, filesep, ' '), '\n']);
-    try
-        gen_ln_model(f2run{i}, pSMMot);
-    catch
-        keyboard
-    end
-        
+    getStimModulation(f2run{i}, pSM);
+    
 end
 
 fprintf('****** Done ******\n')
 
 end
 
-function gen_ln_model(filename, pSMMot)
-% gen_ln_model: run stimuli modulation for each file
+function getStimModulation(filename, pSM)
+% getStimModulation: run stimuli modulation for each file
 %
 % Usage:
-%   gen_ln_model(f2run, pSMMot)
+%   runperfile(f2run, pSM)
 %
 % Args:
 %   f2run: file name
-%   pSMMot: parameter variable
+%   pSM: parameter variable
 
 t0 = stic;
 
-% 1) load required varaibles 'roi', and 'pSLM.field2load'
+% 1) load required variables 'roi', and 'pSM.field2load'
 %   compatible with old format
-load(filename, 'wDat')
+
+load(filename, 'roi');
+load(strrep(filename, pSM.fsuffix, pSM.metsuffix), ...
+    pSM.field2load)
+
+if exist('iDat', 'var')
+    
+    load(strrep(filename, pSM.fsuffix, pSM.metsuffix), 'fDat')
+    wDat.sTime = iDat.lstEn;
+    wDat.fTime = iDat.Tres;
+    wDat.datatype = fDat.DataType;
+    
+end
 
 % 2) get dt in seconds
+
 dt = wDat.fTime(2) - wDat.fTime(1);
 
-% 3) load motor variables to fit (fictrac and SVD of video)
-motor_fictrac = load_edit_fictrac_motor_var(wDat, pSMMot.ball_radious, ...
-    pSMMot.mot2use, pSMMot.sig, pSMMot.siz, 1);
+% get number or ROIs
+[K, ~] = size(roi.filtered.dfof);
 
-[motor_SVD, ~, ~, ~] = ...
-    load_edit_video_SVD(wDat, strrep(filename, '_metadata.mat', '_proc.mat'), ...
-    pSMMot.sig, pSMMot.siz, 1);
+fprintf(['ROIs to process: ', num2str(K), '\n'])
 
-motor_all = [motor_fictrac; motor_SVD];
-clear motor_fictrac motor_SVD
-
-[K, ~] = size(motor_all);
-
-fprintf(['motor var to process: ', num2str(K), '\n'])
-
-% 4) Get number of stimuli presented
+% 3) Get number of stimuli presented
 stim_ntype = 1;
 
 if ~contains(wDat.datatype, 'opto') || contains(wDat.datatype, 'prv')
     
-    % get stimuli name
     stim_name = cellfun(@(x, y) [x '_AMP_' num2str(y)], ...
         wDat.sPars.name(1, :), chunk2cell(wDat.sPars.int(1, :), 1), ...
         'UniformOutput', false);
     [stim_name, ~, stim_u_idx] = unique(stim_name, 'stable');
-     
-    % get number of reps per stim
     stim_all_idx = stim_u_idx(wDat.sPars.order(1, :));
     stim_all_idx = stim_all_idx(1:size(wDat.sTime, 1), 1);
+        
     stim_count = hist(stim_all_idx, 1:1:max(stim_all_idx(:)));
     stim_ntype = numel(unique(stim_name));
     
     % get stimulus post baseline time to define filter length
+    if ~isempty(pSM.stim2use)
+        stim_u_idx = pSM.stim2use;
+    end
+    
     for i = 1:max(stim_u_idx)
         stim_post_lag(i, 1) = min(wDat.sPars.basPost(stim_u_idx == i));
     end
+    
+    % get min stimuli witdh
+    stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
+    stim_width = stim_width(ismember(stim_all_idx, stim_u_idx));
+    stim_width = ceil(min(stim_width)*1.1);
+    
     clear stim_u_idx stim_name i
-       
+    
 end
 
-% 5) use predefined trials
+% 4) use predefined trial
 if isfield(wDat, 'trialsToUse') && ~isempty(wDat.trialsToUse) ...
     || isfield(wDat, 'trials2use') && ~isempty(wDat.trials2use)
 
-    try pSMMot.trials2use = wDat.trialsToUse; end
-    try pSMMot.trials2use = wDat.trials2use; end
+    try pSM.trials2use = wDat.trialsToUse; end
+    try pSM.trials2use = wDat.trials2use; end
     
     % update number of trials
-    if ~isempty(pSMMot.trials2use)
-        if sum(pSMMot.trials2use > min(stim_count)) == 0
-            stim_count(:) = numel(pSMMot.trials2use);
+    if ~isempty(pSM.trials2use)
+        if sum(pSM.trials2use > min(stim_count)) == 0
+            stim_count(:) = numel(pSM.trials2use);
         else
             fprintf('Error trials requested are outside range\n')
             return
@@ -258,8 +267,8 @@ if isfield(wDat, 'trialsToUse') && ~isempty(wDat.trialsToUse) ...
     
 end
 
-% 6) generate filter length for stim (by default pre stimuli is 0)
-if isempty(pSMMot.filterlength_stim)
+% 5) generate filter length for stim (by default pre stimuli is 0)
+if isempty(pSM.filterlength)
     
     % Automatically calculate the max lag based on 
     %   the length of the stimuli divided by the sampling rate
@@ -268,25 +277,25 @@ if isempty(pSMMot.filterlength_stim)
     
 else
     
-    filterlength_tp = round(pSMMot.filterlength_stim/dt);
-    filterlength_tp = repmat(filterlength_tp, [1, stim_ntype]);
+    filterlength_tp = round(pSM.filterlength/dt);
+    filterlength_tp = repmat(filterlength_tp, [stim_ntype, 1]);
     
 end
 
-% 7) Define stim to use for model fitting
-if isempty(pSMMot.stim2use)
-    pSMMot.stim2use = 1:stim_ntype;
+% 6) Define stim to use for model fitting
+if isempty(pSM.stim2use)
+    pSM.stim2use = 1:stim_ntype;
 end
 
-% 8) Build matrix of stimuli used for model with all lags
+% 7) Build matrix of stimuli used for model with all lags
 %   get a binary vector with stimuli presentation
 sMod.stim = getStimVect(wDat); 
 
-% generate binary vectors for each stimulus to use pSLM.stim2use
+% generate binary vectors for each stimulus to use pSM.stim2use
 if stim_ntype ~= 1
     jj = 1;
-    for j = pSMMot.stim2use
-        stim_m(jj, :) = getStimVect(wDat, 1, pSMMot.trials2use, j);
+    for j = pSM.stim2use
+        stim_m(jj, :) = getStimVect(wDat, 1, pSM.trials2use, j);
         jj = jj + 1;
     end
 else
@@ -295,22 +304,22 @@ end
 
 % build stimuli matrix with different lags (to match filter length)
 [sMod.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
-% compile sMod.stimM: t x tau x type
-clear stim_m jj i j
+% compile StimE_M: t x tau x type
+clear StimE_M stim_m jj i j
 
-display(['Stimuli to use: ', num2str(pSMMot.stim2use)])
-display(['Variable name to use: ', num2str(pSMMot.varname)])
+display(['Stimuli to use: ', num2str(pSM.stim2use)])
+display(['Variable name to use: ', num2str(pSM.varname)])
 
-% 9) discretize timepoints into trials:
-stim_trial_idx = getTrialVect(wDat, pSMMot.stim2use, ...
-    pSMMot.customtrial_init, pSMMot.customtrial_end, pSMMot.trials2use);
+% 8) discretize timepoints into trials:
+stim_trial_idx = getTrialVect(wDat, pSM.stim2use, ...
+    pSM.customtrial_init, pSM.customtrial_end, pSM.trials2use);
 
-% get the minimum number of trials of pSM.stim2use
+% get the minimum number of trials of pSLM.stim2use
 %   to determine number of trials for training data
 if exist('stim_count', 'var')
     
-    min_ntrial = min(stim_count(pSMMot.stim2use));
-    ntrial_train = floor(min_ntrial*pSMMot.per2use);
+    min_ntrial = min(stim_count(pSM.stim2use));
+    ntrial_train = floor(min_ntrial*pSM.per2use);
     
     % update sMod.tidx2use
     idx2change = unique(stim_trial_idx, 'stable');
@@ -326,7 +335,7 @@ if exist('stim_count', 'var')
 else
     
     sMod.tidx2use = find(stim_trial_idx ~= 0);
-    ntrial_train = floor((size(wDat.sTime, 1)/stim_ntype)*pSMMot.per2use);
+    ntrial_train = floor((size(wDat.sTime, 1)/stim_ntype)*pSM.per2use);
     
 end
 
@@ -334,7 +343,7 @@ end
 stim_trial_idx = stim_trial_idx(sMod.tidx2use);
 sMod.stimM = sMod.stimM(sMod.tidx2use, :);
 
-% 10) define trials for training and testing
+% 9) define trials for training and testing
 %   build matrix with indexes of timepoints used
 %   as training data (testing data is ~train_idx)
 trialidx_u = unique(stim_trial_idx);
@@ -351,95 +360,95 @@ end
 clear trial_comb test_comb ...
     ntrial_train iter_i t_i trialidx_u
 
-% 11) Automatically calculate the minsize and 
+% 10) Automatically calculate the minsize and 
 %   number of splits base on the trial length
-%   transform minsize to timepoints
-chunk_minsize = pSMMot.minsize/dt;
+% transform minsize to timepoints
+chunk_minsize = pSM.minsize/dt;
 chunk_splitn = floor(numel(sMod.tidx2use)/chunk_minsize);
 
 clear stim_trial_idx
 
-% 12) Collect variables to use
-motvar_in = motor_all(:, sMod.tidx2use);
+% 11) Collect Ca trace and Stim
+% prune unused stims
+Ca_in = roi.filtered.dfof(:, sMod.tidx2use);
 
 stim_in = sMod.stimM; 
-stimSiz = size(stim_in, 2);
 stim_bin = sMod.stim(1, sMod.tidx2use);
 
 stocf(t0, 'Time consumed so far: ')
 
-% 13) using LN model to fit motor variables
+% 12) using LN model to fit Ca traces
 
 % Run Raw data
 fprintf('Running Raw Data\n')
 vList = whos('-file', filename);
-sgate = sum(strcmp({vList.name}, pSMMot.varname));
-if sgate && ~pSMMot.redo(1)
-    fprintf([pSMMot.varname ' already exist in mat file\n']); 
+sgate = sum(strcmp({vList.name}, pSM.varname));
+if sgate && ~pSM.redo(1)
+    fprintf([pSM.varname ' already exist in mat file\n']); 
     return;
 end
 
 % name of temporary file
-filename_temp = [strrep(filename, [pSMMot.metsuffix, '.mat'], ''), ...
+filename_temp = [strrep(filename, [pSM.metsuffix, '.mat'], ''), ...
     '_temp.mat'];
 tgate = exist(filename_temp, 'file');
 
-if ~tgate || pSMMot.redo(2)
+if ~tgate || pSM.redo(2)
     
-    % calculate filters and predicted traces for motor
-    [~, lFilter, motvar_pred] = ridgeregres_per_row_crossval(...
-        train_idx, motvar_in, stim_in, pSMMot.chunksiz, pSMMot.corenum, 'bayes');
+    % calculate filters and predicted traces for Ca
+    [~, lFilter, Ca_pred] = ridgeregres_per_row_crossval(...
+        train_idx, Ca_in, stim_in, pSM.chunksiz, pSM.corenum, 'bayes');
     
-    eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)')).^2;
+    pcor_raw = diag(corr(zscorebigmem(Ca_in)', zscorebigmem(Ca_pred)')).^2;
     
-    save(filename_temp, 'eVar', 'lFilter', 'motvar_pred', '-v7.3')
+    save(filename_temp, 'pcor_raw', 'lFilter', 'Ca_pred', '-v7.3')
     
 else
     
-    load(filename_temp, 'eVar', 'lFilter', 'motvar_pred')
+    load(filename_temp, 'pcor_raw', 'lFilter')
     
 end
 
 stocf(t0, 'Time consumed so far: ')
 
-% 14) testing model significance
+% 13) testing model significance
 % Run (cs) Random chunk Shuffle
-fprintf('Running Random shuffle in chunks\n')
+
+iFilter = squeeze(mean(lFilter, 2));
+
+fprintf('Running Phase # 3: Random shuffle in chunks\n')
 lgate = 1;
 
 if tgate
     vList = whos('-file', filename_temp);
-    lgate = ~sum(contains({vList.name}, 'eVar_cs'));
+    lgate = ~sum(contains({vList.name}, 'pcor_cs'));
 end
 
-eVar_cs = get_explained_variance_shuffle(...
-    motvar_in, motvar_pred, lgate, stim_bin, ...
-    pSMMot.redo(3), filename_temp, ...
+add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
+pcor_cs = get_explained_variance_shuffle(...
+    Ca_in, Ca_pred, lgate, stim_bin, ...
+    pSM.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
-    pSMMot.chunksiz, pSMMot.corenum, pSMMot.btn, 1);
+    pSM.chunksiz, pSM.corenum, pSM.btn, 1, add_stim_lag);
 
-save(filename_temp, 'eVar_cs', '-append')
+save(filename_temp, 'pcor_cs', '-append')
     
 stocf(t0, 'Time consumed so far: ')
 
 % delete temp file:
 delete(filename_temp)
 
-% 15) Save fields
-
-% always updates this fields
+% 14) Save fields
 sMod.maxlag = filterlength_tp; 
-sMod.btn = pSMMot.btn; 
-sMod.stim2use = pSMMot.stim2use;
-sMod.eVar = eVar; 
+sMod.btn = pSM.btn; 
+sMod.stim2use = pSM.stim2use;
+sMod.CC_raw = pcor_raw; 
 sMod.lFilter = lFilter;
-sMod.eVar_cs = eVar_cs;
-sMod.Y = motvar_in;
-sMod.Y_pred = motvar_pred;
+sMod.CC_cs = pcor_cs;
 sMod.train_idx = train_idx;
 
 % save variable with the custom name
-eval([pSMMot.varname, ' = sMod']);
-save(filename, pSMMot.varname, '-append')
+eval([pSM.varname, ' = sMod']);
+save(filename, pSM.varname, '-append')
 
 end

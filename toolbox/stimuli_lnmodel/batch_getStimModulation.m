@@ -132,7 +132,7 @@ for i = 1:numel(f2run)
     runperfolder(FileName, pSM);
     cd(pSM.cDir);
     
-    batch_plot_sMod_results(FileName, oDir, pSMplot)
+    batch_plot_stim_ln_of_Ca_results(f2run{i}, FileName, oDir, pSMplot)
     
     fprintf('\n')
     
@@ -382,9 +382,10 @@ tgate = exist([strrep(filename, ...
 if ~tgate || pSM.redo(2)
     
     % calculate filters and pearson correlations for raw data
-    [pcor_raw, lFilter] = runridgeraw_chunks(...
-        train_idx, catrace_in, stim_in, stimSiz, ...
-        pSM.chunksiz, pSM.corenum);
+    [pcor_raw, lFilter, ~] = ridgeregres_per_row_crossval(...
+        train_idx, catrace_in, stim_in, ...
+        pSM.chunksiz, pSM.corenum, 'bayes');
+
     save([strrep(filename, ...
         [pSM.fsuffix, '.mat'], ''), ...
         '_temp.mat'], 'pcor_raw', 'lFilter', '-v7.3')
@@ -526,88 +527,6 @@ end
 % save variable with the custom name
 eval([pSM.varname, ' = sMod']);
 save(filename, pSM.varname, '-append')
-
-end
-
-function [pcor_raw, lFilter] = runridgeraw_chunks(...
-    train_idx, catrace_in, stim_in, stimSiz, ...
-    chunksiz, corenum)
-% runridgeraw_chunks: Run Ridge regression to all 
-%   the possible combinations of train and test data
-%
-% Usage:
-%   [pcor_raw, lFilter] = runridgeraw_chunks(...
-%       train_idx, catrace_in, stim_in, stimSiz, K, ...
-%       chunksiz, corenum)
-%
-% Args:
-%   train_idx: indexes of train timepoints [n, T]
-%       n: different train arragaments, T: time.
-%   catrace_in: time traces [n, T]
-%   stim_in: stimuli to use for prediction (at different lags) [T, m]
-%       m: number of weights.
-%   stimSiz: stimuli size (in case stimM is composed of many stimuli types)
-%   chunksiz: number of chunks for parpool
-%   corenum: number of cores
-%
-% Outputs:
-%   pcor_raw: pearson correlation predicted vs raw for test indeces
-%   lFilter: filter per train arragement
-
-siz1 = size(catrace_in, 1);
-
-[~, ~, chunk_idx] = ppool_makechunks(...
-    chunksiz, corenum, siz1);
-
-for i = 1:numel(chunk_idx)
-    
-    batch2run = chunk_idx{i};
-    
-    parfor ii = 1:numel(batch2run)
-        
-        roi_i_l{ii, 1} = (batch2run(ii):min(batch2run(ii) ...
-            + chunksiz - 1, siz1));
-        k = 1;
-        t_lFilter = [];
-        t_pcor_raw = [];
-        
-        for iii = roi_i_l{ii, 1}
-            
-            if i == 1 && ii == 1 && k == 1
-                t0_ = stic;
-            end
-            
-            [t_pcor_raw(k, :), t_lFilter(:, :, k)] = ...
-                getsMod_ridgeperiter_raw(train_idx, ...
-                catrace_in(iii, :), stim_in, stimSiz);
-
-            if i == 1 && ii == 1 && k == 1
-                fprintf(['time per roi ', ...
-                    num2str(stoc(t0_)), ' seconds\n']); 
-            end
-            
-            k = k + 1;
-            
-        end
-        
-        tb_pcor_raw{ii, 1} = t_pcor_raw; 
-        tb_lFilter{ii, 1} = t_lFilter;
-        
-    end
-    
-    pcor_raw(cat(2, roi_i_l{:}), :) = ...
-        cat(1, tb_pcor_raw{:});
-    lFilter(:, :, cat(2, roi_i_l{:})) = ...
-        cat(3, tb_lFilter{:});
-    
-    clear tb_pcor_raw tb_lFilter roi_i_l
-    
-    if mod(i, 1) == 0
-        fprintf('%2.1f%% of chunks completed \n', ...
-            i*100/numel(chunk_idx));
-    end
-    
-end
 
 end
 
