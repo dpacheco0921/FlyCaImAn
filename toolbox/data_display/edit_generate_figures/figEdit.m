@@ -31,12 +31,29 @@ function figEdit(axhandle, fighandle, axcolor, ...
 %   figHandle.PaperSize = figHandle.PaperSize/10;
 %   figHandle.PaperPosition = figHandle.PaperPosition/10;
 
-if ~exist('axcolor', 'var') || isempty(axcolor); axcolor = 'w'; end
-if ~exist('figcolor', 'var') || isempty(figcolor); figcolor = 'w'; end
-if ~exist('xyzcolor', 'var') || isempty(xyzcolor); xyzcolor = 'k'; end
-if ~exist('tickgate', 'var') || isempty(tickgate); tickgate = 'on'; end
-if ~exist('fontsiz', 'var') || isempty(fontsiz); fontsiz = 15; end
-if ~exist('fontsizrel', 'var') || isempty(fontsizrel); fontsizrel = 1.5; end
+if ~exist('axcolor', 'var') || isempty(axcolor)
+    axcolor = 'w';
+end
+
+if ~exist('figcolor', 'var') || isempty(figcolor)
+    figcolor = 'w';
+end
+
+if ~exist('xyzcolor', 'var') || isempty(xyzcolor)
+    xyzcolor = 'k';
+end
+
+if ~exist('tickgate', 'var') || isempty(tickgate)
+    tickgate = 'on';
+end
+
+if ~exist('fontsiz', 'var') || isempty(fontsiz)
+    fontsiz = 15;
+end
+
+if ~exist('fontsizrel', 'var') || isempty(fontsizrel)
+    fontsizrel = 1.5;
+end
 
 for i = 1:numel(axhandle)
     try
