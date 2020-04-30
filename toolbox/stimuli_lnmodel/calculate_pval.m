@@ -1,32 +1,34 @@
 function [pval_raw, pvalc_dep, ...
     pvalc_pdep, pvalc_bh, pvalks] = ...
-    calculate_pval(pcor_stat, ...
-    pcor_raw, pcor_shuffle, fdr, ...
-    cortype, chunksiz, corenum)
+    calculate_pval(coef_stat, ...
+    coef_raw, coef_shuffle, fdr, ...
+    pval_cortype, chunksiz, corenum)
 % calculate_pval: generate raw and corrected
 %   (for multiple comparisons) pvals from 2 sets of correlation
 %
 % Usage:
 %   [pval_raw, pvalc_dep, ...
 %      pvalc_pdep, pvalc_bh, pvalks] = ...
-%      calculate_pval(pcor_stat, ...
-%      pcor_raw, pcor_shuffle, fdr, ...
-%      cortype, chunksiz, corenum)
+%      calculate_pval(coef_stat, ...
+%      coef_raw, pcor_shuffle, fdr, ...
+%      pval_cortype, chunksiz, corenum)
 %
 % Args:
-%   pcor_stat: percentile of pcor_raw 
-%   pcor_raw: correlation of raw data
-%   pcor_shuffle: correlation of shuffle data
+%   coef_stat: percentile of coef_raw 
+%   coef_raw: coefficient from raw data
+%       (correlation coefficient or explained variance, etc)
+%   coef_shuffle: coefficient from shuffle data
+%       (correlation coefficient or explained variance, etc)
 %   fdr: false discovery rate
-%   cortype: type of corrections to perform
+%   pval_cortype: type of corrections to perform
 %   chunksiz: number of chunks for parpool
 %   	(default, 2*10^3)
 %   corenum: number of cores
 %   	(default, 4)
 
-if ~exist('cortype', 'var') ...
-        || isempty(cortype)
-    cortype = zeros(1, 4);
+if ~exist('pval_cortype', 'var') ...
+        || isempty(pval_cortype)
+    pval_cortype = zeros(1, 4);
 end
 
 if ~exist('fdr', 'var') ...
@@ -51,32 +53,27 @@ pvalc_bh = [];
 pvalks = [];
 
 % 1) compute raw p-val
-%   interpretation of negative CC,
-%   during the regression the filter is
-%   suppose to have a positive CC,
-%   so any negative value is taken as 0.
-idx_pos = pcor_stat >= 0;
-pval_raw = ones(numel(pcor_stat), 1);
+%   interpretation of negative coefficient values:
+%   any negative value is taken as 0 (no correlation/zero explained variance).
+idx_pos = coef_stat >= 0;
+pval_raw = ones(numel(coef_stat), 1);
 
 if sum(idx_pos) > 0
-    pval_raw(idx_pos, 1) = sum(pcor_shuffle(idx_pos, :) ...
-        >= pcor_stat(idx_pos), 2)./...
-        sum(~isnan(pcor_shuffle(idx_pos, :)), 2);
+    pval_raw(idx_pos, 1) = sum(coef_shuffle(idx_pos, :) ...
+        >= coef_stat(idx_pos), 2)./...
+        sum(~isnan(coef_shuffle(idx_pos, :)), 2);
 end
-
-% so far negative values do not have 
-%   any meaning so I dont know what to do about them.
 
 % 2) Correct pvalues
 [pvalc_dep, pvalc_pdep, pvalc_bh] = ...
     pval_corr_multi_com(pval_raw, [], ...
-    fdr, cortype);
+    fdr, pval_cortype);
 
 % 3) alternative pvalue, compute ks test
-if cortype(4)
+if pval_cortype(4)
     
     pvalks = [];
-    K = size(pcor_raw, 1);
+    K = size(coef_raw, 1);
     
     [~, ~, chunk_idx] = ...
         ppool_makechunks(chunksiz, corenum, K);
@@ -92,8 +89,8 @@ if cortype(4)
         
         for ii = i_idx{i, 1}
             [~, pvalks_i(k, :)] = ...
-                kstest2(pcor_shuffle(ii, :), ...
-                pcor_raw(ii, :));
+                kstest2(coef_shuffle(ii, :), ...
+                coef_raw(ii, :));
             k = k + 1;
         end
         

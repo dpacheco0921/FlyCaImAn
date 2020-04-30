@@ -1,26 +1,28 @@
-function [pcor_stat, pcor_raw, pcor_shuffle] = ...
-    correct_corrcoef(pcor_raw, pcor_shuffle, prct2use)
-% correct_corrcoef: correct rank correlations and get percentile
+function [coef_stat, coef_raw, coef_shuffle] = ...
+    correct_corrcoef(coef_raw, coef_shuffle, prct2use)
+% correct_corrcoef: correct coefficients (correlation/explained variance/etc)
+%   and get percentile
 %
 % Usage:
-%   [pcor_stat, pcor_raw, pcor_shuffle] = ...
-%       correct_corrcoef(pcor_raw, pcor_shuffle, prct2use)
+%   [coef_stat, coef_raw, coef_shuffle] = ...
+%       correct_corrcoef(coef_raw, coef_shuffle, prct2use)
 %
 % Args:
-%   pcor_raw: correlation of raw data
-%   pcor_shuffle: correlation of shuffle data
-%   prct2use: percentile to use
+%   coef_stat: percentile of coef_raw 
+%   coef_raw: coefficient from raw data
+%       (correlation coefficient or explained variance, etc)
+%   coef_shuffle: coefficient from shuffle data
+%       (correlation coefficient or explained variance, etc)
 %
 % Notes: 
-% Zero nans
-% interpration of nans: intuitively one would think that a nan means that
-%   the regression did not find a suitable filter so the rank correlation of
-%   the predicted to raw responses should be 0.
+% interpretation of nans (nans are zeroed): it assumes that nan means that
+%   the regression did not find a suitable filter so the coefficient
+%   measured of the predicted to raw responses should be 0.
 
-pcor_raw(isnan(pcor_raw)) = 0;
-pcor_shuffle(isnan(pcor_shuffle)) = 0;
+coef_raw(isnan(coef_raw)) = 0;
+coef_shuffle(isnan(coef_shuffle)) = 0;
 
-% get a CC statistic (prct_cc)
-pcor_stat = prctile(pcor_raw, prct2use, 2);
+% get a statistic (coef_stat)
+coef_stat = prctile(coef_raw, prct2use, 2);
 
 end
