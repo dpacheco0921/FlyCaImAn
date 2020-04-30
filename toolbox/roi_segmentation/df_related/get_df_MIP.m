@@ -277,7 +277,7 @@ if sum(ismember(df_flag, 1))
     if sign2use == 0
         temp_i = abs(temp_i);
     else
-        temp_i = temp_i*sign2use;
+        temp_i = sign2use*temp_i;
     end
 
 end

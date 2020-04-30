@@ -26,6 +26,7 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %       (sign2use: use positive or negative changes (by multipliying it by 1/-1))
 %           (default, 0 (absolute))
 %           (-1 (negative))
+%           (1 (positive))
 %           (0 (absolute))
 %       (df_flag: flag to calculate DF (if 1), or DF/Fo otherwise)
 %           (default, [0 1 2] (get all))
@@ -177,6 +178,16 @@ for i = 1:numel(filename)
 
         video_suffix = {'_MIP_DFoF', '_MIP_DF', '_MIP_maxF', '_MIP_snr'};
 
+        if ipars.sign2use == 1
+            video_suffix{1} = [video_suffix{1}, '_pos'];
+            video_suffix{2} = [video_suffix{2}, '_pos'];
+            video_suffix{4} = [video_suffix{4}, '_pos'];
+        elseif ipars.sign2use == -1
+            video_suffix{1} = [video_suffix{1}, '_neg'];
+            video_suffix{2} = [video_suffix{2}, '_neg'];
+            video_suffix{4} = [video_suffix{4}, '_neg'];
+        end
+        
         % generate videos
         for ii = 1:numel(video_suffix)
 
