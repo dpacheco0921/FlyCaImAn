@@ -54,7 +54,9 @@ for i = 1:repn
         idx_out(i, :) = cell2mat(chunks_cell(neworder));
         
         % exclude cases where it matches the initial index order
-        if ~ismember(idx_out(i, :), idx_vect, 'rows'); i_gate = 1; end
+        if ~ismember(idx_out(i, :), idx_vect, 'rows')
+            i_gate = 1;
+        end
         
         % exclude cases where an input stimuli vector is the same under
         % permutation

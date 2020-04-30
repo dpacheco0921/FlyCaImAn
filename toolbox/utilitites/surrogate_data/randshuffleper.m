@@ -36,7 +36,7 @@ for s_i = 1:repn
             
             if ~ismember(rperm_tIdx(s_i, :), ...
                     1:timepoints_n, 'rows') ...
-                    && ~ismember(stim(s_i), stim, 'rows')
+                    && ~ismember(stim(rperm_tIdx(s_i, :)), stim, 'rows')
                 i_gate = 1; 
             end
             
