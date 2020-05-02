@@ -27,8 +27,8 @@ function batch_plot_mot_var_stats(FolderName, FileName, iparams)
 %       (chunksiz: number of chunks for parpool)
 %           (default, 80)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
-%       (ball_radious: depth of directory search)
-%           (default, 0)
+%       (ball_radious: radious of ball (mm))
+%           (default, 9)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %       (siz: size of kernel  to smooth motor variable)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
@@ -99,7 +99,7 @@ function runperfolder(filename, pSLM)
 %
 % Args:
 %   filename: file name pattern
-%   pSLM: parameter variable
+%   pSLM: internal plotting variable
 
 % Files to load
 f2run = rdir(['.', filesep, '*', pSLM.metsuffix, '*.mat']);
@@ -132,7 +132,7 @@ function plotperfile(filename, pSLM)
 %
 % Args:
 %   filename: file name
-%   pSLM: parameter variable
+%   pSLM: internal plotting variable
 
 t0 = stic;
 
@@ -213,7 +213,7 @@ if ~contains(wDat.datatype, 'opto') || contains(wDat.datatype, 'prv')
     for i = 1:max(stim_u_idx)
         stim_post_lag(i, 1) = min(wDat.sPars.basPost(stim_u_idx == i));
     end
-    clear stim_u_idx stim_name i
+    clear stim_u_idx i
        
 end
 
@@ -223,7 +223,7 @@ end
 % plot mean per trial
 stim2plot = unique(stim_all_idx)';
 
-plot_trial_med(motor_per_trial, time_rel, ...
+plot_trial_med(motor_per_trial, time_rel, stim_name, ...
     stim2plot, stim_idx, color_1, color_2, filename, pSLM.oDir)
 
 % plot pixel components
@@ -232,10 +232,98 @@ plot_trial_med(motor_per_trial, time_rel, ...
 plot_SVD_spatial_temporal(SVD_Dat, imtime, ...
     motor_all(7:10, :), filename, pSLM.oDir, color_2)
 
+plot_fictrac_temporal(motor_all(1:6, :), ...
+    imtime, filename, pSLM.oDir, color_1)
+
+end
+
+function plot_fictrac_temporal(fictrac_temp_res, ...
+    fTime, filename, oDir, color_1)
+% plot_fictrac_temporal: plot fictract variables
+%
+% Usage:
+%   plot_fictrac_temporal(fictrac_temp_res, ...
+%       fTime, filename, oDir, color_1)
+%
+% Args:
+%   fictrac_temp_res: fictrac variables resampled to fTime
+%   fTime: frame time (imaging resolution)
+%   filename: filename
+%   oDir: outpud directory
+%   color_2: colormap
+
+[figH, axH] = makefigs(2, 3, [1000 450], 'center');
+axH(1) = subplot(2, 3, [1 2]);
+axH(2) = subplot(2, 3, 3);
+axH(3) = subplot(2, 3, [4 5]);
+axH(4) = subplot(2, 3, 6);
+
+for i = 1:3
+    plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1{i}, 'Parent', axH(1));
+    hold(axH(1), 'on')
+end
+axH(1).XLim = fTime([1 end]);
+
+for i = 1:3
+    plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1{i}, 'Parent', axH(2));
+    hold(axH(2), 'on')
+end
+axH(2).XLim = [-10 50];
+
+for i = 4:6
+    plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1{i}, 'Parent', axH(3));
+    hold(axH(3), 'on')
+end
+axH(3).XLim = fTime([1 end]);
+
+for i = 4:6
+    plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1{i}, 'Parent', axH(4));
+    hold(axH(4), 'on')
+end
+axH(4).XLim = [-10 50];
+
+axH(1).YLabel.String = 'ground velocities (mm/s)';
+axH(3).YLabel.String = 'angular velocities (rad/s)';
+axH(3).XLabel.String = 'Time (s)';
+axH(4).XLabel.String = 'Time (s)';
+
+figformat = [1 0 0 0 0 0 0 0 1 0 1];
+fitsize = 0;
+axcolor = 'none';
+figcolor = 'none';
+xyzcolor = 'k';
+tickgate = 'on';
+fontsiz = 10;
+
+save_edit_fig_int(axH, figH, oDir, ...
+    [strrep(filename, '_metadata.mat', ''), ...
+    '_motvar_fictrac_temp'], figformat, ...
+    fitsize, axcolor, figcolor, xyzcolor, ...
+    tickgate, [], fontsiz)
+
+close(figH)
+
 end
 
 function plot_SVD_spatial_temporal(SVD_Dat, ...
     fTime, SVD_temp_res, filename, oDir, color_2)
+% plot_SVD_spatial_temporal: plot SVD components
+%
+% Usage:
+%   plot_SVD_spatial_temporal(SVD_Dat, ...
+%       fTime, SVD_temp_res, filename, oDir, color_2)
+%
+% Args:
+%   SVD_Dat: parameter variable from SVD analysis
+%   fTime: frame time (imaging resolution)
+%   SVD_temp_res: SVD variables resampled to fTime
+%   filename: filename
+%   oDir: outpud directory
+%   color_2: colormap
 
 np = [0 SVD_Dat.npix];
 np = cumsum(np);
@@ -362,7 +450,8 @@ tickgate = 'on';
 fontsiz = 10;
 
 save_edit_fig_int(axH([1 4 7:10]), figH, oDir, ...
-    [strrep(filename, '_metadata.mat', ''), '_motvar_SVD_temp_spa'], figformat, ...
+    [strrep(filename, '_metadata.mat', ''), ...
+    '_motvar_SVD_temp_spa'], figformat, ...
     fitsize, axcolor, figcolor, xyzcolor, ...
     tickgate, [], fontsiz)
 
@@ -370,8 +459,24 @@ close(figH)
 
 end
 
-function plot_trial_med(motor_per_trial, time_rel, ...
+function plot_trial_med(motor_per_trial, time_rel, stim_name, ...
     stim2plot, stim_idx, color_1, color_2, filename, oDir)
+% plot_trial_med: plot median of each motor variable across trials
+%
+% Usage:
+%   plot_trial_med(motor_per_trial, time_rel, ...
+%   	stim2plot, stim_idx, color_1, color_2, filename, oDir)
+%
+% Args:
+%   motor_per_trial: motor variable per trial
+%   time_rel: frame time (imaging resolution)
+%   stim_name: stimuli name
+%   stim2plot: stimuli to plot
+%   stim_idx: indeces of each stimuli
+%   color_1: colormap
+%   color_2: colormap
+%   filename: filename
+%   oDir: outpud directory
 
 figH = figure('Position', genfigpos(1, 'center', [400 900]));
 for i = 1:numel(stim2plot)
@@ -381,7 +486,7 @@ end
 for i = 1:numel(stim2plot)
     
     % normalize
-    motor_per_trial_mean = cf(@(x) x(:,stim_idx == stim2plot(i)), motor_per_trial);
+    motor_per_trial_mean = cf(@(x) x(:, stim_idx == stim2plot(i)), motor_per_trial);
     motor_per_trial_mean = cf(@(x, y) reshape(zscorebigmem(x(:)'), y), motor_per_trial_mean, ...
         cf(@(x) size(x), motor_per_trial_mean));
     motor_per_trial_mean = cell2mat(cf(@(x) median(x, 1), motor_per_trial_mean));
@@ -399,6 +504,8 @@ for i = 1:numel(stim2plot)
         plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
             'Color', color_1{j}, 'Parent', axH(i))
     end
+   
+    axH(i).Title.String = stim_name{stim2plot(i)};
     
 end
 
@@ -424,6 +531,19 @@ end
 
 function plot_croscorr(temp_, lag_t, ...
     color_1, color_2, filename, oDir)
+% plot_croscorr: plot autocorrelation across variables
+%
+% Usage:
+%   plot_croscorr(temp_, lag_t, ...
+%      color_1, color_2, filename, oDir)
+%
+% Args:
+%   temp_: motor variables
+%   lag_t: time lags to use for autocorrelation
+%   color_1: colormap
+%   color_2: colormap
+%   filename: filename
+%   oDir: outpud directory
 
 figH = figure('Position', genfigpos(1, 'center', [300 300]));
 axH(1) = subplot(1, 1, 1);
@@ -468,6 +588,23 @@ end
 
 function plot_hist(vel_bins, deg_bins, sd_bins, ...
     y_vel, y_deg, y_sd, color_1, color_2, filename, oDir)
+% plot_hist: plot histograms across variables
+%
+% Usage:
+%   plot_hist(vel_bins, deg_bins, sd_bins, ...
+%       y_vel, y_deg, y_sd, color_1, color_2, filename, oDir)
+%
+% Args:
+%   vel_bins: velocity bins (mm/s)
+%   deg_bins: angular bins (rads/s)
+%   sd_bins: SD bins
+%   y_vel: velocity histogram
+%   y_deg: angular histogram
+%   y_sd: SD histogram
+%   color_1: colormap
+%   color_2: colormap
+%   filename: filename
+%   oDir: outpud directory
 
 figH = figure('Position', genfigpos(1, 'center', [1200 300]));
 
@@ -508,8 +645,8 @@ legend(axH(1), linH_1, {'speed', 'fV', 'lV'})
 legend(axH(2), linH_2, {'yaw', 'pitch', 'roll'})
 legend(axH(3), linH_3, {'SVD-1', 'SVD-2', 'SVD-3', 'SVD-4'})
 
-axH(1).XLim = [-30 30];
-axH(2).XLim = [-10 10];
+axH(1).XLim = [-15 15];
+axH(2).XLim = [-4 4];
 axH(3).XLim = [-5 5];
 axH(1).XLabel.String = 'velocity mm/s';
 axH(2).XLabel.String = 'velocity rads/s';
@@ -517,6 +654,9 @@ axH(3).XLabel.String = 'SD';
 axH(1).YLabel.String = 'Probability';
 axH(2).YLabel.String = 'Probability';
 axH(3).YLabel.String = 'Probability';
+axH(1).Title.String = 'ground velocity';
+axH(2).Title.String = 'angular velocity';
+axH(3).Title.String = 'pixel SVDs';
 
 figformat = [1 0 0 0 0 0 0 0 1 0 1];
 fitsize = 0;

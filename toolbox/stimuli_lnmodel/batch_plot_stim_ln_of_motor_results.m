@@ -20,11 +20,9 @@ function batch_plot_stim_ln_of_motor_results(...
 %           (default, -1:0.01:1)
 %       (hbinsp: bins for histogram pvals)
 %           (default, 0:0.01:1)
-%       (fdr: bins for histogram)
-%           (default, .01)
-%       (mccor_method: multiple comparison 
-%           correction to use: dep, pdep, bh)
-%           see calculate_pval.m
+%       (fdr: false discovery rate)
+%            (default, 0.01)
+%       (mccor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
@@ -46,14 +44,14 @@ if ~exist('Filename', 'var')
 end
 
 if ~exist('oDir', 'var') || isempty(oDir)
-    oDir = [pwd, filesep, 'smod_motvar'];
+    oDir = [pwd, filesep, 'sti_ln_mot'];
 end
 
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 motpar = loparam_updater(motpar, iparams);
 
-if ~isempty(oDir) && exist('oDir', 'var')
+if ~exist(oDir, 'dir')
     mkdir(oDir)
 end
 
@@ -120,7 +118,7 @@ function plotperfly(filename, iDir, oDir, motpar)
 %   motpar: parameter variable
 
 load([iDir, filesep, filename, motpar.fmetsuffix], ...
-    'wDat', 'sMod_motvar')
+    'wDat', 'sti_ln_mot')
 
 % 1) ************ correlation related ************
 % ************************************************
@@ -128,21 +126,21 @@ load([iDir, filesep, filename, motpar.fmetsuffix], ...
 % correct correlation coefficients and generate pvalues
 
 % load null explained variance distribution eVar
-if isfield(sMod_motvar, 'eVar_cs')
-    eVar_shuffle = sMod_motvar.eVar_cs;
+if isfield(sti_ln_mot, 'eVar_cs')
+    eVar_shuffle = sti_ln_mot.eVar_cs;
 end
 
-if isfield(sMod_motvar, 'eVar_as')
-    eVar_shuffle = sMod_motvar.eVar_as;
+if isfield(sti_ln_mot, 'eVar_as')
+    eVar_shuffle = sti_ln_mot.eVar_as;
 end
 
-if isfield(sMod_motvar, 'eVar_afs')
-    eVar_shuffle = sMod_motvar.eVar_afs;
+if isfield(sti_ln_mot, 'eVar_afs')
+    eVar_shuffle = sti_ln_mot.eVar_afs;
 end
 
 % correct correlations
 [eVar_stat, eVar_raw, eVar_shuffle] = ...
-    correct_corrcoef(sMod_motvar.eVar, ...
+    correct_corrcoef(sti_ln_mot.eVar, ...
     eVar_shuffle, 1);
 
 % generate pvalues
@@ -200,25 +198,25 @@ var2plot = find(pval_cor <= motpar.fdr);
 if ~isempty(var2plot)
     
     plot_traces_of_modulated_vars(var2plot, ...
-        wDat, sMod_motvar, filename, oDir)
+        wDat, sti_ln_mot, filename, oDir)
     
 end
 
 end
 
 function plot_traces_of_modulated_vars(var2plot, ...
-    wDat, sMod_motvar, filename, oDir)
+    wDat, sti_ln_mot, filename, oDir)
 % plot_traces_of_modulated_vars: plot traces of raw and predicted motor
 %   variables
 %
 % Usage:
 %   plot_traces_of_modulated_vars(var2plot, ...
-%      wDat, sMod_motvar, oDir)
+%      wDat, sti_ln_mot, oDir)
 %
 % Args:
 %   var2plot: indeces of motor variables that are significantly modulated
 %   wDat: metadata structure
-%   sMod_motvar: motor modulation structure
+%   sti_ln_mot: motor modulation structure
 %   oDir: output directory
 
 oDir_ = [oDir, filesep, filename,  'stim_mod'];
@@ -232,14 +230,17 @@ tickgate = 'on';
 fontsiz = 10;
 figformat = [1 0 0 0 0 0 0 0 1 0 1];
 
+Y_pred = get_predicted_signal(sti_ln_mot.train_idx, ...
+    sti_ln_mot.lFilter, sti_ln_mot.stimM);
+
 for i = 1:numel(var2plot)
     figH = figure('Position', genfigpos(1, 'center', [1000 300])); 
     axH(1) = subplot(1, 1, 1);
 
-    plot(wDat.fTime, zscorebigmem(sMod_motvar.Y(var2plot(i), :)), ...
+    plot(wDat.fTime, zscorebigmem(sti_ln_mot.Y(var2plot(i), :)), ...
         'k', 'Linewidth', 2, 'Parent', axH(1));
     hold(axH(1), 'on')
-    plot(wDat.fTime, sMod_motvar.Y_pred(var2plot(i), :), ...
+    plot(wDat.fTime, Y_pred(var2plot(i), :), ...
         'r', 'Linewidth', 2, 'Parent', axH(1));
 
     axH(1).XLim = wDat.fTime([1 end]);
@@ -337,7 +338,7 @@ axH(1).Title.String = 'CC Shuffle data';
 axH(2).Title.String = 'CC Raw data';
 axH(1).YLabel.String = 'ROI number';
 axH(2).YLabel.String = 'ROI number'; 
-axH(2).XLabel.String = 'R^2';
+axH(2).XLabel.String = 'explained variance';
 axH(1).XLim = [0 0.02];
 axH(2).XLim = [0 0.02];
 
@@ -373,7 +374,7 @@ lineH(2) = plot(motpar.hbins, corrcoef_hist_all, ...
     'Linewidth', 2, 'Parent', axH(4));
 
 axH(4).Title.String = 'shuffle vs raw';
-axH(4).XLabel.String = 'R^2'; 
+axH(4).XLabel.String = 'explained variance'; 
 axH(4).YLabel.String = 'Probability'; 
 axH(4).XLim = [0 0.02];
 
@@ -433,7 +434,7 @@ axH(7).Title.String = ['pvalue vs cc (', ...
     num2str(sum(pval_raw <= motpar.fdr)*100/roi_n), ') (#, %)'];
 axH(7).XLim = [0 0.05];
 axH(7).XLabel.String = 'pvalue';
-axH(7).YLabel.String = 'R^2';
+axH(7).YLabel.String = 'explained variance';
 line(.01*ones(1, 2), ylim(axH(7)), 'color', 'r', 'Parent', axH(7))
 
 axH(8).Title.String = ['pvalue-cor vs cc (', ...
@@ -441,7 +442,7 @@ axH(8).Title.String = ['pvalue-cor vs cc (', ...
     num2str(sum(pval_cor <= motpar.fdr)*100/roi_n), ') (#, %)'];
 axH(8).XLim = [0 0.05];
 axH(8).XLabel.String = 'pvalue';
-axH(8).YLabel.String = 'R^2';
+axH(8).YLabel.String = 'explained variance';
 line(.01*ones(1, 2), ylim(axH(8)), 'color', 'r', 'Parent', axH(8))
 
 fitsize = 0;

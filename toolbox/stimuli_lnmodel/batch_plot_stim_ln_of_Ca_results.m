@@ -34,20 +34,21 @@ function batch_plot_stim_ln_of_Ca_results(...
 %           (default, 0)
 %
 % Notes:
-%
-% ToDo:
-%   add legends to pull plots and stitch ones
 
 % default params
-motpar = [];
-motpar.fsuffix = '_prosroi.mat';
-motpar.fmetsuffix = '_prosmetadata.mat';
-motpar.hbins = -1:0.01:1;
-motpar.hbinsp = 0:0.01:1.1;
-motpar.prct2use = 30;
-motpar.fdr = 0.01;
-motpar.mccor_method = 'dep';
-motpar.dir_depth = 0;
+plotpars = [];
+plotpars.fsuffix = '_prosroi.mat';
+plotpars.fmetsuffix = '_prosmetadata.mat';
+plotpars.hbins = -1:0.01:1;
+plotpars.hbinsp = 0:0.01:1.1;
+plotpars.prct2use = 30;
+plotpars.fdr = 0.01;
+plotpars.mccor_method = 'dep';
+plotpars.dir_depth = 0;
+plotpars.var2load = 'sMod';
+plotpars.coeffname = 'pearson correlation';
+plotpars.coeffrange_im = {[0 .12], [0 .4]};
+plotpars.coeffths = 0.1;
 
 if ~exist('Filename', 'var')
     Filename = [];
@@ -59,23 +60,23 @@ end
 
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
-motpar = loparam_updater(motpar, iparams);
+plotpars = loparam_updater(plotpars, iparams);
 
-if ~isempty(oDir) && exist('oDir', 'var')
-    mkdir(oDir)
+if ~exist(oDir, 'dir')
+   mkdir(oDir)
 end
 
 % define files to use
-if motpar.dir_depth == 0
+if plotpars.dir_depth == 0
     f2run = rdir(['.', filesep, '*', ...
-        motpar.fsuffix]);
-elseif motpar.dir_depth == 1
+        plotpars.fsuffix]);
+elseif plotpars.dir_depth == 1
     f2run = rdir(['.', filesep, '*', ...
-        filesep, '*', motpar.fsuffix]);
+        filesep, '*', plotpars.fsuffix]);
 else
     f2run = rdir(['.', filesep, '*', ...
         filesep, '*', filesep, '*', ...
-        motpar.fsuffix]);
+        plotpars.fsuffix]);
 end
 
 f2run = {f2run.name}';
@@ -93,7 +94,7 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-filename = strrep(filename, motpar.fsuffix, '');
+filename = strrep(filename, plotpars.fsuffix, '');
 
 fprintf(['Generating plots for ', ...
     num2str(numel(filename)), ' files\n'])
@@ -102,7 +103,7 @@ fprintf(['Generating plots for ', ...
 for i = 1:numel(filename)
 
     try
-        plotperfly(filename{i}, iDir{i}, oDir, motpar);
+        plotperfly(filename{i}, iDir{i}, oDir, plotpars);
     catch
         fprintf('/n ****************************************** /n')
         fprintf(['Failed file: ', filename{i}, '/n'])
@@ -115,7 +116,7 @@ fprintf('... Done\n')
 
 end
 
-function plotperfly(filename, iDir, oDir, motpar)
+function plotperfly(filename, iDir, oDir, plotpars)
 % plotperfly: plot results per file
 %
 % Usage:
@@ -125,12 +126,14 @@ function plotperfly(filename, iDir, oDir, motpar)
 %   filename: file name to load
 %   iDir: directory of filename
 %   oDir: output directory
-%   motpar: parameter variable
+%   plotpars: internal plotting variable
 
-load([iDir, filesep, filename, motpar.fsuffix], ...
-    'sMod', 'roi')
-load([iDir, filesep, filename, motpar.fmetsuffix], ...
+load([iDir, filesep, filename, plotpars.fsuffix], ...
+    plotpars.var2load, 'roi')
+load([iDir, filesep, filename, plotpars.fmetsuffix], ...
     'wDat')
+
+eval(['ln_var = ', plotpars.var2load, ';'])
 
 % 1) ************ correlation related ************
 % ************************************************
@@ -138,47 +141,35 @@ load([iDir, filesep, filename, motpar.fmetsuffix], ...
 % correct correlation coefficients and generate pvalues
 
 % load null
-if isfield(sMod, 'CC_cs')
-    corrcoef_shuffle = sMod.CC_cs;
+if isfield(ln_var, 'CC_cs')
+    corrcoef_shuffle = ln_var.CC_cs;
 end
 
-if isfield(sMod, 'CC_as')
-    corrcoef_shuffle = sMod.CC_as;
+if isfield(ln_var, 'CC_as')
+    corrcoef_shuffle = ln_var.CC_as;
 end
 
-if isfield(sMod, 'CC_afs')
-    corrcoef_shuffle = sMod.CC_afs;
+if isfield(ln_var, 'CC_afs')
+    corrcoef_shuffle = ln_var.CC_afs;
 end
 
 % correct correlations
 [corrcoef_stat, corrcoef_raw, corrcoef_shuffle] = ...
-    correct_corrcoef(sMod.CC_raw, ...
-    corrcoef_shuffle, motpar.prct2use);
+    correct_corrcoef(ln_var.CC_raw, ...
+    corrcoef_shuffle, plotpars.prct2use);
 
-% generate pvalues
-[pval_raw, pvalc_dep, pvalc_pdep, ...
-    pvalc_bh, ~] = calculate_pval(...
-    corrcoef_stat, corrcoef_raw, corrcoef_shuffle, ...
-    motpar.fdr, [1 1 1 0]);
+pval_raw = calculate_pval_2(corrcoef_stat, ...
+    corrcoef_shuffle, plotpars.fdr, 'raw');
+pval_cor = calculate_pval_2(corrcoef_stat, ...
+    corrcoef_shuffle, plotpars.fdr, plotpars.mccor_method);
 
-% find stimuli modulated ROIs
-pval_cor = [];
-if strcmp(motpar.mccor_method, 'pdep')
-    pval_cor = pvalc_pdep;
-elseif strcmp(motpar.mccor_method, 'dep')
-    pval_cor = pvalc_dep;
-elseif strcmp(motpar.mccor_method, 'bh')
-    pval_cor = pvalc_bh;                    
-elseif strcmp(motpar.mccor_method, 'raw')
-    pval_cor = pval_raw;
-end
-selIdx = pval_cor <= motpar.fdr;
+selIdx = pval_cor <= plotpars.fdr;
 
 % get histogram of stim mod vs non-stim mod
 smod_hist = hist(flat_matrix(corrcoef_raw(selIdx, :)), ...
-    motpar.hbins);
+    plotpars.hbins);
 nsmod_hist = hist(flat_matrix(corrcoef_raw(~selIdx, :)), ...
-    motpar.hbins);
+    plotpars.hbins);
 smod_hist = bsxfun(@rdivide, ...
     smod_hist, sum(smod_hist, 2));
 nsmod_hist = bsxfun(@rdivide, ...
@@ -189,9 +180,9 @@ roi_n = size(corrcoef_raw, 1);
 for roi_i = 1:roi_n
     
     corrcoef_hist(roi_i, :) = ...
-        hist(corrcoef_raw(roi_i, :), motpar.hbins);
+        hist(corrcoef_raw(roi_i, :), plotpars.hbins);
     corrcoef_hist_null(roi_i, :) = ...
-        hist(corrcoef_shuffle(roi_i, :), motpar.hbins);
+        hist(corrcoef_shuffle(roi_i, :), plotpars.hbins);
     
 end
 fprintf('\n')
@@ -202,7 +193,7 @@ fprintf('Plotting CC and pval\n')
 plot_distribution_all(corrcoef_hist, ...
     corrcoef_hist_null, corrcoef_stat, ...
     smod_hist, nsmod_hist, pval_raw, ...
-    pval_cor, motpar, filename, oDir)
+    pval_cor, plotpars, filename, oDir)
 
 % 2) ************ correlation related ************
 % ************************************************
@@ -218,11 +209,11 @@ else
     CaRef = zeros(size(CaRaw));
 end
 
-temp_stim = zeros(length(sMod.stim), ...
-    size(sMod.stimM, 2));
-temp_stim(sMod.tidx2use, :) = sMod.stimM;
+temp_stim = zeros(length(ln_var.stim), ...
+    size(ln_var.stimM, 2));
+temp_stim(ln_var.tidx2use, :) = ln_var.stimM;
 CaPred = (zscorebigmem(temp_stim')'...
-    *squeeze(mean(sMod.lFilter(:, :, :), 2)))';
+    *squeeze(mean(ln_var.lFilter(:, :, :), 2)))';
 
 tRmode = 0;
 stim2use = [];
@@ -259,7 +250,8 @@ if sum(selIdx)
     plot_med_sig_per_smodroi(CaRef_zs_tl, ...
         CaRaw_zs_tl, corrcoef_stat(selIdx), ...
         time_tl, stim_vect, stim_idx, wDat, ...
-        motpar, filename, oDir)
+        plotpars, filename, oDir)
+    
 end
 
 % plot coverage videos
@@ -277,14 +269,14 @@ end
 function plot_distribution_all(corrcoef_hist, ...
     corrcoef_hist_null, corrcoef_stat, ...
     smod_hist, nsmod_hist, pval_raw, ...
-    pval_cor, motpar, filename, oDir)
+    pval_cor, plotpars, filename, oDir)
 % plot_distribution_all: distribution of stimuli correlations
 %
 % Usage:
 %   plot_distribution_all(corrcoef_hist, ...
 %      corrcoef_hist_null, corrcoef_stat, ...
 %      smod_hist, nsmod_hist, pval_raw, ...
-%      pval_cor, motpar, filename)
+%      pval_cor, plotpars, filename)
 %
 % Args:
 %   corrcoef_hist: distribution of correlation of raw data
@@ -294,7 +286,7 @@ function plot_distribution_all(corrcoef_hist, ...
 %   nsmod_hist: correlation of shuffle data
 %   pval_raw: pvalues
 %   pval_cor: corrected pvalues
-%   motpar: parameter variable
+%   plotpars: internal plotting variable
 %   filename: file name
 %   oDir: output directory
 
@@ -337,25 +329,25 @@ icolormap = [colorGradient([1 1 1], [1 0 1], 15); ...
 
 [~, idx_order] = sort(corrcoef_stat);
 
-imagesc(motpar.hbins, 1:roi_n, ...
+imagesc(plotpars.hbins, 1:roi_n, ...
     corrcoef_hist_null(idx_order, :), ...
     'Parent', axH(1))
 colormap(axH(1), icolormap)
-caxis(axH(1), [0 .12])
+caxis(axH(1), plotpars.coeffrange_im{1})
 
-imagesc(motpar.hbins, 1:roi_n, ...
+imagesc(plotpars.hbins, 1:roi_n, ...
     corrcoef_hist(idx_order, :), ...
     'Parent', axH(2))
 colormap(axH(2), icolormap)
-caxis(axH(2), [0 0.4])
+caxis(axH(2), plotpars.coeffrange_im{2})
 
 axH(1).YDir = 'normal';
 axH(2).YDir = 'normal';
-axH(1).Title.String = 'CC Shuffle data';
-axH(2).Title.String = 'CC Raw data';
+axH(1).Title.String = 'Shuffle data';
+axH(2).Title.String = 'Raw data';
 axH(1).YLabel.String = 'ROI number';
 axH(2).YLabel.String = 'ROI number'; 
-axH(2).XLabel.String = 'pearson correlation';
+axH(2).XLabel.String = plotpars.coeffname;
 
 cbH(1) = colorbar('peer', axH(1)); 
 cbH(1).Label.String = 'Probability'; 
@@ -366,10 +358,10 @@ cbH(2).Label.String = 'Probability';
 cbH(2).Label.FontSize = 10;
 
 % plot histogram smod vs ~smod
-lineH(1) = plot(motpar.hbins, smod_hist, ...
+lineH(1) = plot(plotpars.hbins, smod_hist, ...
     'k', 'Linewidth', 2, 'Parent', axH(3));
 hold(axH(3), 'on')
-lineH(2) = plot(motpar.hbins, nsmod_hist, ...
+lineH(2) = plot(plotpars.hbins, nsmod_hist, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(3));
 
@@ -380,42 +372,42 @@ legend(axH(3), lineH, {'smod', '~smod'}, ...
     'location', 'northwest')
 
 % plot histogram shuffle vs raw
-lineH(1) = plot(motpar.hbins, corrcoef_hist_null_all, ...
+lineH(1) = plot(plotpars.hbins, corrcoef_hist_null_all, ...
     'k', 'Linewidth', 2, 'Parent', axH(4));
 hold(axH(4), 'on')
-lineH(2) = plot(motpar.hbins, corrcoef_hist_all, ...
+lineH(2) = plot(plotpars.hbins, corrcoef_hist_all, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(4));
 
 axH(4).Title.String = 'shuffle vs raw';
-axH(4).XLabel.String = 'pearson correlation'; 
+axH(4).XLabel.String = plotpars.coeffname; 
 axH(4).YLabel.String = 'Probability'; 
 
 legend(axH(4), lineH, {'shuffle', 'raw'}, ...
     'location', 'northwest')
 
 % plot histogram shuffle vs raw
-pval_raw_hist = hist(pval_raw, motpar.hbinsp);
-pval_cor_hist = hist(pval_cor, motpar.hbinsp);
+pval_raw_hist = hist(pval_raw, plotpars.hbinsp);
+pval_cor_hist = hist(pval_cor, plotpars.hbinsp);
 pval_raw_hist = bsxfun(@rdivide, ...
     pval_raw_hist, sum(pval_raw_hist, 2));
 pval_cor_hist = bsxfun(@rdivide, ...
     pval_cor_hist, sum(pval_cor_hist, 2));
 
-lineH(1) = plot(motpar.hbinsp, pval_raw_hist, ...
+lineH(1) = plot(plotpars.hbinsp, pval_raw_hist, ...
     'k', 'Linewidth', 2, 'Parent', axH(5));
 hold(axH(5), 'on')
-lineH(2) = plot(motpar.hbinsp, pval_cor_hist, ...
+lineH(2) = plot(plotpars.hbinsp, pval_cor_hist, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(5));
 
 legend(axH(5), lineH, {'pval', 'corpval'}, ...
     'location', 'northeast')
 
-plot(motpar.hbinsp, pval_raw_hist, ...
+plot(plotpars.hbinsp, pval_raw_hist, ...
     'k', 'Linewidth', 2, 'Parent', axH(6));
 hold(axH(6), 'on')
-plot(motpar.hbinsp, pval_cor_hist, ...
+plot(plotpars.hbinsp, pval_cor_hist, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(6));
 
@@ -435,27 +427,27 @@ legend(axH(6), lineH, {'pval', 'corpval'}, ...
 plot(pval_raw, corrcoef_stat, ...
     '.k', 'MarkerSize', 20, 'Parent', axH(7));
 hold(axH(7), 'on')
-plot(pval_raw(pval_cor <= motpar.fdr), ...
-    corrcoef_stat(pval_cor <= motpar.fdr), ...
+plot(pval_raw(pval_cor <= plotpars.fdr), ...
+    corrcoef_stat(pval_cor <= plotpars.fdr), ...
     '.c', 'MarkerSize', 20, 'Parent', axH(7));
 
 plot(pval_cor, corrcoef_stat, ...
     '.k', 'MarkerSize', 20, 'Parent', axH(8));
 
 axH(7).Title.String = ['pvalue vs cc (', ...
-    num2str(sum(pval_raw <= motpar.fdr)), ', ', ...
-    num2str(sum(pval_raw <= motpar.fdr)*100/roi_n), ')'];
+    num2str(sum(pval_raw <= plotpars.fdr)), ', ', ...
+    num2str(sum(pval_raw <= plotpars.fdr)*100/roi_n), ')'];
 axH(7).XLim = [0 0.05];
 axH(7).XLabel.String = 'pvalue';
-axH(7).YLabel.String = 'pearson correlation';
+axH(7).YLabel.String = plotpars.coeffname;
 line(.01*ones(1, 2), ylim(axH(7)), 'color', 'r', 'Parent', axH(7))
 
 axH(8).Title.String = ['pvalue-cor vs cc (', ...
-    num2str(sum(pval_cor <= motpar.fdr)), ', ', ...
-    num2str(sum(pval_cor <= motpar.fdr)*100/roi_n), ')'];
+    num2str(sum(pval_cor <= plotpars.fdr)), ', ', ...
+    num2str(sum(pval_cor <= plotpars.fdr)*100/roi_n), ')'];
 axH(8).XLim = [0 0.05];
 axH(8).XLabel.String = 'pvalue';
-axH(8).YLabel.String = 'pearson correlation';
+axH(8).YLabel.String = plotpars.coeffname;
 line(.01*ones(1, 2), ylim(axH(8)), 'color', 'r', 'Parent', axH(8))
 
 fitsize = 0;
@@ -477,7 +469,7 @@ end
 
 function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
     CaRaw_zs_tl, corrcoef_stat, time_tl, stim_vect, ...
-    stim_idx, wDat, motpar, filename, oDir)
+    stim_idx, wDat, plotpars, filename, oDir)
 % plot_med_sig_per_smodroi: plot traces of smod rois
 %
 % Usage:
@@ -493,19 +485,39 @@ function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
 %   stim_vect: stimulus vector
 %   stim_idx: stimulus vector
 %   wDat: metadata parameter
-%   motpar: parameter variable
+%   plotpars: internal plotting variable
 %   filename: file name
 %   oDir: output directory
 
-[~, idx_order] = sort(corrcoef_stat);
 color_vect = cool(numel(unique(stim_idx)));
 
 figH = figure('Position', ...
     genfigpos(1, 'center', [1600 700])); 
-axH(1) = subplot(1, 3, 1);
-axH(2) = subplot(1, 3, 2);
+axH(1) = subplot(2, 3, 1);
+axH(2) = subplot(2, 3, 2);
+axH(3) = subplot(2, 3, 4);
+axH(4) = subplot(2, 3, 5);
 
-if numel(idx_order) > 1
+if size(CaRaw_zs_tl, 1) > 1
+    
+    low_idx = corrcoef_stat < plotpars.coeffths;
+    
+    if sum(low_idx)
+        axH(3) = subplot(2, 3, 4);
+        axH(4) = subplot(2, 3, 5);
+        
+        CaRaw_zs_tl_low = CaRaw_zs_tl(low_idx, :);
+        CaRaw_zs_tl = CaRaw_zs_tl(~low_idx, :);
+        
+        CaRef_zs_tl_low = CaRef_zs_tl(low_idx, :);
+        CaRef_zs_tl = CaRef_zs_tl(~low_idx, :);        
+        
+    end
+    
+    % sort traces by shape
+    clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl), ...
+        1, 'euclidean', 'ward', 3);
+    idx_order = clus.lorder;
     
     imagesc(time_tl, 1:numel(idx_order), ...
         CaRaw_zs_tl(idx_order, :), 'Parent', axH(1))
@@ -520,16 +532,43 @@ if numel(idx_order) > 1
     caxis(axH(2), [-1 1])
     
     axH(1).YLabel.String = 'ROI number';
+    axH(1).Title.String = 'ROI >= 0.2';
     axH(1).YDir = 'normal';
     axH(2).YDir = 'normal';
     
+    if sum(low_idx)
+       
+        clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl_low), ...
+            1, 'euclidean', 'ward', 3);
+        idx_order = clus.lorder;
+
+        imagesc(time_tl, 1:numel(idx_order), ...
+            CaRaw_zs_tl_low(idx_order, :), 'Parent', axH(3))
+        colormap(axH(3), 'parula')
+        hold(axH(3), 'on')
+        caxis(axH(3), [-1 1])
+
+        imagesc(time_tl, 1:numel(idx_order), ...
+            CaRef_zs_tl_low(idx_order, :), 'Parent', axH(4))
+        colormap(axH(4), 'parula')
+        hold(axH(4), 'on')
+        caxis(axH(4), [-1 1])
+
+        axH(3).YLabel.String = 'ROI number';
+        axH(3).Title.String = 'ROI < 0.2';
+        axH(3).YDir = 'normal';
+        axH(4).YDir = 'normal';
+        
+    end
+        
+    
 else
     
-    plot(time_tl, CaRaw_zs_tl(idx_order, :), ...
+    plot(time_tl, CaRaw_zs_tl, ...
         'Parent', axH(1))
     hold(axH(1), 'on')
 
-    plot(time_tl, CaRef_zs_tl(idx_order, :), ...
+    plot(time_tl, CaRef_zs_tl, ...
         'Parent', axH(2))
     hold(axH(2), 'on')
         
@@ -542,6 +581,7 @@ k = 1;
 for i = unique(stim_idx)
 
     try
+        
         sEtn = [find(stim_vect == i, 1, 'first') ...
             find(stim_vect == i, 1, 'last')];
         linH(k) = line(time_tl(sEtn([1 1])), ylim(axH(1)), ...
@@ -550,8 +590,19 @@ for i = unique(stim_idx)
         line(time_tl(sEtn([2 2])), ylim(axH(1)), ...
            'color', color_vect(i, :), 'linewidth', 2, ...
            'Parent', axH(1))
+       
+       if length(axH) > 2
+            linH(k) = line(time_tl(sEtn([1 1])), ylim(axH(3)), ...
+               'color', color_vect(i, :), 'linewidth', 2, ...
+               'Parent', axH(3));
+            line(time_tl(sEtn([2 2])), ylim(axH(3)), ...
+               'color', color_vect(i, :), 'linewidth', 2, ...
+               'Parent', axH(3)) 
+       end
+       
         legend_str{k} = strrep(wDat.sName{i}, '_', '-');
         k = k + 1;
+        
     end
     
 end
