@@ -18,13 +18,13 @@ function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %           (default, '_prosmetadata')
 %       (field2load: metadata variable 'wDat' or 'iDat')
 %           (default, 'wDat')
-%       (redo: redo even if sMod exis, redo raw, redo shuffle)
+%       (redo: redo even if sti_ln_ca exist, redo raw, redo shuffle)
 %           (default, [0 0 0])
 %       (varname: output variable name
-%           (default, 'sMod')
+%           (default, 'sti_ln_ca')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
-%       (filterlength: filter length in seconds)
-%           (default, 10)
+%       (filterlength_stim: filter length in seconds (internally calculated))
+%           (default, [])
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
 %           (default, [])
@@ -40,13 +40,17 @@ function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %           (default, 5)
 %       (per2use: percentage of trials to use for training [0-1])
 %           (default, 0.8)
-%       (type2run: type of shuffle to perform (as, af, cs)
-%           (as: Random Shuffle)
-%           (af: Amplitude Adjusted Fourier Transform)
-%           (cs: Random chunk Shuffle)
-%           (default, default [0 0 1])
 %       (btn: number of permutations)
 %           (default, 10^4)
+%       (btn: number of permutations)
+%           (default, 10^4)
+%       (pst_time: peri stimulus time to use to extract trial structure from whole trace (seconds))
+%           (default, [-10 10])
+%       %%%%%%%%%%%% significance related %%%%%%%%%%%%
+%       (fdr: false discovery rate)
+%            (default, 0.01)
+%       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
+%            (default, 'dep')
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
 %       (serId: server id)
 %           (default, 'int')
@@ -64,10 +68,6 @@ function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %   runRidgeOnly (ridge regression using empirical Bayes)
 % for info about surrogate data see https://en.wikipedia.org/wiki/Surrogate_data_testing
 % for info about crossvalidation see https://en.wikipedia.org/wiki/Cross-validation_(statistics)
-% 
-% 01/18/19:
-%   add option to define trial start and end (customtrial_init, and customtrial_end fields)
-%   add option to define trials to use (trials2use)
 %
 % To do:
 %   confirm it works with opto
@@ -78,34 +78,41 @@ pSM = [];
 pSM.cDir = pwd;
 pSM.fo2reject = {'.', '..', 'preprocessed', ...
     'BData', 'rawtiff', 'motcor', 'stitch', ...
-    'dfrel_vid', 'smod', 'roicov'}; 
+    'dfrel_vid', 'sti_ln_ca', 'sti_mot_ln_ca', ...
+    'sti_ln_mot', 'roicov'}; 
 pSM.fi2reject = {'Zstack'};
 pSM.fsuffix = '_prosroi'; 
 pSM.metsuffix = '_metadata';
 pSM.field2load = 'wDat'; 
 pSM.redo = [0 0 0];
-pSM.varname = 'sMod2';
-pSM.filterlength = [];
+pSM.varname = 'sti_ln_ca';
+pSM.filterlength_stim = [];
 pSM.customtrial_init = [];
 pSM.customtrial_end = [];
 pSM.stim2use = [];
 pSM.trials2use = [];
 pSM.minsize = 5;
 pSM.per2use = 0.8;
-pSM.type2run = [0 0 1];
 pSM.btn = 10^4;
+pSM.pst_time = [-10 10];
+pSM.fdr = 0.01;
+pSM.pval_cor_method = 'dep';
 pSM.serverid = 'int';
 pSM.corenum = 4;
 pSM.chunksiz = 80;
 pSM.febgate = 0;
 
-pSMplot = [];
-pSMplot.hbins = -1:0.01:1;
-pSMplot.hbinsp = 0:0.01:1.1;
-pSMplot.prct2use = 30;
-pSMplot.fdr = 0.01;
-pSMplot.mccor_method = 'dep';
-pSMplot.dir_depth = 1;
+pSM_plot = [];
+pSM_plot.hbins = 0:0.001:1;
+pSM_plot.hbinsp = 0:0.001:1.1;
+pSM_plot.prct2use = 30;
+pSM_plot.fdr = 0.01;
+pSM_plot.mccor_method = 'dep';
+pSM_plot.dir_depth = 1;
+pSM_plot.var2load = 'sti_ln_ca';
+pSM_plot.coeffname = 'explained variance';
+pSM_plot.coeffrange_im = {[0 .001], [0 .4]};
+pSM_plot.coeffths = 0.1;
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end
@@ -113,8 +120,8 @@ if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pSM = loparam_updater(pSM, iparams);
 
-pSMplot.fsuffix = [pSM.fsuffix, '.mat'];
-pSMplot.fmetsuffix = [pSM.metsuffix, '.mat'];
+pSM_plot.fsuffix = [pSM.fsuffix, '.mat'];
+pSM_plot.fmetsuffix = [pSM.metsuffix, '.mat'];
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSM.serverid, pSM.corenum);
@@ -132,12 +139,12 @@ for i = 1:numel(f2run)
     
     cd(f2run{i});
     
-    oDir = [pwd, filesep, 'smod'];
+    oDir = [pwd, filesep, 'sti_ln_ca'];
     
     runperfolder(FileName, pSM);
     cd(pSM.cDir);
     
-    batch_plot_stim_ln_of_Ca_results(f2run{i}, FileName, oDir, pSMplot)
+    batch_plot_stim_ln_of_Ca_results(f2run{i}, FileName, oDir, pSM_plot)
     
     fprintf('\n')
     
@@ -157,7 +164,7 @@ function runperfolder(FileName, pSM)
 %
 % Args:
 %   fname: file name pattern
-%   pSM: parameter variable
+%   pSM: internal variable
 
 % Files to load
 f2run = rdir(['.', filesep, '*', pSM.fsuffix, '*.mat']);
@@ -186,7 +193,7 @@ function getStimModulation(filename, pSM)
 %
 % Args:
 %   f2run: file name
-%   pSM: parameter variable
+%   pSM: internal variable
 
 t0 = stic;
 
@@ -212,7 +219,6 @@ dt = wDat.fTime(2) - wDat.fTime(1);
 
 % get number or ROIs
 [K, ~] = size(roi.filtered.dfof);
-
 fprintf(['ROIs to process: ', num2str(K), '\n'])
 
 % 3) Get number of stimuli presented
@@ -268,7 +274,7 @@ if isfield(wDat, 'trialsToUse') && ~isempty(wDat.trialsToUse) ...
 end
 
 % 5) generate filter length for stim (by default pre stimuli is 0)
-if isempty(pSM.filterlength)
+if isempty(pSM.filterlength_stim)
     
     % Automatically calculate the max lag based on 
     %   the length of the stimuli divided by the sampling rate
@@ -277,7 +283,7 @@ if isempty(pSM.filterlength)
     
 else
     
-    filterlength_tp = round(pSM.filterlength/dt);
+    filterlength_tp = round(pSM.filterlength_stim/dt);
     filterlength_tp = repmat(filterlength_tp, [stim_ntype, 1]);
     
 end
@@ -289,7 +295,7 @@ end
 
 % 7) Build matrix of stimuli used for model with all lags
 %   get a binary vector with stimuli presentation
-sMod.stim = getStimVect(wDat); 
+sti_ln_ca.stim = getStimVect(wDat); 
 
 % generate binary vectors for each stimulus to use pSM.stim2use
 if stim_ntype ~= 1
@@ -299,13 +305,13 @@ if stim_ntype ~= 1
         jj = jj + 1;
     end
 else
-    stim_m(1, :) = sMod.stim;
+    stim_m(1, :) = sti_ln_ca.stim;
 end
 
 % build stimuli matrix with different lags (to match filter length)
-[sMod.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
-% compile StimE_M: t x tau x type
-clear StimE_M stim_m jj i j
+[sti_ln_ca.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
+% ca.stimM: t x tau x type
+clear  stim_m jj i j
 
 display(['Stimuli to use: ', num2str(pSM.stim2use)])
 display(['Variable name to use: ', num2str(pSM.varname)])
@@ -321,27 +327,27 @@ if exist('stim_count', 'var')
     min_ntrial = min(stim_count(pSM.stim2use));
     ntrial_train = floor(min_ntrial*pSM.per2use);
     
-    % update sMod.tidx2use
+    % update sti_ln_ca.tidx2use
     idx2change = unique(stim_trial_idx, 'stable');
     idx2change(idx2change == 0) = [];
     stim_trial_idx_b = changem(stim_trial_idx, ...
         1:numel(idx2change), idx2change);
     
-    sMod.tidx2use = find(stim_trial_idx ~= 0 & ...
+    sti_ln_ca.tidx2use = find(stim_trial_idx ~= 0 & ...
         stim_trial_idx_b <= min_ntrial);
     clear min_ntrial stim_count
     clear stim_trial_idx_b idx2change
     
 else
     
-    sMod.tidx2use = find(stim_trial_idx ~= 0);
+    sti_ln_ca.tidx2use = find(stim_trial_idx ~= 0);
     ntrial_train = floor((size(wDat.sTime, 1)/stim_ntype)*pSM.per2use);
     
 end
 
 % prune un-used stims
-stim_trial_idx = stim_trial_idx(sMod.tidx2use);
-sMod.stimM = sMod.stimM(sMod.tidx2use, :);
+stim_trial_idx = stim_trial_idx(sti_ln_ca.tidx2use);
+sti_ln_ca.stimM = sti_ln_ca.stimM(sti_ln_ca.tidx2use, :);
 
 % 9) define trials for training and testing
 %   build matrix with indexes of timepoints used
@@ -364,16 +370,13 @@ clear trial_comb test_comb ...
 %   number of splits base on the trial length
 % transform minsize to timepoints
 chunk_minsize = pSM.minsize/dt;
-chunk_splitn = floor(numel(sMod.tidx2use)/chunk_minsize);
+chunk_splitn = floor(numel(sti_ln_ca.tidx2use)/chunk_minsize);
 
 clear stim_trial_idx
 
 % 11) Collect Ca trace and Stim
 % prune unused stims
-Ca_in = roi.filtered.dfof(:, sMod.tidx2use);
-
-stim_in = sMod.stimM; 
-stim_bin = sMod.stim(1, sMod.tidx2use);
+Ca_in = roi.filtered.dfof(:, sti_ln_ca.tidx2use);
 
 stocf(t0, 'Time consumed so far: ')
 
@@ -389,7 +392,7 @@ if sgate && ~pSM.redo(1)
 end
 
 % name of temporary file
-filename_temp = [strrep(filename, [pSM.metsuffix, '.mat'], ''), ...
+filename_temp = [strrep(filename, [pSM.fsuffix, '.mat'], ''), ...
     '_temp.mat'];
 tgate = exist(filename_temp, 'file');
 
@@ -397,15 +400,13 @@ if ~tgate || pSM.redo(2)
     
     % calculate filters and predicted traces for Ca
     [~, lFilter, Ca_pred] = ridgeregres_per_row_crossval(...
-        train_idx, Ca_in, stim_in, pSM.chunksiz, pSM.corenum, 'bayes');
-    
+        train_idx, Ca_in, sti_ln_ca.stimM, pSM.chunksiz, pSM.corenum, 'bayes');
     pcor_raw = diag(corr(zscorebigmem(Ca_in)', zscorebigmem(Ca_pred)')).^2;
-    
     save(filename_temp, 'pcor_raw', 'lFilter', 'Ca_pred', '-v7.3')
     
 else
     
-    load(filename_temp, 'pcor_raw', 'lFilter')
+    load(filename_temp, 'pcor_raw', 'lFilter', 'Ca_pred')
     
 end
 
@@ -413,8 +414,6 @@ stocf(t0, 'Time consumed so far: ')
 
 % 13) testing model significance
 % Run (cs) Random chunk Shuffle
-
-iFilter = squeeze(mean(lFilter, 2));
 
 fprintf('Running Phase # 3: Random shuffle in chunks\n')
 lgate = 1;
@@ -425,8 +424,10 @@ if tgate
 end
 
 add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
+fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (seconds) \n'])
+
 pcor_cs = get_explained_variance_shuffle(...
-    Ca_in, Ca_pred, lgate, stim_bin, ...
+    Ca_in, Ca_pred, lgate, sti_ln_ca.stim(1, sti_ln_ca.tidx2use), ...
     pSM.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSM.chunksiz, pSM.corenum, pSM.btn, 1, add_stim_lag);
@@ -435,20 +436,39 @@ save(filename_temp, 'pcor_cs', '-append')
     
 stocf(t0, 'Time consumed so far: ')
 
+% get p-values
+sti_ln_ca.pval = calculate_pval_2(pcor_raw, ...
+    pcor_cs, pSM.fdr, pSM.pval_cor_method);
+
+% 14) calculating ceiling of explained variance using mean-per-trial
+fprintf('Split trace into trials\n')
+wDat_edit = wDat;
+wDat_edit.fTime = wDat.fTime(sti_ln_ca.tidx2use);
+[roi_per_trial, ~, ~, ~, ~, ~, ~, ~, ~, ~] = trace2trials(wDat_edit, ...
+    zscorebigmem(Ca_in), pSM.pst_time, stim_all_idx, 1, []);
+stocf(t0, 'Time consumed so far: ')
+
+sti_ln_ca.eVar_mean = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+    roi_per_trial, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), roi_per_trial)));
+
+% 15) calculating ceiling of explained variance using median-per-trial
+sti_ln_ca.eVar_med = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+    roi_per_trial, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), roi_per_trial)));
+
 % delete temp file:
 delete(filename_temp)
 
-% 14) Save fields
-sMod.maxlag = filterlength_tp; 
-sMod.btn = pSM.btn; 
-sMod.stim2use = pSM.stim2use;
-sMod.CC_raw = pcor_raw; 
-sMod.lFilter = lFilter;
-sMod.CC_cs = pcor_cs;
-sMod.train_idx = train_idx;
+% 16) Save fields
+sti_ln_ca.maxlag = filterlength_tp; 
+sti_ln_ca.btn = pSM.btn; 
+sti_ln_ca.stim2use = pSM.stim2use;
+sti_ln_ca.CC_raw = pcor_raw; 
+sti_ln_ca.lFilter = lFilter;
+sti_ln_ca.CC_cs = pcor_cs;
+sti_ln_ca.train_idx = train_idx;
 
 % save variable with the custom name
-eval([pSM.varname, ' = sMod']);
+eval([pSM.varname, ' = sti_ln_ca']);
 save(filename, pSM.varname, '-append')
 
 end

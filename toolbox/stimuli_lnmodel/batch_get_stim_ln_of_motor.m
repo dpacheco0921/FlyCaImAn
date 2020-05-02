@@ -14,12 +14,12 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %       (fi2reject: files to reject)
 %       (metsuffix: suffix of files with wDat variable)
 %           (default, '_prosmetadata')
-%       (redo: redo even if sMod exis, redo raw, redo shuffle)
+%       (redo: redo even if sti_ln_mot exist, redo raw, redo shuffle)
 %           (default, [0 0 0])
 %       (varname: output variable name
-%           (default, 'sMod')
+%           (default, 'sti_ln_mot')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
-%       (filterlength: filter length in seconds)
+%       (filterlength_stim: filter length in seconds)
 %           (default, 10)
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
@@ -54,6 +54,13 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %           (default, 80)
 %       (febgate: gate to generate filter error bounds)
 %           (default, 0)
+%       (pst_time: peri stimulus time to use to extract trial structure from whole trace (seconds))
+%           (default, [-10 10])
+%       %%%%%%%%%%%% significance related %%%%%%%%%%%%
+%       (fdr: false discovery rate)
+%            (default, 0.01)
+%       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
+%            (default, 'dep')
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
 %       (ball_radious: depth of directory search)
 %           (default, 0)
@@ -61,7 +68,7 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %       (siz: size of kernel  to smooth motor variable)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
 %       (oDir: output directory to save summary results)
-%           (default, [pwd, filesep, 'sMod_motvar'])
+%           (default, [pwd, filesep, 'sti_ln_mot'])
 %
 % Notes:
 % for info about regression algorithm see:
@@ -74,11 +81,12 @@ pSMMot = [];
 pSMMot.cDir = pwd;
 pSMMot.fo2reject = {'.', '..', 'preprocessed', ...
     'BData', 'rawtiff', 'motcor', 'stitch', ...
-    'dfrel_vid', 'smod', 'roicov'}; 
+    'dfrel_vid', 'sti_ln_ca', 'sti_mot_ln_ca', ...
+    'sti_ln_mot', 'roicov'};
 pSMMot.fi2reject = {'Zstack'};
 pSMMot.metsuffix = '_metadata';
 pSMMot.redo = [0 0 0];
-pSMMot.varname = 'sMod_motvar';
+pSMMot.varname = 'sti_ln_mot';
 pSMMot.filterlength_stim = [];
 pSMMot.customtrial_init = [];
 pSMMot.customtrial_end = [];
@@ -89,6 +97,9 @@ pSMMot.minsize = 5;
 pSMMot.per2use = 0.8;
 pSMMot.type2run = [0 0 1];
 pSMMot.btn = 10^4;
+pSMMot.pst_time = [-10 10];
+pSMMot.fdr = 0.01;
+pSMMot.pval_cor_method = 'dep';
 pSMMot.serverid = 'int';
 pSMMot.corenum = 4;
 pSMMot.chunksiz = 80;
@@ -97,13 +108,13 @@ pSMMot.ball_radious = 9;
 pSMMot.sig = 3;
 pSMMot.siz = 10;
 
-pSMplot = [];
-pSMplot.hbins = 0:0.001:1;
-pSMplot.hbinsp = 0:0.001:1.1;
-pSMplot.prct2use = 30;
-pSMplot.fdr = 0.01;
-pSMplot.mccor_method = 'dep';
-pSMplot.dir_depth = 1;
+pSMM_plot = [];
+pSMM_plot.hbins = 0:0.001:1;
+pSMM_plot.hbinsp = 0:0.001:1.1;
+pSMM_plot.prct2use = 30;
+pSMM_plot.fdr = 0.01;
+pSMM_plot.mccor_method = 'dep';
+pSMM_plot.dir_depth = 1;
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end
@@ -111,7 +122,7 @@ if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('iparams', 'var'); iparams = []; end
 pSMMot = loparam_updater(pSMMot, iparams);
 
-pSMplot.fmetsuffix = [pSMMot.metsuffix, '.mat'];
+pSMM_plot.fmetsuffix = [pSMMot.metsuffix, '.mat'];
 
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSMMot.serverid, pSMMot.corenum);
@@ -129,13 +140,13 @@ for i = 1:numel(f2run)
     
     cd(f2run{i});
     
-    oDir = [pwd, filesep, 'smod_motvar'];
+    oDir = [pwd, filesep, 'sti_ln_mot'];
     
     runperfolder(FileName, pSMMot);
     
     cd(pSMMot.cDir);
     
-    batch_plot_stim_ln_motor_results(FolderName, FileName, oDir, pSMplot)
+    batch_plot_stim_ln_of_motor_results(FolderName, FileName, oDir, pSMM_plot)
     
     fprintf('\n')
     
@@ -155,7 +166,7 @@ function runperfolder(FileName, pSMMot)
 %
 % Args:
 %   fname: file name pattern
-%   pSMMot: parameter variable
+%   pSMMot: internal variable
 
 % Files to load
 f2run = rdir(['.', filesep, '*', pSMMot.metsuffix, '*.mat']);
@@ -188,7 +199,7 @@ function gen_ln_model(filename, pSMMot)
 %
 % Args:
 %   f2run: file name
-%   pSMMot: parameter variable
+%   pSMMot: internal variable
 
 t0 = stic;
 
@@ -280,7 +291,7 @@ end
 
 % 8) Build matrix of stimuli used for model with all lags
 %   get a binary vector with stimuli presentation
-sMod.stim = getStimVect(wDat); 
+sti_ln_mot.stim = getStimVect(wDat); 
 
 % generate binary vectors for each stimulus to use pSLM.stim2use
 if stim_ntype ~= 1
@@ -290,12 +301,12 @@ if stim_ntype ~= 1
         jj = jj + 1;
     end
 else
-    stim_m(1, :) = sMod.stim;
+    stim_m(1, :) = sti_ln_mot.stim;
 end
 
 % build stimuli matrix with different lags (to match filter length)
-[sMod.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
-% compile sMod.stimM: t x tau x type
+[sti_ln_mot.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
+% compile sti_ln_mot.stimM: t x tau x type
 clear stim_m jj i j
 
 display(['Stimuli to use: ', num2str(pSMMot.stim2use)])
@@ -312,27 +323,27 @@ if exist('stim_count', 'var')
     min_ntrial = min(stim_count(pSMMot.stim2use));
     ntrial_train = floor(min_ntrial*pSMMot.per2use);
     
-    % update sMod.tidx2use
+    % update sti_ln_mot.tidx2use
     idx2change = unique(stim_trial_idx, 'stable');
     idx2change(idx2change == 0) = [];
     stim_trial_idx_b = changem(stim_trial_idx, ...
         1:numel(idx2change), idx2change);
     
-    sMod.tidx2use = find(stim_trial_idx ~= 0 & ...
+    sti_ln_mot.tidx2use = find(stim_trial_idx ~= 0 & ...
         stim_trial_idx_b <= min_ntrial);
     clear min_ntrial stim_count
     clear stim_trial_idx_b idx2change
     
 else
     
-    sMod.tidx2use = find(stim_trial_idx ~= 0);
+    sti_ln_mot.tidx2use = find(stim_trial_idx ~= 0);
     ntrial_train = floor((size(wDat.sTime, 1)/stim_ntype)*pSMMot.per2use);
     
 end
 
 % prune un-used stims
-stim_trial_idx = stim_trial_idx(sMod.tidx2use);
-sMod.stimM = sMod.stimM(sMod.tidx2use, :);
+stim_trial_idx = stim_trial_idx(sti_ln_mot.tidx2use);
+sti_ln_mot.stimM = sti_ln_mot.stimM(sti_ln_mot.tidx2use, :);
 
 % 10) define trials for training and testing
 %   build matrix with indexes of timepoints used
@@ -355,17 +366,12 @@ clear trial_comb test_comb ...
 %   number of splits base on the trial length
 %   transform minsize to timepoints
 chunk_minsize = pSMMot.minsize/dt;
-chunk_splitn = floor(numel(sMod.tidx2use)/chunk_minsize);
+chunk_splitn = floor(numel(sti_ln_mot.tidx2use)/chunk_minsize);
 
 clear stim_trial_idx
 
 % 12) Collect variables to use
-motvar_in = motor_all(:, sMod.tidx2use);
-
-stim_in = sMod.stimM; 
-stimSiz = size(stim_in, 2);
-stim_bin = sMod.stim(1, sMod.tidx2use);
-
+motvar_in = motor_all(:, sti_ln_mot.tidx2use);
 stocf(t0, 'Time consumed so far: ')
 
 % 13) using LN model to fit motor variables
@@ -388,7 +394,7 @@ if ~tgate || pSMMot.redo(2)
     
     % calculate filters and predicted traces for motor
     [~, lFilter, motvar_pred] = ridgeregres_per_row_crossval(...
-        train_idx, motvar_in, stim_in, pSMMot.chunksiz, pSMMot.corenum, 'bayes');
+        train_idx, motvar_in, sti_ln_mot.stimM, pSMMot.chunksiz, pSMMot.corenum, 'bayes');
     
     eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)')).^2;
     
@@ -413,7 +419,8 @@ if tgate
 end
 
 eVar_cs = get_explained_variance_shuffle(...
-    motvar_in, motvar_pred, lgate, stim_bin, ...
+    motvar_in, motvar_pred, lgate, ...
+    sti_ln_mot.stim(1, sti_ln_mot.tidx2use), ...
     pSMMot.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSMMot.chunksiz, pSMMot.corenum, pSMMot.btn, 1);
@@ -422,24 +429,42 @@ save(filename_temp, 'eVar_cs', '-append')
     
 stocf(t0, 'Time consumed so far: ')
 
+% get p-values
+sti_ln_mot.pval = calculate_pval_2(eVar, ...
+    eVar_cs, pSMMot.fdr, pSMMot.pval_cor_method);
+
+% 15) calculating ceiling of explained variance using mean-per-trial
+fprintf('Split trace into trials\n')
+wDat_edit = wDat;
+wDat_edit.fTime = wDat.fTime(sti_ln_mot.tidx2use);
+[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, ~, ~] = trace2trials(wDat_edit, ...
+    zscorebigmem(motvar_in), pSMMot.pst_time, stim_all_idx, 1, []);
+stocf(t0, 'Time consumed so far: ')
+
+sti_ln_mot.eVar_mean = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+    motvar_per_trial, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+
+% 16) calculating ceiling of explained variance using median-per-trial
+sti_ln_mot.eVar_med = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+    motvar_per_trial, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+
 % delete temp file:
 delete(filename_temp)
 
-% 15) Save fields
+% 17) Save fields
 
 % always updates this fields
-sMod.maxlag = filterlength_tp; 
-sMod.btn = pSMMot.btn; 
-sMod.stim2use = pSMMot.stim2use;
-sMod.eVar = eVar; 
-sMod.lFilter = lFilter;
-sMod.eVar_cs = eVar_cs;
-sMod.Y = motvar_in;
-sMod.Y_pred = motvar_pred;
-sMod.train_idx = train_idx;
+sti_ln_mot.maxlag = filterlength_tp; 
+sti_ln_mot.btn = pSMMot.btn; 
+sti_ln_mot.stim2use = pSMMot.stim2use;
+sti_ln_mot.eVar = eVar; 
+sti_ln_mot.lFilter = lFilter;
+sti_ln_mot.eVar_cs = eVar_cs;
+sti_ln_mot.Y = motvar_in;
+sti_ln_mot.train_idx = train_idx;
 
 % save variable with the custom name
-eval([pSMMot.varname, ' = sMod']);
+eval([pSMMot.varname, ' = sti_ln_mot']);
 save(filename, pSMMot.varname, '-append')
 
 end

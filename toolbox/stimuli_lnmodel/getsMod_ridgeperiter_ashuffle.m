@@ -5,7 +5,7 @@ function [LN_pcor, LN_filter_mean, ...
     rperm_tIdx, ifilter, filterebound)
 % getsMod_ridgeperiter_ashuffle: Run Ridge regression to 
 %   all *rperm_tIdx* shuffled combinations 
-%   (this could be random or chunk, depends on how rperm_tIdx is generated)
+%   (this could be random or chunk-random, depends on how rperm_tIdx is generated)
 %
 % Usage:
 %   [LN_pcor, LN_filter_mean, ...
@@ -67,7 +67,7 @@ LN_filter_shuffle = zeros(stimSiz, perm_n);
 % estimate filters and calculate LN_pcor of shuffle to input filter
 for i = 1:perm_n
     
-    % get filter
+    % get estimated filter from shuffle data
     if filterebound
         LN_filter_shuffle(:, i) = ...
             runRidgeOnly(zs_stim_train, ...

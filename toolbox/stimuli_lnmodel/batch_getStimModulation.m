@@ -22,7 +22,7 @@ function batch_getStimModulation(FolderName, FileName, iparams)
 %       (varname: output variable name
 %           (default, 'sMod')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
-%       (filterlength: filter length in seconds)
+%       (filterlength_stim: filter length in seconds)
 %           (default, 10)
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
@@ -80,7 +80,7 @@ pSM.metsuffix = '_prosmetadata';
 pSM.field2load = 'wDat'; 
 pSM.redo = [0 0 0];
 pSM.varname = 'sMod';
-pSM.filterlength = 10;
+pSM.filterlength_stim = [0 10];
 pSM.customtrial_init = [];
 pSM.customtrial_end = [];
 pSM.stim2use = [];
@@ -181,9 +181,7 @@ function getStimModulation(filename, pSM)
 %
 % Args:
 %   f2run: file name
-%   pSM: parameter variable
-
-global pSM
+%   pSM: internal variable
 
 t0 = stic;
 
@@ -203,30 +201,15 @@ if exist('iDat', 'var')
     
 end
 
-% 2) convert filterlenght from seconds to timepoints
+% 2) get dt in seconds
 
 dt = wDat.fTime(2) - wDat.fTime(1);
 
-if isempty(pSM.filterlength)
-    
-    % Automatically calculate the max lag based on 
-    %   the length of the stimuli divided by the sampling rate
-    filterlength_tp = round(round(wDat.sTime(1, 2) ...
-        - wDat.sTime(1, 1))/dt);
-    
-else
-    
-    filterlength_tp = round(pSM.filterlength/dt);
-    
-end
-
-sMod.stim = getStimVect(wDat); 
+% get number or ROIs
 [K, ~] = size(roi.filtered.dfof);
-
 fprintf(['ROIs to process: ', num2str(K), '\n'])
 
 % 3) Get number of stimuli presented
-
 stim_ntype = 1;
 
 if ~contains(wDat.datatype, 'opto') || contains(wDat.datatype, 'prv')
@@ -237,21 +220,29 @@ if ~contains(wDat.datatype, 'opto') || contains(wDat.datatype, 'prv')
     [stim_name, ~, stim_u_idx] = unique(stim_name, 'stable');
     stim_all_idx = stim_u_idx(wDat.sPars.order(1, :));
     stim_all_idx = stim_all_idx(1:size(wDat.sTime, 1), 1);
-    
-    clear stim_u_idx
-    
+        
     stim_count = hist(stim_all_idx, 1:1:max(stim_all_idx(:)));
     stim_ntype = numel(unique(stim_name));
     
+    % get stimulus post baseline time to define filter length
+    if ~isempty(pSM.stim2use)
+        stim_u_idx = pSM.stim2use;
+    end
+    
+    for i = 1:max(stim_u_idx)
+        stim_post_lag(i, 1) = min(wDat.sPars.basPost(stim_u_idx == i));
+    end
+    
+    % get min stimuli witdh
+    stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
+    stim_width = stim_width(ismember(stim_all_idx, stim_u_idx));
+    stim_width = ceil(min(stim_width)*1.1);
+    
+    clear stim_u_idx stim_name i
+    
 end
 
-% 4) Define stim to use for model fitting
-
-if isempty(pSM.stim2use)
-    pSM.stim2use = 1:stim_ntype;
-end
-
-% 4.1) use predefined trial
+% 4) use predefined trial
 if isfield(wDat, 'trialsToUse') && ~isempty(wDat.trialsToUse) ...
     || isfield(wDat, 'trials2use') && ~isempty(wDat.trials2use)
 
@@ -270,37 +261,52 @@ if isfield(wDat, 'trialsToUse') && ~isempty(wDat.trialsToUse) ...
     
 end
 
-% 5) Build matrix of stimuli used for model with all lags
+% 5) generate filter length for stim (by default pre stimuli is 0)
+if isempty(pSM.filterlength_stim)
+    
+    % Automatically calculate the max lag based on 
+    %   the length of the stimuli divided by the sampling rate
+    filterlength_tp(:, 2) = round(round(stim_post_lag)/dt);
+    %filterlength_tp = round(round(wDat.sTime(1, 2) ...
+    %    - wDat.sTime(1, 1))/dt);
+    filterlength_tp(:, 1) = 0;
+    
+else
+    
+    filterlength_tp = round(pSM.filterlength_stim/dt);
+    filterlength_tp = repmat(filterlength_tp, [stim_ntype, 1]);
+    
+end
 
-% collect stimuli to use
-StimE_M = [];
+% 6) Define stim to use for model fitting
+if isempty(pSM.stim2use)
+    pSM.stim2use = 1:stim_ntype;
+end
 
+% 7) Build matrix of stimuli used for model with all lags
+%   get a binary vector with stimuli presentation
+sMod.stim = getStimVect(wDat); 
+
+% generate binary vectors for each stimulus to use pSM.stim2use
 if stim_ntype ~= 1
     jj = 1;
     for j = pSM.stim2use
-        StimE(jj, :) = getStimVect(wDat, 1, pSM.trials2use, j);
+        stim_m(jj, :) = getStimVect(wDat, 1, pSM.trials2use, j);
         jj = jj + 1;
     end
 else
-    StimE(1, :) = sMod.stim;
+    stim_m(1, :) = sMod.stim;
 end
 
-% build matrix with different lags (to match filter length)
-for i = 1:size(StimE, 1)
-    [StimE_temp{i, 1}, ~] = ...
-        buffer(StimE(i,:), filterlength_tp, filterlength_tp - 1);
-end
-
-% compile StimE_M: t x tau x type
-StimE_M = cell2mat(StimE_temp);
-sMod.stimM = StimE_M';
-clear StimE_M StimE jj i j
+% build stimuli matrix with different lags (to match filter length)
+[sMod.stimM, ~] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
+% sMod.stimM: t x tau x type
+clear stim_m jj i j
 
 display(['Stimuli to use: ', num2str(pSM.stim2use)])
 display(['Variable name to use: ', num2str(pSM.varname)])
 
-% 6) Get stimuli and trials to use for fitting and testing
-% discretize stim in trials:
+% 8) discretize timepoints into trials:
 stim_trial_idx = getTrialVect(wDat, pSM.stim2use, ...
     pSM.customtrial_init, pSM.customtrial_end, pSM.trials2use);
 
@@ -333,7 +339,8 @@ end
 stim_trial_idx = stim_trial_idx(sMod.tidx2use);
 sMod.stimM = sMod.stimM(sMod.tidx2use, :);
 
-% build matrix with indexes of timepoints used
+% 9) define trials for training and testing
+%   build matrix with indexes of timepoints used
 %   as training data (testing data is ~train_idx)
 trial_comb = nchoosek(unique(stim_trial_idx), ntrial_train);
 train_idx = zeros(size(trial_comb, 1), size(stim_trial_idx, 2), 'logical');
@@ -346,7 +353,7 @@ end
 
 clear trial_comb ntrial_train iter_i t_i
 
-% 7) Automatically calculate the minsize and 
+% 10) Automatically calculate the minsize and 
 %   number of splits base on the trial length
 % transform minsize to timepoints
 chunk_minsize = pSM.minsize/dt;
@@ -354,7 +361,7 @@ chunk_splitn = floor(numel(sMod.tidx2use)/chunk_minsize);
 
 clear stim_trial_idx
 
-% 8) Collect Ca trace and Stim
+% 11) Collect Ca trace and Stim
 % prune unused stims
 catrace_in = roi.filtered.dfof(:, sMod.tidx2use);
 
@@ -364,9 +371,7 @@ stim_bin = sMod.stim(1, sMod.tidx2use);
 
 stocf(t0, 'Time consumed so far: ')
 
-% 9) using LN model to fit the traces, 
-%   find the pearson correlation to modeled
-%   trace and bootstrap the pearson correlation
+% 12) using LN model to fit Ca traces
 
 % Run Raw data
 fprintf('Running Raw Data\n')
@@ -376,8 +381,12 @@ if sgate && ~pSM.redo(1)
     fprintf([pSM.varname ' already exist in mat file\n']); 
     return;
 end
-tgate = exist([strrep(filename, ...
-    [pSM.fsuffix, '.mat'], ''), '_temp.mat'], 'file');
+
+% name of temporary file
+filename_temp = [strrep(filename, ...
+    [pSM.fsuffix, '.mat'], ''), '_temp.mat'];
+
+tgate = exist(filename_temp, 'file');
 
 if ~tgate || pSM.redo(2)
     
@@ -386,23 +395,15 @@ if ~tgate || pSM.redo(2)
         train_idx, catrace_in, stim_in, ...
         pSM.chunksiz, pSM.corenum, 'bayes');
 
-    save([strrep(filename, ...
-        [pSM.fsuffix, '.mat'], ''), ...
-        '_temp.mat'], 'pcor_raw', 'lFilter', '-v7.3')
+    save(filename_temp, 'pcor_raw', 'lFilter', '-v7.3')
     
 else
     
-    load([strrep(filename, ...
-        [pSM.fsuffix, '.mat'], ''), ...
-        '_temp.mat'], 'pcor_raw', 'lFilter')
+    load(filename_temp, 'pcor_raw', 'lFilter')
     
 end
 
 stocf(t0, 'Time consumed so far: ')
-
-% name of temporary file
-filename_temp = [strrep(filename, [pSM.fsuffix, '.mat'], ''), ...
-    '_temp.mat'];
 
 % Run (as) Random Shuffle
 if pSM.type2run(1)
@@ -521,8 +522,6 @@ if pSM.type2run(3)
     sMod.lFilter_cs_med = lFilter_cs_med;
     sMod.lFilter_cs_sd = lFilter_cs_sd;
 end 
-
-% sMod.snr = std(CaPred, [], 2).^2./std(CaRaw - CaPred, [], 2).^2;
 
 % save variable with the custom name
 eval([pSM.varname, ' = sMod']);

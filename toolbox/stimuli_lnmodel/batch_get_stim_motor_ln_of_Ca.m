@@ -1,9 +1,9 @@
-function batch_get_stim_motor_ln(FolderName, FileName, iparams)
-% batch_get_stim_motor_ln: make a linear model combining stimuli plus
+function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
+% batch_get_stim_motor_ln_of_Ca: make a linear model combining stimuli plus
 % locomotor variables to explain ROI signal.
 %
 % Usage:
-%   batch_get_stim_motor_ln(FolderName, FileName, iparams)
+%   batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: folders to use
@@ -16,10 +16,10 @@ function batch_get_stim_motor_ln(FolderName, FileName, iparams)
 %           (default, '_prosroi')
 %       (metsuffix: suffix of files with wDat variable)
 %           (default, '_prosmetadata')
-%       (redo: redo even if sMod exis, redo raw, redo shuffle)
+%       (redo: redo even if sti_mot_ln_ca exist, redo raw, redo shuffle)
 %           (default, [0 0 0])
 %       (varname: output variable name
-%           (default, 'sMod')
+%           (default, 'sti_mot_ln_ca')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
 %       (filterlength_stim: filter length in seconds before and after stimulus start)
 %           (default, [])
@@ -49,6 +49,13 @@ function batch_get_stim_motor_ln(FolderName, FileName, iparams)
 %           (default, default [0 0 1])
 %       (btn: number of permutations)
 %           (default, 10^4)
+%       (pst_time: peri stimulus time to use to extract trial structure from whole trace (seconds))
+%           (default, [-10 10])
+%       %%%%%%%%%%%% significance related %%%%%%%%%%%%
+%       (fdr: false discovery rate)
+%            (default, 0.01)
+%       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
+%            (default, 'dep')
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
 %       (serId: server id)
 %           (default, 'int')
@@ -65,7 +72,7 @@ function batch_get_stim_motor_ln(FolderName, FileName, iparams)
 %       (siz: size of kernel  to smooth motor variable)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
 %       (oDir: output directory to save summary results)
-%           (default, [pwd, filesep, 'smod'])
+%           (default, [pwd, filesep, 'sti_mot_ln_ca'])
 %
 % Notes:
 % for info about regression algorithms see:
@@ -73,20 +80,19 @@ function batch_get_stim_motor_ln(FolderName, FileName, iparams)
 %   ridgeMML (ridge regression, regularization: marginal maximun likelihood)
 % for info about surrogate data see https://en.wikipedia.org/wiki/Surrogate_data_testing
 % for info about crossvalidation see https://en.wikipedia.org/wiki/Cross-validation_(statistics)
-% 
-% 01/18/19:
-%   add option to define trial start and end (customtrial_init, and customtrial_end fields)
-%   add option to define trials to use (trials2use)
 
 % Default params
 pSLM = []; 
 pSLM.cDir = pwd;
-pSLM.fo2reject = {'.', '..', 'preprocessed', 'BData'}; 
+pSLM.fo2reject = {'.', '..', 'preprocessed', ...
+    'BData', 'rawtiff', 'motcor', 'stitch', ...
+    'dfrel_vid', 'sti_ln_ca', 'sti_mot_ln_ca', ...
+    'sti_ln_mot', 'roicov'}; 
 pSLM.fi2reject = {'Zstack'};
 pSLM.fsuffix = '_prosroi'; 
 pSLM.metsuffix = '_metadata';
 pSLM.redo = [0 0 0];
-pSLM.varname = 'snMod';
+pSLM.varname = 'sti_mot_ln_ca';
 pSLM.filterlength_stim = [];
 pSLM.filterlength_motor = [-2 2];
 pSLM.customtrial_init = [];
@@ -98,6 +104,9 @@ pSLM.minsize = 5;
 pSLM.per2use = 0.8;
 pSLM.type2run = [0 0 1];
 pSLM.btn = 10^4;
+pSLM.pst_time = [-10 10];
+pSLM.fdr = 0.01;
+pSLM.pval_cor_method = 'dep';
 pSLM.serverid = 'int';
 pSLM.corenum = 4;
 pSLM.chunksiz = 80;
@@ -128,7 +137,10 @@ for i = 1:numel(f2run)
     
     cd(f2run{i});
     
-    pSLM.oDir = [pwd, filesep, 'sti_mot_mod'];
+    pSLM.oDir = [pwd, filesep, 'sti_mot_ln_ca'];
+    if ~exist(pSLM.oDir, 'dir')
+        mkdir(pSLM.oDir)
+    end
     
     runperfolder(FileName, pSLM);
     cd(pSLM.cDir);
@@ -151,7 +163,7 @@ function runperfolder(filename, pSLM)
 %
 % Args:
 %   filename: file name pattern
-%   pSLM: parameter variable
+%   pSLM: internal variable
 
 % Files to load
 f2run = rdir(['.', filesep, '*', pSLM.fsuffix, '*.mat']);
@@ -180,7 +192,7 @@ function gen_ln_model(filename, pSLM)
 %
 % Args:
 %   filename: file name
-%   pSLM: parameter variable
+%   pSLM: internal variable
 
 t0 = stic;
 
@@ -263,7 +275,7 @@ end
 
 % 7) Build matrix of stimuli used for model with all lags
 %   get a binary vector with stimuli presentation
-snMod.stim = getStimVect(wDat); 
+sti_mot_ln_ca.stim = getStimVect(wDat); 
 
 % generate binary vectors for each stimulus to use pSLM.stim2use
 if stim_ntype ~= 1
@@ -273,14 +285,14 @@ if stim_ntype ~= 1
         jj = jj + 1;
     end
 else
-    stim_m(1, :) = snMod.stim;
+    stim_m(1, :) = sti_mot_ln_ca.stim;
 end
 
 % build stimuli matrix with different lags (to match filter length)
-[snMod.stimM, idx_stimM] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
-% compile sMod.stimM: t x tau x type
-snMod.varnames = chunk2cell(pSLM.stim2use, 1);
-snMod.varnames = cf(@(x) ['stim_', num2str(x)], snMod.varnames)';
+[sti_mot_ln_ca.stimM, idx_stimM] = build_matrix_with_lags(stim_m, filterlength_tp, 0);
+% compile sti_mot_ln_ca.stimM: t x tau x type
+sti_mot_ln_ca.varnames = chunk2cell(pSLM.stim2use, 1);
+sti_mot_ln_ca.varnames = cf(@(x) ['stim_', num2str(x)], sti_mot_ln_ca.varnames)';
 stim_type = ones(length(idx_stimM), 1);
 clear stim_m jj
 
@@ -288,24 +300,24 @@ clear stim_m jj
 motor_m = load_edit_fictrac_motor_var(wDat, pSLM.ball_radious, ...
     pSLM.mot2use, pSLM.sig, pSLM.siz, 1);
 filterlength_tp_ = repmat(pSLM.filterlength_motor/dt, [size(motor_m, 1), 1]);
-[snMod.stimM(:, end+1:end+sum(sum(abs(filterlength_tp_), 2))), idx_motorM] = ...
+[sti_mot_ln_ca.stimM(:, end+1:end+sum(sum(abs(filterlength_tp_), 2))), idx_motorM] = ...
     build_matrix_with_lags(motor_m, filterlength_tp_, nan);
-snMod.idx_stimM = [idx_stimM; idx_motorM + max(idx_stimM(:))];
-snMod.stim_type = [stim_type; ones(length(idx_motorM), 1)*2];
-snMod.varnames = [snMod.varnames; pSLM.mot2use'];
+sti_mot_ln_ca.idx_stimM = [idx_stimM; idx_motorM + max(idx_stimM(:))];
+sti_mot_ln_ca.stim_type = [stim_type; ones(length(idx_motorM), 1)*2];
+sti_mot_ln_ca.varnames = [sti_mot_ln_ca.varnames; pSLM.mot2use'];
 clear motorM idx_motorM idx_stimM stim_type
 
 % 9) load additional motor variables SVD of cropped video
 motor_SVD = load_edit_video_SVD(wDat, strrep(filename, pSLM.fsuffix, '_proc'), pSLM.sig, pSLM.siz, 1);
 filterlength_tp_ = repmat([0 1], [size(motor_SVD, 1), 1]);
-[snMod.stimM(:, end+1:end+sum(sum(abs(filterlength_tp_), 2))), idx_motorSVD] = ...
+[sti_mot_ln_ca.stimM(:, end+1:end+sum(sum(abs(filterlength_tp_), 2))), idx_motorSVD] = ...
     build_matrix_with_lags(motor_SVD, filterlength_tp_, nan);
-snMod.idx_stimM = [snMod.idx_stimM; idx_motorSVD + max(snMod.idx_stimM(:))];
-snMod.stim_type = [snMod.stim_type; ones(length(idx_motorSVD), 1)*3];
+sti_mot_ln_ca.idx_stimM = [sti_mot_ln_ca.idx_stimM; idx_motorSVD + max(sti_mot_ln_ca.idx_stimM(:))];
+sti_mot_ln_ca.stim_type = [sti_mot_ln_ca.stim_type; ones(length(idx_motorSVD), 1)*3];
 
 motorSVD_varnames = chunk2cell(1:size(motor_SVD, 1), 1);
 motorSVD_varnames = cf(@(x) ['SVD_', num2str(x)], motorSVD_varnames)';
-snMod.varnames = [snMod.varnames; motorSVD_varnames];
+sti_mot_ln_ca.varnames = [sti_mot_ln_ca.varnames; motorSVD_varnames];
 clear motorM idx_motorSVD motorSVD_varnames
 
 display(['Stimuli to use: ', num2str(pSLM.stim2use)])
@@ -323,36 +335,37 @@ if exist('stim_count', 'var')
     min_ntrial = min(stim_count(pSLM.stim2use));
     ntrial_train = floor(min_ntrial*pSLM.per2use);
     
-    % update sMod.tidx2use
+    % update sti_mot_ln_ca.tidx2use
     idx2change = unique(stim_trial_idx, 'stable');
     idx2change(idx2change == 0) = [];
     stim_trial_idx_b = changem(stim_trial_idx, ...
         1:numel(idx2change), idx2change);
     
-    snMod.tidx2use = find(stim_trial_idx ~= 0 & ...
+    sti_mot_ln_ca.tidx2use = find(stim_trial_idx ~= 0 & ...
         stim_trial_idx_b <= min_ntrial);
     clear min_ntrial stim_count
     clear stim_trial_idx_b idx2change
     
 else
     
-    snMod.tidx2use = find(stim_trial_idx ~= 0);
+    sti_mot_ln_ca.tidx2use = find(stim_trial_idx ~= 0);
     ntrial_train = floor((size(wDat.sTime, 1)/stim_ntype)*pSLM.per2use);
     
 end
 
 % remove nan timepoints
-snMod.tidx2use = setdiff(snMod.tidx2use, find(isnan(sum(snMod.stimM, 2))));
+sti_mot_ln_ca.tidx2use = setdiff(sti_mot_ln_ca.tidx2use, ...
+    find(isnan(sum(sti_mot_ln_ca.stimM, 2))));
 
 % prune un-used stims
-stim_trial_idx = stim_trial_idx(snMod.tidx2use);
-snMod.stimM = snMod.stimM(snMod.tidx2use, :);
+stim_trial_idx = stim_trial_idx(sti_mot_ln_ca.tidx2use);
+sti_mot_ln_ca.stimM = sti_mot_ln_ca.stimM(sti_mot_ln_ca.tidx2use, :);
 
 % 11) Automatically calculate the minsize and 
 %   number of splits base on the trial length
 %   transform minsize to timepoints
 chunk_minsize = pSLM.minsize/dt;
-chunk_splitn = floor(numel(snMod.tidx2use)/chunk_minsize);
+chunk_splitn = floor(numel(sti_mot_ln_ca.tidx2use)/chunk_minsize);
 
 clear stim_trial_idx
 
@@ -360,17 +373,17 @@ clear stim_trial_idx
 %   the resulting plot ranges from 0 to 1 for each regressor, with 1 being
 %   fully orthogonal to all preceeding regressors in the matrix and 0 being
 %   fully redundant.
-rejIdx = false(1, size(snMod.stimM, 2));
-[~, fullQRR] = qr(bsxfun(@rdivide, snMod.stimM, sqrt(sum(snMod.stimM.^2, 1))), 0);
+rejIdx = false(1, size(sti_mot_ln_ca.stimM, 2));
+[~, fullQRR] = qr(bsxfun(@rdivide, sti_mot_ln_ca.stimM, sqrt(sum(sti_mot_ln_ca.stimM.^2, 1))), 0);
 
 % plot orthogonality of regressors
 filename_ = strrep(strrep(filename, [pSLM.fsuffix, '.mat'], ''), ['.', filesep], '');
 plot_orthogonal_test(fullQRR, filename_, pSLM.oDir)
 
 % check if design matrix is full rank
-if sum(abs(diag(fullQRR)) > max(size(snMod.stimM)) * ...
-        eps(fullQRR(1))) < size(snMod.stimM, 2)
-    temp = ~(abs(diag(fullQRR)) > max(size(snMod.stimM)) * eps(fullQRR(1)));
+if sum(abs(diag(fullQRR)) > max(size(sti_mot_ln_ca.stimM)) * ...
+        eps(fullQRR(1))) < size(sti_mot_ln_ca.stimM, 2)
+    temp = ~(abs(diag(fullQRR)) > max(size(sti_mot_ln_ca.stimM)) * eps(fullQRR(1)));
     fprintf(['Design matrix is rank-defficient. ', ...
         'Removing %d/%d additional regressors.\n'], sum(temp), sum(~rejIdx));
     % reject regressors that cause rank-defficient matrix
@@ -380,22 +393,23 @@ end
 
 % 13) Collect Ca trace and Stim
 % prune unused stims
-catrace_in = roi.filtered.dfof(:, snMod.tidx2use);
+catrace_in = roi.filtered.dfof(:, sti_mot_ln_ca.tidx2use);
 
-stim_in = snMod.stimM; 
+stim_in = sti_mot_ln_ca.stimM; 
 stimSiz = size(stim_in, 2);
-stim_bin = snMod.stim(1, snMod.tidx2use);
+stim_bin = sti_mot_ln_ca.stim(1, sti_mot_ln_ca.tidx2use);
 
 stocf(t0, 'Time consumed so far: ')
 
 % 14) get data splitted in trials and get mean and median
 fprintf('Split trace into trials\n')
 wDat_edit = wDat;
-wDat_edit.fTime = wDat.fTime(snMod.tidx2use);
+wDat_edit.fTime = wDat.fTime(sti_mot_ln_ca.tidx2use);
+
 [roi_per_trial, rel_time, ~, ~, ~, ~, ~, ~, trialvect_, stimvect_] = trace2trials(wDat_edit, ...
-    zscorebigmem(catrace_in), [-10 10], stim_all_idx, 1, []);
+    zscorebigmem(catrace_in), pSLM.pst_time, stim_all_idx, 1, []);
 [motor_per_trial, ~, ~, ~, ~, ~, ~, ~, ~, ~] = trace2trials(wDat_edit, ...
-    stim_in', [-10 10], stim_all_idx, 1, []);
+    stim_in', pSLM.pst_time, stim_all_idx, 1, []);
 stocf(t0, 'Time consumed so far: ')
 
 % zscore signal (for selected trials) per ROI
@@ -461,8 +475,8 @@ if ~tgate || pSLM.redo(2)
     [~, LN_filter_motor, motor_prediction, motor_prediction_single, ~] = ...
         ridgeregres_per_row_crossval(...
         train_idx, roi_per_trial_res_mean, ...
-        motor_per_trial_flat(snMod.stim_type ~= 1, :)', ...
-        pSLM.chunksiz, pSLM.corenum, 'bayes', snMod.stim_type(snMod.stim_type ~= 1));
+        motor_per_trial_flat(sti_mot_ln_ca.stim_type ~= 1, :)', ...
+        pSLM.chunksiz, pSLM.corenum, 'bayes', sti_mot_ln_ca.stim_type(sti_mot_ln_ca.stim_type ~= 1));
     
     save(filename_temp, 'LN_filter_motor', ...
         'motor_prediction', 'motor_prediction_single', '-v7.3')
@@ -492,7 +506,7 @@ end
 
 % plot filters
 plot_filters_full_model(LN_filter_motor, ...
-    snMod, evar_motor, var_stim_mean, var_total, filename_, pSLM.oDir)
+    sti_mot_ln_ca, evar_motor, var_stim_mean, var_total, filename_, pSLM.oDir)
 
 % plot variance and explained variance in full vs 
 %   single variable type model
@@ -519,9 +533,9 @@ end
 stim_bin_2 = repmat(stimvect_, [size(roi_per_trial{1}, 1) 1]);
 stim_bin_2 = horz(stim_bin_2');
 chunk_splitn_2 = floor(numel(stim_bin_2)/chunk_minsize);
-snMod.stim_2 = stim_bin_2;
-snMod.stim_trial = stimvect_;
-snMod.rel_time_trial = rel_time;
+sti_mot_ln_ca.stim_2 = stim_bin_2;
+sti_mot_ln_ca.stim_trial = stimvect_;
+sti_mot_ln_ca.rel_time_trial = rel_time;
 
 add_stim_lag = [-10 10];
 eVar_cs = get_explained_variance_shuffle(...
@@ -533,28 +547,31 @@ eVar_cs = get_explained_variance_shuffle(...
 stocf(t0, 'Time consumed so far: ')
 
 % plot significance of motor explained variance
-
 plot_sig_motor_mod(evar_motor, eVar_cs, filename_, pSLM.oDir)
+
+% get p-values
+sti_mot_ln_ca.pval = calculate_pval_2(evar_motor, ...
+    eVar_cs, pSLM.fdr, pSLM.pval_cor_method);
 
 % delete temp file:
 %delete(filename_temp)
 
 % 17) Save fields
-snMod.filter_lags = [filterlength_tp; filterlength_tp_]; 
-snMod.btn = pSLM.btn; 
-snMod.stim2use = pSLM.stim2use;
-snMod.var_total = var_total;
-snMod.var_stim = var_stim_mean;
-snMod.var_res = var_res_mean;
-snMod.var_motor = var_motor;
-snMod.evar_motor = evar_motor;
-snMod.evar_motor_single = var_motor_single;
-snMod.evar_motor_single = evar_motor_single;
-snMod.evar_motor_cs = eVar_cs;
-snMod.lFilter_motor = LN_filter_motor;
+sti_mot_ln_ca.filter_lags = [filterlength_tp; filterlength_tp_]; 
+sti_mot_ln_ca.btn = pSLM.btn; 
+sti_mot_ln_ca.stim2use = pSLM.stim2use;
+sti_mot_ln_ca.var_total = var_total;
+sti_mot_ln_ca.var_stim = var_stim_mean;
+sti_mot_ln_ca.var_res = var_res_mean;
+sti_mot_ln_ca.var_motor = var_motor;
+sti_mot_ln_ca.evar_motor = evar_motor;
+sti_mot_ln_ca.evar_motor_single = var_motor_single;
+sti_mot_ln_ca.evar_motor_single = evar_motor_single;
+sti_mot_ln_ca.evar_motor_cs = eVar_cs;
+sti_mot_ln_ca.lFilter_motor = LN_filter_motor;
 
 % save variable with the custom name
-eval([pSLM.varname, ' = snMod']);
+eval([pSLM.varname, ' = sti_mot_ln_ca']);
 save(filename, pSLM.varname, '-append')
 
 end
@@ -563,18 +580,11 @@ function plot_sig_motor_mod(eVar, eVar_shuffle, filename, oDir)
 % plot_sig_motor_mod: plot significance of motor modulation
 %
 % Usage:
-%   plot_sig_motor_mod(...
-%       corrcoef_stat, filename, oDir)
+%   plot_sig_motor_mod(eVar, eVar_shuffle, filename, oDir)
 %
 % Args:
-%   corrcoef_hist: distribution of correlation of raw data
-%   corrcoef_hist_null: distribution of correlation of shuffle data
-%   corrcoef_stat: selected percentile of corrcoef_raw 
-%   smod_hist: correlation of raw data
-%   nsmod_hist: correlation of shuffle data
-%   pval_raw: pvalues
-%   pval_cor: corrected pvalues
-%   motpar: parameter variable
+%   eVar: explained variance of raw data
+%   eVar_shuffle: explained variance of shuffle data
 %   filename: file name
 %   oDir: output directory
 
@@ -589,34 +599,24 @@ motpar.irange = [0 .001];
 [eVar_stat, eVar_raw, eVar_shuffle] = ...
     correct_corrcoef(eVar, eVar_shuffle, 1);
 
-% generate pvalues
-[pval_raw, pvalc_dep, pvalc_pdep, ...
-    pvalc_bh, ~] = calculate_pval(...
-    eVar_stat, eVar_raw, eVar_shuffle, ...
-    motpar.fdr, [1 1 1 0]);
+% get p-values
+pval_raw = calculate_pval_2(eVar_raw, ...
+    eVar_shuffle, motpar.fdr, 'raw');
 
-% find stimuli modulated ROIs
-pval_cor = [];
-if strcmp(motpar.mccor_method, 'pdep')
-    pval_cor = pvalc_pdep;
-elseif strcmp(motpar.mccor_method, 'dep')
-    pval_cor = pvalc_dep;
-elseif strcmp(motpar.mccor_method, 'bh')
-    pval_cor = pvalc_bh;                    
-elseif strcmp(motpar.mccor_method, 'raw')
-    pval_cor = pval_raw;
-end
+pval_cor = calculate_pval_2(eVar_raw, ...
+    eVar_shuffle, motpar.fdr, motpar.mccor_method);
+
 selIdx = pval_cor <= motpar.fdr;
 
 % get histogram of stim mod vs non-stim mod
-smod_hist = hist(flat_matrix(eVar_raw(selIdx, :)), ...
+eVar_hist = hist(flat_matrix(eVar_raw(selIdx, :)), ...
     motpar.hbins);
-nsmod_hist = hist(flat_matrix(eVar_raw(~selIdx, :)), ...
+null_eVar = hist(flat_matrix(eVar_raw(~selIdx, :)), ...
     motpar.hbins);
-smod_hist = bsxfun(@rdivide, ...
-    smod_hist, sum(smod_hist, 2));
-nsmod_hist = bsxfun(@rdivide, ...
-    nsmod_hist, sum(nsmod_hist, 2));
+eVar_hist = bsxfun(@rdivide, ...
+    eVar_hist, sum(eVar_hist, 2));
+null_eVar = bsxfun(@rdivide, ...
+    null_eVar, sum(null_eVar, 2));
 
 % generate histograms per ROI
 roi_n = size(eVar_raw, 1);
@@ -649,14 +649,14 @@ axH(7) = subplot(2, 4, 4);
 axH(8) = subplot(2, 4, 8);
 
 % collect all
-corrcoef_hist_all = sum(eVar_hist, 1);
-corrcoef_hist_null_all = sum(eVar_hist_null, 1);
+eVar_hist_all = sum(eVar_hist, 1);
+eVar_hist_null_all = sum(eVar_hist_null, 1);
 
 % normalize per column
-corrcoef_hist_all = bsxfun(@rdivide, ...
-    corrcoef_hist_all, sum(corrcoef_hist_all, 2));
-corrcoef_hist_null_all = bsxfun(@rdivide, ...
-    corrcoef_hist_null_all, sum(corrcoef_hist_null_all, 2));
+eVar_hist_all = bsxfun(@rdivide, ...
+    eVar_hist_all, sum(eVar_hist_all, 2));
+eVar_hist_null_all = bsxfun(@rdivide, ...
+    eVar_hist_null_all, sum(eVar_hist_null_all, 2));
 
 eVar_hist = bsxfun(@rdivide, ...
     eVar_hist, sum(eVar_hist, 2));
@@ -699,26 +699,26 @@ cbH(2) = colorbar('peer', axH(2));
 cbH(2).Label.String = 'Probability'; 
 cbH(2).Label.FontSize = 10;
 
-% plot histogram smod vs ~smod
-lineH(1) = plot(motpar.hbins, smod_hist, ...
+% plot histogram modulated vs non-modulated
+lineH(1) = plot(motpar.hbins, eVar_hist, ...
     'k', 'Linewidth', 2, 'Parent', axH(3));
 hold(axH(3), 'on')
-lineH(2) = plot(motpar.hbins, nsmod_hist, ...
+lineH(2) = plot(motpar.hbins, null_eVar, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(3));
 
-axH(3).Title.String = 'smod vs ~smod ROIs';
+axH(3).Title.String = 'mod vs ~mod ROIs';
 axH(3).YLabel.String = 'Probability'; 
 axH(3).XLim = motpar.hrange;
 
-legend(axH(3), lineH, {'smod', '~smod'}, ...
+legend(axH(3), lineH, {'mod', '~mod'}, ...
     'location', 'northwest')
 
 % plot histogram shuffle vs raw
-lineH(1) = plot(motpar.hbins, corrcoef_hist_null_all, ...
+lineH(1) = plot(motpar.hbins, eVar_hist_null_all, ...
     'k', 'Linewidth', 2, 'Parent', axH(4));
 hold(axH(4), 'on')
-lineH(2) = plot(motpar.hbins, corrcoef_hist_all, ...
+lineH(2) = plot(motpar.hbins, eVar_hist_all, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(4));
 
@@ -968,17 +968,17 @@ close(figH)
 end
 
 function plot_filters_full_model(LN_filter_motor, ...
-    snMod, evar_motor, var_stim_mean, var_total, filenamefig, oDir)
+    sti_mot_ln_ca, evar_motor, var_stim_mean, var_total, filenamefig, oDir)
 % plot_filters_full_model: plots variance and explained variance
 %   of full vs single var type model
 %
 % Usage:
 %   plot_filters_full_model(LN_filter_motor, ...
-%       snMod, evar_motor, var_stim_mean, filenamefig, oDir)
+%       sti_mot_ln_ca, evar_motor, var_stim_mean, filenamefig, oDir)
 %
 % Args:
 %   LN_filter_motor: filters from LN model
-%   snMod: internal variable
+%   sti_mot_ln_ca: internal variable
 %   evar_motor: explained variance of full model [x, 1]
 %   var_stim_mean: variance of stimulus [x, 1]
 %   var_total: total variance [x, 1]
@@ -997,11 +997,11 @@ axH(2).Position = [0.2 0.1100 0.55 0.8150];
 axH(3).Position = [0.78 0.1100 0.1 0.8150];
 axH(4).Position = [0.89 0.1100 0.1 0.8150];
 
-vartype_idx = snMod.stim_type(snMod.stim_type ~= 1);
+vartype_idx = sti_mot_ln_ca.stim_type(sti_mot_ln_ca.stim_type ~= 1);
 vartype_u = unique(vartype_idx);
 mean_LN_filter = squeeze(mean(LN_filter_motor, 2))';
 [clus] = hierarchicalClus(zscorebigmem(mean_LN_filter), ...
-    5, 'euclidean', 'ward', 3);
+    1, 'euclidean', 'ward', 3);
 
 imagesc(mean_LN_filter(clus.lorder, vartype_idx == vartype_u(1)), 'Parent', axH(1))
 caxis(axH(1), im_range)
