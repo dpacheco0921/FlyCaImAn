@@ -69,7 +69,6 @@ else
     
 end
 
-%sCount = hist(sTypeIdx, sType);
 sCount = sum(cell2mat(arrayfun(@(x) x == sType, ...
     sTypeIdx, 'UniformOutput', false)'));
 
