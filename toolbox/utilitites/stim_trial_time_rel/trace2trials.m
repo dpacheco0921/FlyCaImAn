@@ -48,6 +48,7 @@ end
 %   (assumes duration of stimuli is close to a integer)
 wDat.fTime = round(wDat.fTime*100)/100;
 wDat.sTime = round(wDat.sTime*100)/100;
+tRange = round(tRange*100)/100;
 
 % get info of stim: type of stim, and duration per stim
 if size(sTypeIdx, 1) > 1
