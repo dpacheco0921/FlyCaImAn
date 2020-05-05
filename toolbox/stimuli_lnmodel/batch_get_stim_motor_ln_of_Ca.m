@@ -67,7 +67,7 @@ function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %           (default, 0)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
 %       (ball_radious: depth of directory search)
-%           (default, 0)
+%           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %       (siz: size of kernel  to smooth motor variable)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
@@ -90,7 +90,7 @@ pSLM.fo2reject = {'.', '..', 'preprocessed', ...
     'sti_ln_mot', 'roicov'}; 
 pSLM.fi2reject = {'Zstack'};
 pSLM.fsuffix = '_prosroi'; 
-pSLM.metsuffix = '_metadata';
+pSLM.metsuffix = '_prosmetadata';
 pSLM.redo = [0 0 0];
 pSLM.varname = 'sti_mot_ln_ca';
 pSLM.filterlength_stim = [];
@@ -111,7 +111,7 @@ pSLM.serverid = 'int';
 pSLM.corenum = 4;
 pSLM.chunksiz = 80;
 pSLM.febgate = 0;
-pSLM.ball_radious = 9;
+pSLM.ball_radious = 4.5;
 pSLM.sig = 3;
 pSLM.siz = 10;
 
@@ -553,6 +553,10 @@ plot_sig_motor_mod(evar_motor, eVar_cs, filename_, pSLM.oDir)
 sti_mot_ln_ca.pval = calculate_pval_2(evar_motor, ...
     eVar_cs, pSLM.fdr, pSLM.pval_cor_method);
 
+% plot motor vs stimuli variance for significant ones
+plot_stim_vs_motor_sig(var_stim_mean, ...
+    evar_motor, sti_mot_ln_ca.pval, filename_, pSLM.oDir)
+
 % delete temp file:
 %delete(filename_temp)
 
@@ -573,6 +577,40 @@ sti_mot_ln_ca.lFilter_motor = LN_filter_motor;
 % save variable with the custom name
 eval([pSLM.varname, ' = sti_mot_ln_ca']);
 save(filename, pSLM.varname, '-append')
+
+end
+
+function plot_stim_vs_motor_sig(var_stim_mean, ...
+    evar_motor, pval_in, filenamefig, oDir)
+
+figH = figure('Position', genfigpos(1, 'center', [400 400]));
+axH(1) = subplot(1, 1, 1);
+
+plot(var_stim_mean, evar_motor, '.k', 'Parent', axH(1))
+hold(axH(1), 'on');
+plot(var_stim_mean(pval_in <= 0.01), ...
+    evar_motor(pval_in <= 0.01), '.r', 'Parent', axH(1))
+
+axH(1).XLim = [0 1];
+axH(1).YLim = [0 1];
+axH(1).Title.String = 'stimuli vs motor variance (significant)';
+axH(1).XLabel.String = 'stimuli variance';
+axH(1).YLabel.String = 'motor variance';
+
+fitsize = 0;
+axcolor = 'none';
+figcolor = 'none';
+xyzcolor = 'k';
+tickgate = 'on';
+fontsiz = 10;
+
+figformat = [1 0 0 0 0 0 0 0 1 0 1];
+save_edit_fig_int(axH, figH, oDir, ...
+    [filenamefig, '_stim_vs_motor_var_sig'], figformat, ...
+    fitsize, axcolor, figcolor, xyzcolor, ...
+    tickgate, [], fontsiz)
+
+close(figH)
 
 end
 
@@ -609,14 +647,14 @@ pval_cor = calculate_pval_2(eVar_raw, ...
 selIdx = pval_cor <= motpar.fdr;
 
 % get histogram of stim mod vs non-stim mod
-eVar_hist = hist(flat_matrix(eVar_raw(selIdx, :)), ...
+eVar_sum = hist(flat_matrix(eVar_raw(selIdx, :)), ...
     motpar.hbins);
-null_eVar = hist(flat_matrix(eVar_raw(~selIdx, :)), ...
+null_eVar_sum = hist(flat_matrix(eVar_raw(~selIdx, :)), ...
     motpar.hbins);
-eVar_hist = bsxfun(@rdivide, ...
-    eVar_hist, sum(eVar_hist, 2));
-null_eVar = bsxfun(@rdivide, ...
-    null_eVar, sum(null_eVar, 2));
+eVar_sum = bsxfun(@rdivide, ...
+    eVar_sum, sum(eVar_sum, 2));
+null_eVar_sum = bsxfun(@rdivide, ...
+    null_eVar_sum, sum(null_eVar_sum, 2));
 
 % generate histograms per ROI
 roi_n = size(eVar_raw, 1);
@@ -700,10 +738,10 @@ cbH(2).Label.String = 'Probability';
 cbH(2).Label.FontSize = 10;
 
 % plot histogram modulated vs non-modulated
-lineH(1) = plot(motpar.hbins, eVar_hist, ...
+lineH(1) = plot(motpar.hbins, eVar_sum, ...
     'k', 'Linewidth', 2, 'Parent', axH(3));
 hold(axH(3), 'on')
-lineH(2) = plot(motpar.hbins, null_eVar, ...
+lineH(2) = plot(motpar.hbins, null_eVar_sum, ...
     'Color', [0.5 0.5 0.5], ...
     'Linewidth', 2, 'Parent', axH(3));
 
@@ -838,10 +876,17 @@ axH(11).Position = [0.6916 0.0700 0.2134 0.2700];
 axH(10).Position = [0.1300 0.0700 0.4942 0.1026];
 
 % find examples
+% correct evar
+evar_motor(isnan(evar_motor)) = 0;
 [~, stim_idx] = sort(var_stim_mean);
 [~, motor_idx] = sort(evar_motor);
 [~, mixed_idx] = sort(var_stim_mean.*evar_motor, 'descend');
-mixed_idx = mixed_idx(1);
+if mixed_idx(1) ~= motor_idx(end) || ...
+        mixed_idx(1) ~= stim_idx(end)
+    mixed_idx = mixed_idx(1);
+else
+    mixed_idx = mixed_idx(2);
+end
 yrange = [-2.5 4];
 
 plot(rel_time, stimvect_, 'Parent', axH(1))

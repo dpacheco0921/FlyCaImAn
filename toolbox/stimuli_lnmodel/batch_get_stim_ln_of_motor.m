@@ -63,9 +63,11 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %            (default, 'dep')
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
 %       (ball_radious: depth of directory search)
-%           (default, 0)
+%           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
+%           (default, 3)
 %       (siz: size of kernel  to smooth motor variable)
+%           (default, 10)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
 %       (oDir: output directory to save summary results)
 %           (default, [pwd, filesep, 'sti_ln_mot'])
@@ -104,7 +106,7 @@ pSMMot.serverid = 'int';
 pSMMot.corenum = 4;
 pSMMot.chunksiz = 80;
 pSMMot.febgate = 0;
-pSMMot.ball_radious = 9;
+pSMMot.ball_radious = 4.5;
 pSMMot.sig = 3;
 pSMMot.siz = 10;
 
@@ -179,11 +181,7 @@ fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
 for i = 1:numel(f2run)
     
     fprintf(['Running file : ', strrep(f2run{i}, filesep, ' '), '\n']);
-    try
-        gen_ln_model(f2run{i}, pSMMot);
-    catch
-        keyboard
-    end
+    gen_ln_model(f2run{i}, pSMMot);
         
 end
 
@@ -246,7 +244,7 @@ if ~contains(wDat.datatype, 'opto') || contains(wDat.datatype, 'prv')
     for i = 1:max(stim_u_idx)
         stim_post_lag(i, 1) = min(wDat.sPars.basPost(stim_u_idx == i));
     end
-    clear stim_u_idx stim_name i
+    clear stim_u_idx i
        
 end
 
@@ -418,12 +416,16 @@ if tgate
     lgate = ~sum(contains({vList.name}, 'eVar_cs'));
 end
 
+add_stim_lag = [-5 5]/dt;
+fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
+
 eVar_cs = get_explained_variance_shuffle(...
     motvar_in, motvar_pred, lgate, ...
     sti_ln_mot.stim(1, sti_ln_mot.tidx2use), ...
     pSMMot.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
-    pSMMot.chunksiz, pSMMot.corenum, pSMMot.btn, 1);
+    pSMMot.chunksiz, pSMMot.corenum, ...
+    pSMMot.btn, 1, add_stim_lag);
 
 save(filename_temp, 'eVar_cs', '-append')
     
@@ -433,20 +435,32 @@ stocf(t0, 'Time consumed so far: ')
 sti_ln_mot.pval = calculate_pval_2(eVar, ...
     eVar_cs, pSMMot.fdr, pSMMot.pval_cor_method);
 
-% 15) calculating ceiling of explained variance using mean-per-trial
+% split motor variable traces into trials
 fprintf('Split trace into trials\n')
 wDat_edit = wDat;
 wDat_edit.fTime = wDat.fTime(sti_ln_mot.tidx2use);
-[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, ~, ~] = trace2trials(wDat_edit, ...
+[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, oStimidx, ~] = trace2trials(wDat_edit, ...
     zscorebigmem(motvar_in), pSMMot.pst_time, stim_all_idx, 1, []);
 stocf(t0, 'Time consumed so far: ')
 
+sti_ln_mot.stim_name = stim_name;
+
+% 15) calculating ceiling of explained variance using mean-per-trial
 sti_ln_mot.eVar_mean = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
     motvar_per_trial, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial)));
 
 % 16) calculating ceiling of explained variance using median-per-trial
 sti_ln_mot.eVar_med = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
     motvar_per_trial, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+
+% do it for each stimulus independently
+for i = 1:numel(sti_ln_mot.stim_name)
+    motvar_per_trial_stim = cf(@(x) x(:, oStimidx == i), motvar_per_trial);
+    sti_ln_mot.eVar_mean_per_stim(:, i) = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+        motvar_per_trial_stim, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial_stim)));
+    sti_ln_mot.eVar_med_per_stim(:, i) = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+        motvar_per_trial_stim, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial_stim)));    
+end
 
 % delete temp file:
 delete(filename_temp)

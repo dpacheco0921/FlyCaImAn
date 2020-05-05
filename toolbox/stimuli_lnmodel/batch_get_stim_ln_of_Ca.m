@@ -82,7 +82,7 @@ pSM.fo2reject = {'.', '..', 'preprocessed', ...
     'sti_ln_mot', 'roicov'}; 
 pSM.fi2reject = {'Zstack'};
 pSM.fsuffix = '_prosroi'; 
-pSM.metsuffix = '_metadata';
+pSM.metsuffix = '_prosmetadata';
 pSM.field2load = 'wDat'; 
 pSM.redo = [0 0 0];
 pSM.varname = 'sti_ln_ca';
@@ -424,7 +424,7 @@ if tgate
 end
 
 add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
-fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (seconds) \n'])
+fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
 
 pcor_cs = get_explained_variance_shuffle(...
     Ca_in, Ca_pred, lgate, sti_ln_ca.stim(1, sti_ln_ca.tidx2use), ...
