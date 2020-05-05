@@ -40,25 +40,17 @@ for s_i = 1:numel(max_circ_perm)
     rperm_tIdx(s_i, :) = circshift(1:timepoints_n, max_circ_perm(s_i));
 end
 
-% remove permutations similar to stimulus
+% remove permutations equal to riginal sorting
+perm2rem_ = find(ismember(rperm_tIdx(s_i, :), ...
+        1:timepoints_n, 'rows'));
+rperm_tIdx(perm2rem_, :) = [];   
+    
+% remove permutations with similar stimulus structure
 if ~isempty(stim)
     
-    if ~isempty(stim_lags2avoid)
-        stim_ = [];
-        shifts2use = [1:stim_lags2avoid(2), ...
-            numel(max_circ_perm)+stim_lags2avoid(1):numel(max_circ_perm)];
-        for i = shifts2use
-            stim_(shifts2use == i, :) = stim(circshift(1:timepoints_n, i));
-        end
-    else
-        stim_ = stim;
-    end
-    
-    perm2rem_ = find(ismember(rperm_tIdx(s_i, :), ...
-            1:timepoints_n, 'rows'));
-    rperm_tIdx(perm2rem_, :) = [];    
-        
-    perm2rem_ = find(ismember(stim(rperm_tIdx), stim_, 'rows'));
+    [stim_, ~] = build_matrix_with_lags(...
+        stim, stim_lags2avoid, 0);
+    perm2rem_ = find(ismember(stim(rperm_tIdx), stim_', 'rows'));
     rperm_tIdx(perm2rem_, :) = [];    
     
 end
