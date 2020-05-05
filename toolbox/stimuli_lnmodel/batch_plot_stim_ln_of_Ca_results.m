@@ -104,9 +104,10 @@ for i = 1:numel(filename)
 
     try
         plotperfly(filename{i}, iDir{i}, oDir, plotpars);
-    catch
+    catch error
         fprintf('/n ****************************************** /n')
         fprintf(['Failed file: ', filename{i}, '/n'])
+        error
         fprintf('****************************************** /n')
     end
 
@@ -515,32 +516,44 @@ if size(CaRaw_zs_tl, 1) > 1
     end
     
     % sort traces by shape
-    clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl), ...
-        1, 'euclidean', 'ward', 3);
-    idx_order = clus.lorder;
-    
-    imagesc(time_tl, 1:numel(idx_order), ...
-        CaRaw_zs_tl(idx_order, :), 'Parent', axH(1))
-    colormap(axH(1), 'parula')
-    hold(axH(1), 'on')
-    caxis(axH(1), [-1 1])
+    if size(CaRaw_zs_tl, 1) ~= 0
+        
+        if size(CaRaw_zs_tl, 1) > 1
+            clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl), ...
+                1, 'euclidean', 'ward', 3);
+            idx_order = clus.lorder;
+        else
+            idx_order = 1;
+        end
 
-    imagesc(time_tl, 1:numel(idx_order), ...
-        CaRef_zs_tl(idx_order, :), 'Parent', axH(2))
-    colormap(axH(2), 'parula')
-    hold(axH(2), 'on')
-    caxis(axH(2), [-1 1])
-    
-    axH(1).YLabel.String = 'ROI number';
-    axH(1).Title.String = 'ROI >= 0.2';
-    axH(1).YDir = 'normal';
-    axH(2).YDir = 'normal';
+        imagesc(time_tl, 1:numel(idx_order), ...
+            CaRaw_zs_tl(idx_order, :), 'Parent', axH(1))
+        colormap(axH(1), 'parula')
+        hold(axH(1), 'on')
+        caxis(axH(1), [-1 1])
+
+        imagesc(time_tl, 1:numel(idx_order), ...
+            CaRef_zs_tl(idx_order, :), 'Parent', axH(2))
+        colormap(axH(2), 'parula')
+        hold(axH(2), 'on')
+        caxis(axH(2), [-1 1])
+
+        axH(1).YLabel.String = 'ROI number';
+        axH(1).Title.String = 'ROI >= 0.2';
+        axH(1).YDir = 'normal';
+        axH(2).YDir = 'normal';
+        
+    end
     
     if sum(low_idx)
        
-        clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl_low), ...
-            1, 'euclidean', 'ward', 3);
-        idx_order = clus.lorder;
+        if size(CaRaw_zs_tl_low, 1) > 1
+            clus = hierarchicalClus(zscorebigmem(CaRaw_zs_tl_low), ...
+                1, 'euclidean', 'ward', 3);
+            idx_order = clus.lorder;
+        else
+            idx_order = 1;
+        end
 
         imagesc(time_tl, 1:numel(idx_order), ...
             CaRaw_zs_tl_low(idx_order, :), 'Parent', axH(3))
@@ -560,7 +573,6 @@ if size(CaRaw_zs_tl, 1) > 1
         axH(4).YDir = 'normal';
         
     end
-        
     
 else
     
