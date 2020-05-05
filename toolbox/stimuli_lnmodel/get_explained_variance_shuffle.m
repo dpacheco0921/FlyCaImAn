@@ -1,7 +1,7 @@
 function eVar_cs = get_explained_variance_shuffle(...
     Y, Y_pred, lgate, stim_bin, redo, ...
     filename, chunk_minsize, chunk_splitn, ...
-    chunksiz, corenum, btn, add_circ_shuffle, add_stim_lag)
+    chunksiz, corenum, btn, shuffle2use, add_stim_lag)
 % runridgeshuffle_chunks: Run Ridge regression to all 
 %   the possible combinations of train and test data
 %
@@ -9,7 +9,7 @@ function eVar_cs = get_explained_variance_shuffle(...
 %   eVar_cs = get_explained_variance_shuffle(...
 %   	Y, Y_pred, lgate, stim_bin, redo, ...
 %   	filename, chunk_minsize, chunk_splitn, ...
-%   	chunksiz, corenum, btn, add_circ_shuffle, add_stim_lag)
+%   	chunksiz, corenum, btn, shuffle2use, add_stim_lag)
 %
 % Args:
 %   Y: time traces of variables [n, T]
@@ -23,8 +23,10 @@ function eVar_cs = get_explained_variance_shuffle(...
 %   chunksiz: number of chunks for parpool
 %   corenum: number of cores
 %   btn: number of permutations
-%   add_circ_shuffle: flag to add circular shuffle
-%       (default, 0);
+%   shuffle2use: type of shuffling to use
+%       (default, 0, random chunks, requires chunk_minsize & chunk_splitn & btn);
+%       (1, random chunks + circular permutation);
+%       (2, circular shuffling);
 %   add_stim_lag: aditional lags of stimuli pattern to avoid (in timestamps)
 %       (default, [-10 10]);
 %
@@ -37,8 +39,8 @@ if ~exist('stim_bin', 'var')
     stim_bin = [];
 end
 
-if ~exist('add_circ_shuffle', 'var')
-    add_circ_shuffle = 0;
+if ~exist('shuffle2use', 'var')
+    shuffle2use = 0;
 end
 
 if ~exist('add_stim_lag', 'var')
@@ -57,16 +59,24 @@ if lgate || redo
     dataObj.eVar_cs = [];
 
     % generate shuffle in chunks over time
-    [~, rperm_chunkIdx] = randchunkper(...
+    if shuffle2use ~= 2
+        [~, rperm_chunkshufIdx] = randchunkper(...
         Y(1, :), chunk_splitn, ...
         round(chunk_minsize), btn, stim_bin);
+    end
     
     % add circular permutations
-    rperm_circIdx = randcirshuffleper(...
+    if shuffle2use ~= 0
+        rperm_circIdx = randcirshuffleper(...
         numel(Y(1, :)), 10, [], stim_bin, add_stim_lag);
+    end
 
-    if add_circ_shuffle
-        rperm_chunkIdx = [rperm_chunkIdx; rperm_circIdx];
+    if shuffle2use == 0
+        rperm_chunkIdx = rperm_chunkshufIdx;
+    elseif shuffle2use == 2
+        rperm_chunkIdx = rperm_circIdx;
+    else
+        rperm_chunkIdx = [rperm_chunkshufIdx; rperm_circIdx];
     end
     
     dataObj.rperm_chunkIdx = rperm_chunkIdx;
