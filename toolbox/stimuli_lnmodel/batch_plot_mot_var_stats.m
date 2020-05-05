@@ -28,7 +28,7 @@ function batch_plot_mot_var_stats(FolderName, FileName, iparams)
 %           (default, 80)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
 %       (ball_radious: radious of ball (mm))
-%           (default, 9)
+%           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %       (siz: size of kernel  to smooth motor variable)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
@@ -47,7 +47,7 @@ pSLM.mot2use = {'speed', 'fV', 'lV', 'yaw', 'pitch', 'roll'};
 pSLM.serverid = 'int';
 pSLM.corenum = 4;
 pSLM.chunksiz = 80;
-pSLM.ball_radious = 9;
+pSLM.ball_radious = 4.5;
 pSLM.sig = 3;
 pSLM.siz = 10;
 
@@ -114,8 +114,9 @@ for i = 1:numel(f2run)
     fprintf(['Running file : ', strrep(f2run{i}, filesep, ' '), '\n']);
     try
         plotperfile(f2run{i}, pSLM);
-    catch
+    catch error
         fprintf(['Failed : ', strrep(f2run{i}, filesep, ' '), '\n'])
+        error
     end
     
 end
@@ -150,8 +151,13 @@ motor_fictrac = load_edit_fictrac_motor_var(wDat, pSLM.ball_radious, ...
     pSLM.sig, pSLM.siz, 0);
 
 % figure settings
-color_1 = {'b', 'c', rgb('RoyalBlue'), 'r', rgb('Crimson'), rgb('DarkRed')};
-color_2 = [rgb('OrangeRed'); rgb('Orange'); rgb('Green'); rgb('YellowGreen'); ...
+%color_1 = {'b', 'c', rgb('RoyalBlue'), 'r', rgb('Crimson'), rgb('DarkRed')};
+color_1 = colorGradient(rgb('Purple'), [1 1 1], 4);
+color_1 = [color_1(1:3, :); colorGradient(rgb('magenta'), [1 1 1], 4)];
+color_1 = color_1(1:6, :);
+
+color_2 = colorGradient(rgb('Green'), [1 1 1], 5);
+color_2 = [color_2(1:4, :); ...
     colorGradient([0 0 0], [0.8 0.8 0.8], size(motor_SVD, 1))];
 
 % 4) histograms
@@ -260,34 +266,39 @@ axH(4) = subplot(2, 3, 6);
 
 for i = 1:3
     plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1{i}, 'Parent', axH(1));
+        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(1));
     hold(axH(1), 'on')
 end
 axH(1).XLim = fTime([1 end]);
 
 for i = 1:3
-    plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1{i}, 'Parent', axH(2));
+    linH_1(i == 1:3) = plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(2));
     hold(axH(2), 'on')
 end
-axH(2).XLim = [-10 50];
+axH(2).XLim = [0 100];
 
 for i = 4:6
     plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1{i}, 'Parent', axH(3));
+        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(3));
     hold(axH(3), 'on')
 end
 axH(3).XLim = fTime([1 end]);
 
 for i = 4:6
-    plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1{i}, 'Parent', axH(4));
+    linH_2(i == 4:6) = plot(fTime, fictrac_temp_res(i, :), ...
+        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(4));
     hold(axH(4), 'on')
 end
-axH(4).XLim = [-10 50];
+axH(4).XLim = [0 100];
+
+legend(axH(2), linH_1, {'speed', 'fV', 'lV'})
+legend(axH(4), linH_2, {'yaw', 'pitch', 'roll'})
 
 axH(1).YLabel.String = 'ground velocities (mm/s)';
 axH(3).YLabel.String = 'angular velocities (rad/s)';
+axH(2).YLabel.String = 'ground velocities (mm/s)';
+axH(4).YLabel.String = 'angular velocities (rad/s)';
 axH(3).XLabel.String = 'Time (s)';
 axH(4).XLabel.String = 'Time (s)';
 
@@ -380,57 +391,59 @@ for i = 1:spa_c2plot
     axH(ax2use(i)).YTick = [];
     axH(ax2use(i)).XColor = color_2(i, :);
     axH(ax2use(i)).YColor = color_2(i, :);
-    axH(ax2use(i)).LineWidth = 2;
+    axH(ax2use(i)).LineWidth = 5;
 end
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Parent', axH(7));
+            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(7));
         hold(axH(7), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Parent', axH(7));
+    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(7));
 axH(7).XLim = fTime([1 end]);
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Parent', axH(8));
+            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(8));
         hold(axH(8), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Parent', axH(8));
-axH(8).XLim = [-10 50];
+    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(8));
+axH(8).XLim = [0 100];
 
 % plot szcore
 SVD_temp_res = zscorebigmem(SVD_temp_res);
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Parent', axH(9));
+            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(9));
         hold(axH(9), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Parent', axH(9));
+    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(9));
 axH(9).XLim = fTime([1 end]);
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Parent', axH(10));
+            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(10));
         hold(axH(10), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Parent', axH(10));
-axH(10).XLim = [-10 50];
+    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(10));
+axH(10).XLim = [0 100];
 
 axH(7).YLabel.String = 'temporal SVD (a.u)';
 axH(9).YLabel.String = 'temporal SVD (SD)';
+axH(8).YLabel.String = 'temporal SVD (a.u)';
+axH(10).YLabel.String = 'temporal SVD (SD)';
 axH(9).XLabel.String = 'Time (s)';
 axH(10).XLabel.String = 'Time (s)';
 
@@ -502,7 +515,7 @@ for i = 1:numel(stim2plot)
     
     for j = 1:6
         plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
-            'Color', color_1{j}, 'Parent', axH(i))
+            'Color', color_1(j, :), 'Parent', axH(i))
     end
    
     axH(i).Title.String = stim_name{stim2plot(i)};
@@ -561,7 +574,7 @@ end
 
 for i = 1:6
     plot((-lag_t:lag_t)*0.01, temp_(i, :), ...
-        'Color', color_1{i}, 'Parent', axH(1))
+        'Color', color_1(i, :), 'Parent', axH(1))
     hold(axH(1), 'on')
 end
 
@@ -632,11 +645,11 @@ end
 for i = 1:3
     
     linH_1(i) = plot(vel_bins, y_vel(i, :)/sum(y_vel(i, :)), ...
-        'Color', color_1{i}, 'Parent', axH(1));
+        'Color', color_1(i, :), 'Parent', axH(1));
     hold(axH(1), 'on')
     
     linH_2(i) = plot(deg_bins, y_deg(i, :)/sum(y_deg(i, :)), ...
-        'Color', color_1{i + 3}, 'Parent', axH(2));
+        'Color', color_1(i + 3, :), 'Parent', axH(2));
     hold(axH(2), 'on')
     
 end
