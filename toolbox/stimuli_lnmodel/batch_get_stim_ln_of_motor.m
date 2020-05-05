@@ -358,7 +358,7 @@ for iter_i = 1:size(trial_comb)
 end
 
 clear trial_comb test_comb ...
-    ntrial_train iter_i t_i trialidx_u
+    iter_i t_i trialidx_u
 
 % 11) Automatically calculate the minsize and 
 %   number of splits base on the trial length
@@ -416,7 +416,10 @@ if tgate
     lgate = ~sum(contains({vList.name}, 'eVar_cs'));
 end
 
-add_stim_lag = [-5 5]/dt;
+stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
+stim_width = max(stim_width);
+add_stim_lag = [-ceil(6/dt) ceil(stim_width/dt)];
+shuffle2use = 1;
 fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
 
 eVar_cs = get_explained_variance_shuffle(...
@@ -425,7 +428,7 @@ eVar_cs = get_explained_variance_shuffle(...
     pSMMot.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSMMot.chunksiz, pSMMot.corenum, ...
-    pSMMot.btn, 1, add_stim_lag);
+    pSMMot.btn, shuffle2use, add_stim_lag);
 
 save(filename_temp, 'eVar_cs', '-append')
     
@@ -439,7 +442,7 @@ sti_ln_mot.pval = calculate_pval_2(eVar, ...
 fprintf('Split trace into trials\n')
 wDat_edit = wDat;
 wDat_edit.fTime = wDat.fTime(sti_ln_mot.tidx2use);
-[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, oStimidx, ~] = trace2trials(wDat_edit, ...
+[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, oStimidx, stimvect_] = trace2trials(wDat_edit, ...
     zscorebigmem(motvar_in), pSMMot.pst_time, stim_all_idx, 1, []);
 stocf(t0, 'Time consumed so far: ')
 
@@ -462,10 +465,31 @@ for i = 1:numel(sti_ln_mot.stim_name)
         motvar_per_trial_stim, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial_stim)));    
 end
 
+% 17) re-define trials for training and testing
+motvar_per_trial_v = cf(@(x) horz(x'), motvar_per_trial);
+motvar_per_trial_v = cell2mat(motvar_per_trial_v);
+motvar_mean_v = cell2mat(cf(@(x) horz(x'), ...
+    cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+
+stim_bin_2 = repmat(stimvect_, [size(motvar_per_trial{1}, 1) 1]);
+stim_bin_2 = horz(stim_bin_2');
+chunk_splitn_2 = floor(numel(stim_bin_2)/chunk_minsize);
+
+stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
+stim_width = max(stim_width)*1.2;
+add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
+shuffle2use = 2;
+sti_ln_mot.eVar_mean_cs = get_explained_variance_shuffle(...
+    motvar_per_trial_v, motvar_mean_v, 1, ...
+    double(stim_bin_2 > 0), 1, filename_temp, ...
+    chunk_minsize, chunk_splitn_2, ...
+    pSMMot.chunksiz, pSMMot.corenum, ...
+    pSMMot.btn, shuffle2use, add_stim_lag);
+
 % delete temp file:
 delete(filename_temp)
 
-% 17) Save fields
+% 18) Save fields
 
 % always updates this fields
 sti_ln_mot.maxlag = filterlength_tp; 

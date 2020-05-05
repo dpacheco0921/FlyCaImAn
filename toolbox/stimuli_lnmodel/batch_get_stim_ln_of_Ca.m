@@ -424,13 +424,15 @@ if tgate
 end
 
 add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
+shuffle2use = 1;
 fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
 
 pcor_cs = get_explained_variance_shuffle(...
     Ca_in, Ca_pred, lgate, sti_ln_ca.stim(1, sti_ln_ca.tidx2use), ...
     pSM.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
-    pSM.chunksiz, pSM.corenum, pSM.btn, 1, add_stim_lag);
+    pSM.chunksiz, pSM.corenum, pSM.btn, ...
+    shuffle2use, add_stim_lag);
 
 save(filename_temp, 'pcor_cs', '-append')
     
@@ -459,10 +461,10 @@ sti_ln_ca.eVar_med = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
 delete(filename_temp)
 
 % 16) Save fields
-sti_ln_ca.maxlag = filterlength_tp; 
-sti_ln_ca.btn = pSM.btn; 
+sti_ln_ca.maxlag = filterlength_tp;
+sti_ln_ca.btn = pSM.btn;
 sti_ln_ca.stim2use = pSM.stim2use;
-sti_ln_ca.CC_raw = pcor_raw; 
+sti_ln_ca.CC_raw = pcor_raw;
 sti_ln_ca.lFilter = lFilter;
 sti_ln_ca.CC_cs = pcor_cs;
 sti_ln_ca.train_idx = train_idx;
