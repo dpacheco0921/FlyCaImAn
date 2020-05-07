@@ -29,6 +29,11 @@ end
 
 pval = [];
 
+% 1) deal with nan (their are interpreted as failures) so
+%   they are set to 0
+coef_shuffle(isnan(coef_shuffle)) = 0;
+coef_raw(isnan(coef_raw)) = 0;
+
 % 1) compute raw p-val
 %   interpretation of negative coefficient values:
 %   any negative value is taken as 0 (no correlation/zero explained variance).

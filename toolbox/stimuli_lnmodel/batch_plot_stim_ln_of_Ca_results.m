@@ -539,7 +539,7 @@ if size(CaRaw_zs_tl, 1) > 1
         caxis(axH(2), [-1 1])
 
         axH(1).YLabel.String = 'ROI number';
-        axH(1).Title.String = 'ROI >= 0.2';
+        axH(1).Title.String = ['ROI >= ', num2str(plotpars.coeffths)];
         axH(1).YDir = 'normal';
         axH(2).YDir = 'normal';
         
@@ -568,7 +568,7 @@ if size(CaRaw_zs_tl, 1) > 1
         caxis(axH(4), [-1 1])
 
         axH(3).YLabel.String = 'ROI number';
-        axH(3).Title.String = 'ROI < 0.2';
+        axH(3).Title.String = ['ROI < ', num2str(plotpars.coeffths)];
         axH(3).YDir = 'normal';
         axH(4).YDir = 'normal';
         

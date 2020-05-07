@@ -1,10 +1,12 @@
 function rperm_tIdx = randcirshuffleper(...
-    timepoints_n, min_shift, repn, stim, stim_lags2avoid)
+    timepoints_n, min_shift, repn, stim, ...
+    stim_lags2avoid, add_inverse)
 % randcirshuffleper: generate a set of circular permutations
 %
 % Usage:
 %   rperm_tIdx = randcirshuffleper(...
-%      timepoints_n, min_shift, repn, stim)
+%      timepoints_n, min_shift, repn, stim, ...
+%      stim_lags2avoid, add_inverse)
 %
 % Args:
 %   timepoints_n: # of timepoints
@@ -13,6 +15,7 @@ function rperm_tIdx = randcirshuffleper(...
 %   stim: vector with stimuli information
 %   stim_lags2avoid: set of lags to remove from circ shuffle
 %       (default, [-4 4])
+%   add_inverse: adding circular permutation of mirror trace
 %
 % Output:
 %   rperm_tIdx: matrix with indeces of random permutation per rows
@@ -27,6 +30,10 @@ end
 
 if ~exist('stim_lags2avoid', 'var') || isempty(stim_lags2avoid)
     stim_lags2avoid = [-4 4];
+end
+
+if ~exist('add_inverse', 'var') || isempty(add_inverse)
+    add_inverse = 0;
 end
 
 rng('shuffle');
@@ -53,6 +60,11 @@ if ~isempty(stim)
     perm2rem_ = find(ismember(stim(rperm_tIdx), stim_', 'rows'));
     rperm_tIdx(perm2rem_, :) = [];    
     
+end
+
+if add_inverse
+    rperm_tIdx = [rperm_tIdx; ...
+        changem(rperm_tIdx, timepoints_n:-1:1, 1:timepoints_n)];
 end
 
 % subsampling permutations

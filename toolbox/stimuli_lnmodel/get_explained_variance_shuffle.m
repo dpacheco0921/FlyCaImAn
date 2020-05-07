@@ -1,7 +1,9 @@
-function eVar_cs = get_explained_variance_shuffle(...
+function [eVar_cs, corrcoef_cs] = ...
+    get_explained_variance_shuffle(...
     Y, Y_pred, lgate, stim_bin, redo, ...
     filename, chunk_minsize, chunk_splitn, ...
-    chunksiz, corenum, btn, shuffle2use, add_stim_lag)
+    chunksiz, corenum, btn, shuffle2use, ...
+    add_stim_lag, add_inverse)
 % runridgeshuffle_chunks: Run Ridge regression to all 
 %   the possible combinations of train and test data
 %
@@ -9,7 +11,8 @@ function eVar_cs = get_explained_variance_shuffle(...
 %   eVar_cs = get_explained_variance_shuffle(...
 %   	Y, Y_pred, lgate, stim_bin, redo, ...
 %   	filename, chunk_minsize, chunk_splitn, ...
-%   	chunksiz, corenum, btn, shuffle2use, add_stim_lag)
+%   	chunksiz, corenum, btn, shuffle2use, ...
+%       add_stim_lag, add_inverse)
 %
 % Args:
 %   Y: time traces of variables [n, T]
@@ -27,11 +30,15 @@ function eVar_cs = get_explained_variance_shuffle(...
 %       (default, 0, random chunks, requires chunk_minsize & chunk_splitn & btn);
 %       (1, random chunks + circular permutation);
 %       (2, circular shuffling);
-%   add_stim_lag: aditional lags of stimuli pattern to avoid (in timestamps)
+%   add_stim_lag: aditional lags of stimuli pattern 
+%       to avoid (in timestamps) when doing circular permutation
 %       (default, [-10 10]);
+%   add_inverse: include reverse order when doing circular permutation
+%       (default, 1);
 %
 % Outputs:
 %   eVar_cs: explained variance per permutation for each ROI
+%   corrcoef_cs: correlation coefficient per permutation for each ROI
 %
 % See also getsMod_ridgeperiter_ashuffle
 
@@ -51,6 +58,10 @@ if ~exist('filename', 'var') || isempty(filename)
     filename = [pwd, 'temp_file.mat'];
 end
 
+if ~exist('add_inverse', 'var') || isempty(add_inverse)
+    add_inverse = 1;
+end
+
 siz1 = size(Y, 1);
 dataObj = matfile(filename, 'Writable', true);
 
@@ -68,7 +79,8 @@ if lgate || redo
     % add circular permutations
     if shuffle2use ~= 0
         rperm_circIdx = randcirshuffleper(...
-        numel(Y(1, :)), 10, [], stim_bin, add_stim_lag);
+            numel(Y(1, :)), 10, [], stim_bin, ...
+            add_stim_lag, add_inverse);
     end
 
     if shuffle2use == 0
@@ -112,14 +124,16 @@ for i = 1:numel(chunk_idx)
             + chunksiz - 1, siz1));
         k = 1;
         t_eVar = [];
-        
+        t_corrcoef = [];
+
         for iii = idx_i{ii, 1}
             
             if i == 1 && ii == 1 && k == 1
                 t0_ = stic;
             end
 
-            t_eVar(k, :) = get_explained_variance_per_row(...
+            [t_eVar(k, :), t_corrcoef(k, :)] = ...
+                get_explained_variance_per_row(...
                 Y(iii, :), Y_pred(iii, :), rperm_chunkIdx);
 
             if i == 1 && ii == 1 && k == 1
@@ -134,13 +148,16 @@ for i = 1:numel(chunk_idx)
        end
         
         tb_eVar_cs_i{ii, 1} = t_eVar;
-        
+        tb_corrcoef_cs_i{ii, 1} = t_corrcoef;
+
     end
     
     dataObj.eVar_cs(cat(2, idx_i{:}), 1:btn) = ...
         cat(1, tb_eVar_cs_i{:});
+    dataObj.corrcoef_cs(cat(2, idx_i{:}), 1:btn) = ...
+        cat(1, tb_corrcoef_cs_i{:});
     
-    clear tb_eVar_cs_i idx_i
+    clear tb_eVar_cs_i tb_corrcoef_cs_i idx_i
     
     if i == 1
         fprintf(['Estimated time ', ...
@@ -155,10 +172,11 @@ for i = 1:numel(chunk_idx)
 end
 
 eVar_cs = dataObj.eVar_cs;
+corrcoef_cs = dataObj.corrcoef_cs;
 
 end
 
-function eVar = get_explained_variance_per_row(...
+function [eVar, corrcoef] = get_explained_variance_per_row(...
     Y, Y_pred, rperm_tIdx)
 % get_explained_variance_per_row: get explained variance from many shuffle
 %   iterations (as defined in rperm_tIdx)
@@ -175,6 +193,7 @@ function eVar = get_explained_variance_per_row(...
 %
 % Outputs:
 %   eVar: explained variance per permutation [n, T]
+%   corrcoef: correlation coefficient [n, T]
 
 T = size(Y, 2);
 
@@ -187,6 +206,7 @@ Y_shuffle = zscorebigmem(Y(rperm_tIdx));
 Y_pred = zscorebigmem(Y_pred);
 
 % estimate explained variance per permutation
-eVar = (corr(Y_shuffle', Y_pred')').^2;
+corrcoef = corr(Y_shuffle', Y_pred');
+eVar = (corrcoef').^2;
 
 end

@@ -111,8 +111,8 @@ pSMMot.sig = 3;
 pSMMot.siz = 10;
 
 pSMM_plot = [];
-pSMM_plot.hbins = 0:0.001:1;
-pSMM_plot.hbinsp = 0:0.001:1.1;
+pSMM_plot.hbins = -1:0.1:1;
+pSMM_plot.hbinsp = 0:0.01:1.1;
 pSMM_plot.prct2use = 30;
 pSMM_plot.fdr = 0.01;
 pSMM_plot.mccor_method = 'dep';
@@ -394,7 +394,7 @@ if ~tgate || pSMMot.redo(2)
     [~, lFilter, motvar_pred] = ridgeregres_per_row_crossval(...
         train_idx, motvar_in, sti_ln_mot.stimM, pSMMot.chunksiz, pSMMot.corenum, 'bayes');
     
-    eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)')).^2;
+    eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)'));
     
     save(filename_temp, 'eVar', 'lFilter', 'motvar_pred', '-v7.3')
     
@@ -417,18 +417,25 @@ if tgate
 end
 
 stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
-stim_width = max(stim_width);
+stim_width = max(stim_width*1.2);
 add_stim_lag = [-ceil(6/dt) ceil(stim_width/dt)];
-shuffle2use = 1;
-fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
+shuffle2use = 2;
+fprintf(['adding stimuli lag of: ', ...
+    num2str(add_stim_lag), ' (timestamps) \n'])
 
-eVar_cs = get_explained_variance_shuffle(...
+[~, eVar_cs] = get_explained_variance_shuffle(...
     motvar_in, motvar_pred, lgate, ...
     sti_ln_mot.stim(1, sti_ln_mot.tidx2use), ...
     pSMMot.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSMMot.chunksiz, pSMMot.corenum, ...
-    pSMMot.btn, shuffle2use, add_stim_lag);
+    pSMMot.btn, shuffle2use, add_stim_lag, []);
+
+% plot traces
+% i = 1;
+% plot(zscorebigmem(motvar_in(i, :)), 'r')
+% hold on
+% plot(motvar_pred(i, :), 'b')
 
 save(filename_temp, 'eVar_cs', '-append')
     
@@ -442,49 +449,31 @@ sti_ln_mot.pval = calculate_pval_2(eVar, ...
 fprintf('Split trace into trials\n')
 wDat_edit = wDat;
 wDat_edit.fTime = wDat.fTime(sti_ln_mot.tidx2use);
-[motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, oStimidx, stimvect_] = trace2trials(wDat_edit, ...
-    zscorebigmem(motvar_in), pSMMot.pst_time, stim_all_idx, 1, []);
+[sti_ln_mot.motvar_per_trial, ~, ~, ~, ~, ~, ~, ~, ...
+    sti_ln_mot.oStimidx, sti_ln_mot.stimvect_] = ...
+    trace2trials(wDat_edit, zscorebigmem(motvar_in), ...
+    pSMMot.pst_time, stim_all_idx, 1, []);
 stocf(t0, 'Time consumed so far: ')
-
 sti_ln_mot.stim_name = stim_name;
 
-% 15) calculating ceiling of explained variance using mean-per-trial
-sti_ln_mot.eVar_mean = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
-    motvar_per_trial, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+% compute correlation of the mean across half trials
+trial_n = size(sti_ln_mot.motvar_per_trial{1}, 1);
+group_perm_1 = nchoosek(1:trial_n, round(trial_n/2));
+group_perm_1 = mat2cell(group_perm_1, ones(size(group_perm_1, 1), 1), size(group_perm_1, 2));
+group_perm_2 = cf(@(x) setdiff(1:trial_n, x), group_perm_1);
 
-% 16) calculating ceiling of explained variance using median-per-trial
-sti_ln_mot.eVar_med = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
-    motvar_per_trial, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial)));
+% compute mean
+for i = 1:numel(group_perm_1)
+    
+    mean_g_1 = cf(@(x) nanmean(x(group_perm_1{i}, :), 1), ...
+        sti_ln_mot.motvar_per_trial);
+    mean_g_2 = cf(@(x) nanmean(x(group_perm_2{i}, :), 1), ...
+        sti_ln_mot.motvar_per_trial);
+    sti_ln_mot.mean_to_mean_corr(:, i) = cell2mat(cf(@(x, y) corr(x', y'), ...
+        mean_g_1, mean_g_2));
 
-% do it for each stimulus independently
-for i = 1:numel(sti_ln_mot.stim_name)
-    motvar_per_trial_stim = cf(@(x) x(:, oStimidx == i), motvar_per_trial);
-    sti_ln_mot.eVar_mean_per_stim(:, i) = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
-        motvar_per_trial_stim, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial_stim)));
-    sti_ln_mot.eVar_med_per_stim(:, i) = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
-        motvar_per_trial_stim, cf(@(x) repmat(median(x, 1), [size(x, 1), 1]), motvar_per_trial_stim)));    
 end
-
-% 17) re-define trials for training and testing
-motvar_per_trial_v = cf(@(x) horz(x'), motvar_per_trial);
-motvar_per_trial_v = cell2mat(motvar_per_trial_v);
-motvar_mean_v = cell2mat(cf(@(x) horz(x'), ...
-    cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), motvar_per_trial)));
-
-stim_bin_2 = repmat(stimvect_, [size(motvar_per_trial{1}, 1) 1]);
-stim_bin_2 = horz(stim_bin_2');
-chunk_splitn_2 = floor(numel(stim_bin_2)/chunk_minsize);
-
-stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
-stim_width = max(stim_width)*1.2;
-add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
-shuffle2use = 2;
-sti_ln_mot.eVar_mean_cs = get_explained_variance_shuffle(...
-    motvar_per_trial_v, motvar_mean_v, 1, ...
-    double(stim_bin_2 > 0), 1, filename_temp, ...
-    chunk_minsize, chunk_splitn_2, ...
-    pSMMot.chunksiz, pSMMot.corenum, ...
-    pSMMot.btn, shuffle2use, add_stim_lag);
+clear mean_g_1 mean_g_2
 
 % delete temp file:
 delete(filename_temp)
@@ -504,5 +493,9 @@ sti_ln_mot.train_idx = train_idx;
 % save variable with the custom name
 eval([pSMMot.varname, ' = sti_ln_mot']);
 save(filename, pSMMot.varname, '-append')
+
+% to generate predicted using sti_ln_mot
+% Y_pred = get_predicted_signal(sti_ln_mot.train_idx, ...
+%   sti_ln_mot.lFilter, sti_ln_mot.stimM);
 
 end

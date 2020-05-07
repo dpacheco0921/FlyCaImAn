@@ -103,15 +103,15 @@ pSM.chunksiz = 80;
 pSM.febgate = 0;
 
 pSM_plot = [];
-pSM_plot.hbins = 0:0.001:1;
-pSM_plot.hbinsp = 0:0.001:1.1;
+pSM_plot.hbins = -1:0.1:1;
+pSM_plot.hbinsp = 0:0.01:1.1;
 pSM_plot.prct2use = 30;
 pSM_plot.fdr = 0.01;
 pSM_plot.mccor_method = 'dep';
 pSM_plot.dir_depth = 1;
 pSM_plot.var2load = 'sti_ln_ca';
-pSM_plot.coeffname = 'explained variance';
-pSM_plot.coeffrange_im = {[0 .001], [0 .4]};
+pSM_plot.coeffname = 'pearson correlation';
+pSM_plot.coeffrange_im = {[0 .12], [0 .4]};
 pSM_plot.coeffths = 0.1;
 
 % update variables
@@ -401,7 +401,7 @@ if ~tgate || pSM.redo(2)
     % calculate filters and predicted traces for Ca
     [~, lFilter, Ca_pred] = ridgeregres_per_row_crossval(...
         train_idx, Ca_in, sti_ln_ca.stimM, pSM.chunksiz, pSM.corenum, 'bayes');
-    pcor_raw = diag(corr(zscorebigmem(Ca_in)', zscorebigmem(Ca_pred)')).^2;
+    pcor_raw = diag(corr(zscorebigmem(Ca_in)', zscorebigmem(Ca_pred)'));
     save(filename_temp, 'pcor_raw', 'lFilter', 'Ca_pred', '-v7.3')
     
 else
@@ -424,15 +424,15 @@ if tgate
 end
 
 add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
-shuffle2use = 1;
+shuffle2use = 2;
 fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
 
-pcor_cs = get_explained_variance_shuffle(...
+[~, pcor_cs] = get_explained_variance_shuffle(...
     Ca_in, Ca_pred, lgate, sti_ln_ca.stim(1, sti_ln_ca.tidx2use), ...
     pSM.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSM.chunksiz, pSM.corenum, pSM.btn, ...
-    shuffle2use, add_stim_lag);
+    shuffle2use, add_stim_lag, []);
 
 save(filename_temp, 'pcor_cs', '-append')
     
