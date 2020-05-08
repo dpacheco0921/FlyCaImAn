@@ -101,6 +101,10 @@ pSMplot.prct2use = 30;
 pSMplot.fdr = 0.01;
 pSMplot.mccor_method = 'dep';
 pSMplot.dir_depth = 1;
+pSMplot.var2load = 'sMod';
+pSMplot.coeffname = 'pearson correlation';
+pSMplot.coeffrange_im = {[0 .12], [0 .4]};
+pSMplot.coeffths = 0.1;
 
 % update variables
 if ~exist('FileName', 'var'); FileName = []; end

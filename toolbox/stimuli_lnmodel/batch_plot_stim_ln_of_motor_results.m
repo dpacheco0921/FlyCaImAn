@@ -32,12 +32,14 @@ function batch_plot_stim_ln_of_motor_results(...
 % default params
 motpar = [];
 motpar.fmetsuffix = '_prosmetadata.mat';
-motpar.hbins = 0:0.001:1;
-motpar.hbinsp = 0:0.001:1.1;
+motpar.hbins = -1:0.01:1;
+motpar.hbinsp = 0:0.1:1.1;
 motpar.prct2use = 100;
 motpar.fdr = 0.01;
 motpar.mccor_method = 'dep';
 motpar.dir_depth = 0;
+motpar.coeffname = 'pearson correlation';
+motpar.coeffrange_im = {[0 .12], [0 .4]};
 
 if ~exist('Filename', 'var')
     Filename = [];
@@ -125,7 +127,7 @@ load([iDir, filesep, filename, motpar.fmetsuffix], ...
 
 % correct correlation coefficients and generate pvalues
 
-% load null explained variance distribution eVar
+% load null correlation distribution eVar
 if isfield(sti_ln_mot, 'eVar_cs')
     eVar_shuffle = sti_ln_mot.eVar_cs;
 end
@@ -324,13 +326,13 @@ imagesc(motpar.hbins, 1:roi_n, ...
     corrcoef_hist_null(idx_order, :), ...
     'Parent', axH(1))
 colormap(axH(1), icolormap)
-caxis(axH(1), [0 .001])
+caxis(axH(1), motpar.coeffrange_im{1})
 
 imagesc(motpar.hbins, 1:roi_n, ...
     corrcoef_hist(idx_order, :), ...
     'Parent', axH(2))
 colormap(axH(2), icolormap)
-caxis(axH(2), [0 1])
+caxis(axH(2), motpar.coeffrange_im{2})
 
 axH(1).YDir = 'normal';
 axH(2).YDir = 'normal';
@@ -338,9 +340,9 @@ axH(1).Title.String = 'CC Shuffle data';
 axH(2).Title.String = 'CC Raw data';
 axH(1).YLabel.String = 'ROI number';
 axH(2).YLabel.String = 'ROI number'; 
-axH(2).XLabel.String = 'explained variance';
-axH(1).XLim = [0 0.02];
-axH(2).XLim = [0 0.02];
+axH(2).XLabel.String = motpar.coeffname;
+axH(1).XLim = [-0.2 0.2];
+axH(2).XLim = [-0.2 0.2];
 
 cbH(1) = colorbar('peer', axH(1)); 
 cbH(1).Label.String = 'Probability'; 
@@ -360,7 +362,7 @@ lineH(2) = plot(motpar.hbins, nsmod_hist, ...
 
 axH(3).Title.String = 'smod vs ~smod ROIs';
 axH(3).YLabel.String = 'Probability'; 
-axH(3).XLim = [0 0.02];
+axH(3).XLim = [-1 1];
 
 legend(axH(3), lineH, {'smod', '~smod'}, ...
     'location', 'northwest')
@@ -374,9 +376,9 @@ lineH(2) = plot(motpar.hbins, corrcoef_hist_all, ...
     'Linewidth', 2, 'Parent', axH(4));
 
 axH(4).Title.String = 'shuffle vs raw';
-axH(4).XLabel.String = 'explained variance'; 
+axH(4).XLabel.String = motpar.coeffname; 
 axH(4).YLabel.String = 'Probability'; 
-axH(4).XLim = [0 0.02];
+axH(4).XLim = [-1 1];
 
 legend(axH(4), lineH, {'shuffle', 'raw'}, ...
     'location', 'northwest')
@@ -434,7 +436,7 @@ axH(7).Title.String = ['pvalue vs cc (', ...
     num2str(sum(pval_raw <= motpar.fdr)*100/roi_n), ') (#, %)'];
 axH(7).XLim = [0 0.05];
 axH(7).XLabel.String = 'pvalue';
-axH(7).YLabel.String = 'explained variance';
+axH(7).YLabel.String = motpar.coeffname;
 line(.01*ones(1, 2), ylim(axH(7)), 'color', 'r', 'Parent', axH(7))
 
 axH(8).Title.String = ['pvalue-cor vs cc (', ...
@@ -442,7 +444,7 @@ axH(8).Title.String = ['pvalue-cor vs cc (', ...
     num2str(sum(pval_cor <= motpar.fdr)*100/roi_n), ') (#, %)'];
 axH(8).XLim = [0 0.05];
 axH(8).XLabel.String = 'pvalue';
-axH(8).YLabel.String = 'explained variance';
+axH(8).YLabel.String = motpar.coeffname;
 line(.01*ones(1, 2), ylim(axH(8)), 'color', 'r', 'Parent', axH(8))
 
 fitsize = 0;
