@@ -24,7 +24,7 @@ function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %       (filterlength_stim: filter length in seconds before and after stimulus start)
 %           (default, [])
 %       (filterlength_motor: filter length in seconds before and after motor event)
-%           (default, [-2 2])
+%           (default, [])
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
 %           (default, [])
@@ -94,7 +94,7 @@ pSLM.metsuffix = '_prosmetadata';
 pSLM.redo = [0 0 0];
 pSLM.varname = 'sti_mot_ln_ca';
 pSLM.filterlength_stim = [];
-pSLM.filterlength_motor = [-2 2];
+pSLM.filterlength_motor = [];
 pSLM.customtrial_init = [];
 pSLM.customtrial_end = [];
 pSLM.stim2use = [];
@@ -299,7 +299,12 @@ clear stim_m jj
 % 8) load motor variables directly from fictrac (fV, lV, V, yaw-vel)
 motor_m = load_edit_fictrac_motor_var(wDat, pSLM.ball_radious, ...
     pSLM.mot2use, pSLM.sig, pSLM.siz, 1);
-filterlength_tp_ = repmat(pSLM.filterlength_motor/dt, [size(motor_m, 1), 1]);
+if ~isempty(pSLM.filterlength_motor)
+    filterlength_tp_ = repmat(pSLM.filterlength_motor/dt, [size(motor_m, 1), 1]);
+else
+    filterlength_tp_= repmat([0 1], [size(motor_m, 1), 1]);
+end
+
 [sti_mot_ln_ca.stimM(:, end+1:end+sum(sum(abs(filterlength_tp_), 2))), idx_motorM] = ...
     build_matrix_with_lags(motor_m, filterlength_tp_, nan);
 sti_mot_ln_ca.idx_stimM = [idx_stimM; idx_motorM + max(idx_stimM(:))];
@@ -416,24 +421,20 @@ stocf(t0, 'Time consumed so far: ')
 fprintf('Get variance (total, stimuli-related, motor-related)\n')
 roi_per_trial = cf(@(x, y) reshape(zscorebigmem(x(:)'), y), roi_per_trial, ...
     cf(@(x) size(x), roi_per_trial));
+roi_per_trial_mean = cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), roi_per_trial);
 
-% get total variance
-var_total = cell2mat(cf(@(x) var(x(:), 1), roi_per_trial));
-
-% get stim variance
-var_stim_mean = cell2mat(cf(@(x) var(x(:), 1), cf(@(x) mean(x, 1), roi_per_trial)));
-%evar_stim_mean = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
-%    roi_per_trial, cf(@(x) repmat(mean(x, 1), [size(x, 1), 1]), roi_per_trial)));
-
-% get residual (total-stim)
-var_res_mean = cell2mat(cf(@(x) var(x(:), 1), cf(@(x) x - mean(x, 1), roi_per_trial)));
+% pass variable to struture to save
+sti_mot_ln_ca.roi_per_trial = roi_per_trial;
 
 % fit motor to residual
-roi_per_trial_res_mean = cf(@(x) horz(x'), cf(@(x) x - mean(x, 1), roi_per_trial));
-roi_per_trial_res_mean = cell2mat(roi_per_trial_res_mean);
+roi_per_trial_res_flat = cf(@(x) horz(x'), cf(@(x, y) x - y, ...
+    roi_per_trial, roi_per_trial_mean));
+roi_per_trial_res_flat = cell2mat(roi_per_trial_res_flat);
 
-motor_per_trial_flat = cf(@(x) horz(x'), motor_per_trial);
-motor_per_trial_flat = cell2mat(motor_per_trial_flat);
+motor_per_trial_flat = cell2mat(cf(@(x) horz(x'), motor_per_trial));
+
+% pass variable to struture to save
+sti_mot_ln_ca.motor_per_trial_flat = motor_per_trial_flat;
 
 % re-define trials for training and testing
 stim_trial_idx_2 = ones(size(roi_per_trial{1}));
@@ -474,7 +475,7 @@ if ~tgate || pSLM.redo(2)
     % 15) using LN model to fit residual
     [~, LN_filter_motor, motor_prediction, motor_prediction_single, ~] = ...
         ridgeregres_per_row_crossval(...
-        train_idx, roi_per_trial_res_mean, ...
+        train_idx, roi_per_trial_res_flat, ...
         motor_per_trial_flat(sti_mot_ln_ca.stim_type ~= 1, :)', ...
         pSLM.chunksiz, pSLM.corenum, 'bayes', ...
         sti_mot_ln_ca.stim_type(sti_mot_ln_ca.stim_type ~= 1));
@@ -489,36 +490,47 @@ else
     
 end
 
-% motor prediction per trial
-% [motor_prediction_per_trial, ~, ~, ~, ~, ~, ~, ~, ~, ~] = ...
-%     trace2trials(wDat_edit, ...
-%     motor_prediction, [-10 10], stim_all_idx, 1, []);
+% pass variables to struture to save
+sti_mot_ln_ca.train_idx = train_idx;
+sti_mot_ln_ca.lFilter_motor = LN_filter_motor;
 
-% get motor variance
-var_motor = var(motor_prediction', 1, 1)';
-evar_motor = corr(roi_per_trial_res_mean', motor_prediction');
-evar_motor = diag(evar_motor).^2;
+% calculate variances and explained variances
+% get total variance
+sti_mot_ln_ca.var_total = cell2mat(cf(@(x) var(x(:), 1), roi_per_trial));
+
+% get motor related variance
+sti_mot_ln_ca.var_motor = var(motor_prediction', 1, 1)';
+sti_mot_ln_ca.evar_motor = corr(roi_per_trial_res_flat', motor_prediction');
+sti_mot_ln_ca.evar_motor = diag(sti_mot_ln_ca.evar_motor).^2;
 
 for i = 1:size(motor_prediction_single, 1)
-    var_motor_single(:, i) = var(squeeze(motor_prediction_single(i, :, :)), 1, 1)';
-    temp_ = corr(roi_per_trial_res_mean', squeeze(motor_prediction_single(i, :, :)));
-    evar_motor_single(:, i) = diag(temp_).^2;
+    sti_mot_ln_ca.var_motor_single(:, i) = var(squeeze(motor_prediction_single(i, :, :)), 1, 1)';
+    temp_ = corr(roi_per_trial_res_flat', squeeze(motor_prediction_single(i, :, :)));
+    sti_mot_ln_ca.evar_motor_single(:, i) = diag(temp_).^2;
 end
 
+% get stim variance
+sti_mot_ln_ca.var_stim = cell2mat(cf(@(x, y) corr(horz(x')', horz(y')').^2, ...
+    roi_per_trial, roi_per_trial_mean));
+% var_stim_mean = cell2mat(cf(@(x) var(x(:), 1), cf(@(x) mean(x, 1), roi_per_trial)));
+% var_res_mean = cell2mat(cf(@(x) var(x(:), 1), cf(@(x) x - mean(x, 1), roi_per_trial)));
+
 % plot filters
-plot_filters_full_model(LN_filter_motor, ...
-    sti_mot_ln_ca, evar_motor, var_stim_mean, var_total, filename_, pSLM.oDir)
+plot_filters_full_model(sti_mot_ln_ca.lFilter_motor, ...
+    sti_mot_ln_ca, sti_mot_ln_ca.evar_motor, ...
+    sti_mot_ln_ca.var_stim, sti_mot_ln_ca.var_total, filename_, pSLM.oDir)
 
 % plot variance and explained variance in full vs 
 %   single variable type model
 plot_full_vs_single_vartype_model(...
-    var_motor_single, var_motor, evar_motor_single, ...
-    evar_motor, filename_, pSLM.oDir)
+    sti_mot_ln_ca.var_motor_single, sti_mot_ln_ca.var_motor, sti_mot_ln_ca.evar_motor_single, ...
+    sti_mot_ln_ca.evar_motor, filename_, pSLM.oDir)
 
 % plot stim var vs motor var
-plot_evar_stim_vs_motor(var_stim_mean, evar_motor, var_total, ...
+plot_evar_stim_vs_motor(sti_mot_ln_ca.var_stim, ...
+    sti_mot_ln_ca.evar_motor, sti_mot_ln_ca.var_total, ...
     motor_prediction, rel_time, stimvect_, roi_per_trial, ...
-    roi_per_trial_res_mean, filename_, pSLM.oDir)
+    roi_per_trial_res_flat, filename_, pSLM.oDir)
 
 stocf(t0, 'Time consumed so far: ')
 
@@ -542,8 +554,9 @@ stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
 stim_width = max(stim_width);
 add_stim_lag = [-ceil(5/dt) ceil(stim_width/dt)];
 shuffle2use = 1;
-eVar_cs = get_explained_variance_shuffle(...
-    roi_per_trial_res_mean, motor_prediction, lgate, ...
+sti_mot_ln_ca.evar_motor_cs = ...
+    get_explained_variance_shuffle(...
+    roi_per_trial_res_flat, motor_prediction, lgate, ...
     stim_bin_2, pSLM.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn_2, ...
     pSLM.chunksiz, pSLM.corenum, pSLM.btn, shuffle2use, add_stim_lag);
@@ -551,15 +564,16 @@ eVar_cs = get_explained_variance_shuffle(...
 stocf(t0, 'Time consumed so far: ')
 
 % plot significance of motor explained variance
-plot_sig_motor_mod(evar_motor, eVar_cs, filename_, pSLM.oDir)
+plot_sig_motor_mod(sti_mot_ln_ca.evar_motor, ...
+    sti_mot_ln_ca.evar_motor_cs, filename_, pSLM.oDir)
 
 % get p-values
-sti_mot_ln_ca.pval = calculate_pval_2(evar_motor, ...
-    eVar_cs, pSLM.fdr, pSLM.pval_cor_method);
+sti_mot_ln_ca.pval = calculate_pval_2(sti_mot_ln_ca.evar_motor, ...
+    sti_mot_ln_ca.evar_motor_cs, pSLM.fdr, pSLM.pval_cor_method);
 
 % plot motor vs stimuli variance for significant ones
-plot_stim_vs_motor_sig(var_stim_mean, ...
-    evar_motor, sti_mot_ln_ca.pval, filename_, pSLM.oDir)
+plot_stim_vs_motor_sig(sti_mot_ln_ca.var_stim, ...
+    sti_mot_ln_ca.evar_motor, sti_mot_ln_ca.pval, filename_, pSLM.oDir)
 
 % delete temp file:
 %delete(filename_temp)
@@ -568,15 +582,6 @@ plot_stim_vs_motor_sig(var_stim_mean, ...
 sti_mot_ln_ca.filter_lags = [filterlength_tp; filterlength_tp_]; 
 sti_mot_ln_ca.btn = pSLM.btn; 
 sti_mot_ln_ca.stim2use = pSLM.stim2use;
-sti_mot_ln_ca.var_total = var_total;
-sti_mot_ln_ca.var_stim = var_stim_mean;
-sti_mot_ln_ca.var_res = var_res_mean;
-sti_mot_ln_ca.var_motor = var_motor;
-sti_mot_ln_ca.evar_motor = evar_motor;
-sti_mot_ln_ca.evar_motor_single = var_motor_single;
-sti_mot_ln_ca.evar_motor_single = evar_motor_single;
-sti_mot_ln_ca.evar_motor_cs = eVar_cs;
-sti_mot_ln_ca.lFilter_motor = LN_filter_motor;
 
 % save variable with the custom name
 eval([pSLM.varname, ' = sti_mot_ln_ca']);
