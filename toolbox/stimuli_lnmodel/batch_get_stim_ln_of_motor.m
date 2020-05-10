@@ -463,7 +463,8 @@ for i = 1:numel(sti_ln_mot.stim_name)
         find(sti_ln_mot.stimvect_ == i, 1,'first')];
     time_bs = time_bs(1):(time_bs(2)-1);
     time2edit = sti_ln_mot.oStimidx == i;
-    out(:, i) = cf(@(x) (x(:, time2edit) - nanmean(x(:, time_bs), 2))./std(x(:, time_bs), [], 2), ...
+    out(:, i) = cf(@(x) (x(:, time2edit) - nanmean(x(:, time_bs), 2))...
+        ./std(x(:, time_bs), [], 2), ...
             matrix2norm);
 end
 
@@ -475,7 +476,8 @@ clear matrix2norm
 % compute correlation of the mean across half trials
 trial_n = size(sti_ln_mot.motvar_per_trial{1}, 1);
 group_perm_1 = nchoosek(1:trial_n, round(trial_n/2));
-group_perm_1 = mat2cell(group_perm_1, ones(size(group_perm_1, 1), 1), size(group_perm_1, 2));
+group_perm_1 = mat2cell(group_perm_1, ...
+    ones(size(group_perm_1, 1), 1), size(group_perm_1, 2));
 group_perm_2 = cf(@(x) setdiff(1:trial_n, x), group_perm_1);
 
 % compute correlation across means
@@ -488,19 +490,13 @@ for i = 1:numel(group_perm_1)
     sti_ln_mot.mean_to_mean_corr(:, i) = cell2mat(cf(@(x, y) corr(x', y'), ...
         mean_g_1, mean_g_2));
 
-end
-clear mean_g_1 mean_g_2
-
-% compute correlation across means
-for i = 1:numel(group_perm_1)
+%     mean_g_1 = cf(@(x) nanmean(x(group_perm_1{i}, :), 1), ...
+%         sti_ln_mot.motvar_per_trial_norm);
+%     mean_g_2 = cf(@(x) nanmean(x(group_perm_2{i}, :), 1), ...
+%         sti_ln_mot.motvar_per_trial_norm);
+%     sti_ln_mot.mean_to_mean_norm_corr(:, i) = cell2mat(cf(@(x, y) corr(x', y'), ...
+%         mean_g_1, mean_g_2));
     
-    mean_g_1 = cf(@(x) nanmean(x(group_perm_1{i}, :), 1), ...
-        sti_ln_mot.motvar_per_trial_norm);
-    mean_g_2 = cf(@(x) nanmean(x(group_perm_2{i}, :), 1), ...
-        sti_ln_mot.motvar_per_trial_norm);
-    sti_ln_mot.mean_to_mean_norm_corr(:, i) = cell2mat(cf(@(x, y) corr(x', y'), ...
-        mean_g_1, mean_g_2));
-
 end
 clear mean_g_1 mean_g_2
 
