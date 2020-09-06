@@ -96,7 +96,7 @@ if sum(figformat)
     % ********** SVG-build-in **********
     if figformat(11)
         print(figH, [tDir, filesep, figname, '.svg'], ...
-            '-dsvg', '-painters');
+            '-dsvg', '-painters', resolution_);
     end
     
     % ********** using plot2svg package: deprecated **********
