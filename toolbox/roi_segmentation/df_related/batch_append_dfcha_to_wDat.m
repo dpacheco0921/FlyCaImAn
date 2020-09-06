@@ -43,7 +43,7 @@ function batch_append_dfcha_to_wDat(...
 metpars = [];
 metpars.fmetsuffix = '_prosmetadata.mat';
 metpars.fisuffix = '_prosdata.mat';
-metpars.fitoreject = 'BData';
+metpars.fitoreject = {'BData', 'Zstack'};
 metpars.dir_depth = 0;
 metpars.bs_range = [-10 -0.5];
 metpars.sti_range = [0 0];
