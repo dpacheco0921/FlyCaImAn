@@ -893,12 +893,10 @@ iDat.sSmooth = 0;
 iDat.tResample = 0;
 iDat.tSmooth = 0;
 
-% remove field from motion correction
-iDat = rmfield(iDat, 'timepointsdel');
-
 % remove some fields produced later
 f2rem = {'lstEn', 'fstEn', 'GreenChaMean', ...
-    'RedChaMean', 'Tres', 'sstEn', 'sSmoothpar', 'PMT_fscore'};
+    'RedChaMean', 'Tres', 'sstEn', ...
+    'sSmoothpar', 'PMT_fscore', 'timepointsdel'};
 
 for i = 1:numel(f2rem)
     try iDat = rmfield(iDat, f2rem{i}); end
@@ -1079,7 +1077,7 @@ time2load = 2:iDat.StackN;
 hist_o = [];
 
 % set up parpool
-setup_parpool(tifpars.serverid, tifpars.corenumber);
+ppobj = setup_parpool(tifpars.serverid, tifpars.corenumber);
 
 % time patches    
 for i = 1:numel(chunk_idx)
@@ -1205,6 +1203,8 @@ figEdit(axH, figH);
 savefig_int(figH, tifpars.oDir, ...
     [ifilename, '_hist_trend'], figformat, resolution_);
 close(figH)
+
+delete_parpool(ppobj);
 
 end
 
