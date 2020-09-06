@@ -33,7 +33,7 @@ roiparams.sr = 0.1;                             % sampling rate of data Hz
 roiparams.spatial_method = 'constrained';       % regularized vs constrained
 
 % parameters related to detrending
-roiparams.freq_th = 0.25;                       % Hz over which to log-avegare
+roiparams.freq_th = 0.01;                       % Hz over which to log-avegare
 roiparams.rem_prct = 10;                        % percentile to be removed
 roiparams.df_prctile = [];                      % percentile for dfof for background stimation
 roiparams.dtype = 1;                            % 0 = lowpass filter, 1 = percentile filter

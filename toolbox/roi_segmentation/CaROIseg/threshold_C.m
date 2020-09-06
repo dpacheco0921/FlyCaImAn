@@ -1,8 +1,8 @@
 function idx2keep = threshold_C(C, A, YrA, iparams)
 % threshold_C: function to do dF thresholding based
 %   on the max delta F induced by the LED bleedthrough.
-%   The idea is that the 90 - 10 percentile of the dF for each component
-%   should be greater than ths.
+%   The idea is that the range from 90 to 10 percentile of the dF for each component
+%   should be greater than l_df.
 %
 % Usage:
 %   idx2keep = threshold_C(C, A, YrA, iparams)
@@ -58,12 +58,12 @@ if ~isempty(C)
         C = C + YrA;
     end
     
-    % detrend C
+    % detrend C using percentile filtering
     C = prctfilt(C, lopars.d_prct, ...
         lopars.d_window, lopars.d_shift);
     
     % only use timepoints after the buffer time:
-    tIdx = round(lopars.t_init*lopars.sr);
+    tIdx = ceil(lopars.t_init*lopars.sr);
     
     % get lower and upper precentile
     C_lp = prctile(C(:, tIdx:end), lopars.lperc, 2);
