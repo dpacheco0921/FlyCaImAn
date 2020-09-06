@@ -1,11 +1,13 @@
 function pval = calculate_pval_2(...
-    coef_raw, coef_shuffle, fdr, pval_cortype)
+    coef_raw, coef_shuffle, fdr, ...
+    pval_cortype, prct2use)
 % calculate_pval_2: generate pvals from a set of raw and shuffle
 %   coefficients
 %
 % Usage:
-%   pval = calculate_pval(...
-%     coef_raw, coef_shuffle, fdr, pval_cortype)
+%   pval = calculate_pval_2(...
+%      coef_raw, coef_shuffle, fdr, ...
+%       pval_cortype, prct2use)
 %
 % Args:
 %   coef_raw: coefficient of raw data 
@@ -15,7 +17,7 @@ function pval = calculate_pval_2(...
 %       (default, 0.01)
 %   pval_cortype: type of multiple comparison correction to use: dep, pdep, bh)
 %       (default, 'dep')
-
+%   prct2use: percentile of coef_raw to use
 
 if ~exist('pval_cortype', 'var') ...
         || isempty(pval_cortype)
@@ -27,6 +29,11 @@ if ~exist('fdr', 'var') ...
     fdr = 0.01;
 end
 
+if ~exist('prct2use', 'var') ...
+        || isempty(prct2use)
+    prct2use = [];
+end
+
 pval = [];
 
 % 1) deal with nan (their are interpreted as failures) so
@@ -34,7 +41,12 @@ pval = [];
 coef_shuffle(isnan(coef_shuffle)) = 0;
 coef_raw(isnan(coef_raw)) = 0;
 
-% 1) compute raw p-val
+% 2) get percentile
+if ~isempty(prct2use)
+    coef_raw = prctile(coef_raw, prct2use, 2);
+end
+
+% 3) compute raw p-val
 %   interpretation of negative coefficient values:
 %   any negative value is taken as 0 (no correlation/zero explained variance).
 idx_pos = coef_raw >= 0;

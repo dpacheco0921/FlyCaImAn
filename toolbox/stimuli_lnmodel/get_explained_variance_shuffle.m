@@ -1,9 +1,11 @@
-function [eVar_cs, corrcoef_cs] = ...
+function [eVar_cs, corrcoef_cs, lFilter_mean, ...
+    lFilter_med, lFilter_sd] = ...
     get_explained_variance_shuffle(...
     Y, Y_pred, lgate, stim_bin, redo, ...
     filename, chunk_minsize, chunk_splitn, ...
     chunksiz, corenum, btn, shuffle2use, ...
-    add_stim_lag, add_inverse)
+    add_stim_lag, add_inverse, train_idx, ...
+    lnfit_flag, regress_matrix, ridge_algorithm)
 % runridgeshuffle_chunks: Run Ridge regression to all 
 %   the possible combinations of train and test data
 %
@@ -35,12 +37,19 @@ function [eVar_cs, corrcoef_cs] = ...
 %       (default, [-10 10]);
 %   add_inverse: include reverse order when doing circular permutation
 %       (default, 1);
+%   train_idx: indeces of training timepoints (assumes test_idx = ~train_idx)
+%   lnfit_flag: flag to do linear fitting on shuffle data
+%   regress_matrix: matrix of regressors [T, m]
+%       m: number of regressors.
+%   ridge_algorithm: algorithm to use ('bayes', 'MML')
+%       (default, 'bayes')
 %
 % Outputs:
 %   eVar_cs: explained variance per permutation for each ROI
 %   corrcoef_cs: correlation coefficient per permutation for each ROI
-%
-% See also getsMod_ridgeperiter_ashuffle
+%   lFilter_mean: mean estimated filters
+%   lFilter_med: median estimated filters
+%   lFilter_sd: std of estimated filters
 
 if ~exist('stim_bin', 'var')
     stim_bin = [];
@@ -62,10 +71,28 @@ if ~exist('add_inverse', 'var') || isempty(add_inverse)
     add_inverse = 1;
 end
 
+if ~exist('train_idx', 'var')
+    train_idx = [];
+end
+
+if ~exist('lnfit_flag', 'var')
+    lnfit_flag = false;
+end
+
+if ~exist('ridge_algorithm', 'var') || ...
+        isempty(ridge_algorithm)
+    ridge_algorithm = 'bayes';
+end
+
+if ~exist('regress_matrix', 'var')
+    regress_matrix = [];
+end
+
 siz1 = size(Y, 1);
 dataObj = matfile(filename, 'Writable', true);
 
 if lgate || redo
+    
     % initialize parameters
     dataObj.eVar_cs = [];
 
@@ -96,7 +123,9 @@ if lgate || redo
     % make chunks to run
     [~, ~, chunk_idx] = ppool_makechunks(...
         chunksiz, corenum, siz1);
+    
 else
+    
     % update initial index
     vect_init = size(dataObj.eVar_cs, 1) + 1;
 
@@ -105,7 +134,8 @@ else
 
     % make chunks to run
     [~, ~, chunk_idx] = ppool_makechunks(...
-        chunksiz, corenum, siz1, vect_init);       
+        chunksiz, corenum, siz1, vect_init);  
+    
 end
 
 btn = size(rperm_chunkIdx, 1);
@@ -125,16 +155,22 @@ for i = 1:numel(chunk_idx)
         k = 1;
         t_eVar = [];
         t_corrcoef = [];
-
+        t_fmean_cs_i = [];
+        t_fmed_cs_i = [];
+        t_fsd_cs_i = [];
+        
         for iii = idx_i{ii, 1}
             
             if i == 1 && ii == 1 && k == 1
                 t0_ = stic;
             end
 
-            [t_eVar(k, :), t_corrcoef(k, :)] = ...
+            [t_eVar(k, :), t_corrcoef(k, :), t_fmean_cs_i(:, k), ...
+                t_fmed_cs_i(:, k), t_fsd_cs_i(:, k)] = ...
                 get_explained_variance_per_row(...
-                Y(iii, :), Y_pred(iii, :), rperm_chunkIdx);
+                Y(iii, :), Y_pred(iii, :), rperm_chunkIdx, ...
+                train_idx, lnfit_flag, regress_matrix, ...
+                ridge_algorithm);
 
             if i == 1 && ii == 1 && k == 1
                 fprintf(['time per roi ', ...
@@ -149,7 +185,10 @@ for i = 1:numel(chunk_idx)
         
         tb_eVar_cs_i{ii, 1} = t_eVar;
         tb_corrcoef_cs_i{ii, 1} = t_corrcoef;
-
+        tb_fmean_cs_i{ii, 1} = t_fmean_cs_i; 
+        tb_fmed_cs_i{ii, 1} = t_fmed_cs_i;
+        tb_fsd_cs_i{ii, 1} = t_fsd_cs_i;
+        
     end
     
     dataObj.eVar_cs(cat(2, idx_i{:}), 1:btn) = ...
@@ -157,7 +196,18 @@ for i = 1:numel(chunk_idx)
     dataObj.corrcoef_cs(cat(2, idx_i{:}), 1:btn) = ...
         cat(1, tb_corrcoef_cs_i{:});
     
-    clear tb_eVar_cs_i tb_corrcoef_cs_i idx_i
+    if lnfit_flag
+        dataObj.lFilter_cs_mean(1:size(regress_matrix, 2), cat(2, idx_i{:})) = ...
+            cat(2, tb_fmean_cs_i{:});
+        dataObj.lFilter_cs_med(1:size(regress_matrix, 2), cat(2, idx_i{:})) = ...
+            cat(2, tb_fmed_cs_i{:}); 
+        dataObj.lFilter_cs_sd(1:size(regress_matrix, 2), cat(2, idx_i{:})) = ...
+            cat(2, tb_fsd_cs_i{:});
+    end
+    
+    clear tb_eVar_cs_i tb_corrcoef_cs_i ...
+        idx_i tb_fmean_cs_i ...
+        tb_fmed_cs_i tb_fsd_cs_i
     
     if i == 1
         fprintf(['Estimated time ', ...
@@ -174,10 +224,22 @@ end
 eVar_cs = dataObj.eVar_cs;
 corrcoef_cs = dataObj.corrcoef_cs;
 
+if lnfit_flag
+    lFilter_mean = dataObj.lFilter_cs_mean;
+    lFilter_med = dataObj.lFilter_cs_med;
+    lFilter_sd = dataObj.lFilter_cs_sd;
+else
+    lFilter_mean = [];
+    lFilter_med = [];
+    lFilter_sd = [];   
 end
 
-function [eVar, corrcoef] = get_explained_variance_per_row(...
-    Y, Y_pred, rperm_tIdx)
+end
+
+function [eVar, corrcoef, LN_filter_mean, ...
+    LN_filter_med, LN_filter_sd] = get_explained_variance_per_row(...
+    Y, Y_pred, rperm_tIdx, train_idx, lnfit_flag, regress_matrix, ...
+    ridge_algorithm)
 % get_explained_variance_per_row: get explained variance from many shuffle
 %   iterations (as defined in rperm_tIdx)
 %
@@ -190,10 +252,38 @@ function [eVar, corrcoef] = get_explained_variance_per_row(...
 %   Y_pred: predicted time traces [1, T]
 %   rperm_tIdx: set of permutations to apply to Y [n, T],
 %       n: permutations
+%   train_idx: indeces of training timepoints (assumes test_idx = ~train_idx)
+%   lnfit_flag: flag to do linear fitting on shuffle data
+%   regress_matrix: matrix of regressors [T, m]
+%       m: number of regressors.
+%   ridge_algorithm: algorithm to use ('bayes', 'MML')
+%       (default, 'bayes')
 %
 % Outputs:
 %   eVar: explained variance per permutation [n, T]
 %   corrcoef: correlation coefficient [n, T]
+%   LN_filter_mean: mean estimated filters
+%   LN_filter_med: median estimated filters
+%   LN_filter_sd: std of estimated filters
+
+if ~exist('train_idx', 'var') || isempty(train_idx)
+    train_idx = false([1 size(Y, 2)]);
+end
+
+if ~exist('lnfit_flag', 'var')
+    lnfit_flag = false;
+end
+
+if ~exist('ridge_algorithm', 'var') || ...
+        isempty(ridge_algorithm)
+    ridge_algorithm = 'bayes';
+end
+
+if ~exist('regress_matrix', 'var')
+    regress_matrix = [];
+end
+
+test_idx = ~train_idx;
 
 T = size(Y, 2);
 
@@ -202,11 +292,43 @@ if size(rperm_tIdx, 1) == T
 end
 
 % apply shuffle to Y
-Y_shuffle = zscorebigmem(Y(rperm_tIdx));
+zs_Y_shuffle = zscorebigmem(Y(rperm_tIdx));
 Y_pred = zscorebigmem(Y_pred);
 
-% estimate explained variance per permutation
-corrcoef = corr(Y_shuffle', Y_pred');
+% estimate explained variance and correlation per permutation
+corrcoef = corr(zscorebigmem(zs_Y_shuffle(:, test_idx))', Y_pred(:, test_idx)');
 eVar = (corrcoef').^2;
+
+% estimate filters from shuffle data
+if lnfit_flag
+    
+    zs_Y_shuffle = zscorebigmem(zs_Y_shuffle(:, train_idx))';
+    zs_regressM = zscorebigmem(regress_matrix(train_idx, :)')';
+    perm_n = size(rperm_tIdx, 1);
+
+    for i = 1:perm_n
+        
+        if contains(ridge_algorithm, 'bayes')
+            LN_filter_shuffle(:, i) = runRidgeOnly(zs_regressM, ...
+                zs_Y_shuffle(:, i), size(zs_regressM, 2), 1);
+        elseif contains(ridge_algorithm, 'mml')
+            [~, LN_filter_shuffle(:, i)] = ...
+                ridgeMML(zs_Y_shuffle(:, i), zs_regressM, true);        
+        end
+        
+    end
+
+    % collect filter stats
+    LN_filter_mean = mean(LN_filter_shuffle, 2);
+    LN_filter_med = prctile(LN_filter_shuffle, 50, 2);
+    LN_filter_sd = std(LN_filter_shuffle, [], 2);
+
+else
+    
+    LN_filter_mean = nan([1 10]);
+    LN_filter_med = nan([1 10]);
+    LN_filter_sd = nan([1 10]);
+    
+end
 
 end
