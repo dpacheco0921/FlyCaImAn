@@ -9,7 +9,9 @@ function delete_parpool(ppobj)
 % 
 % See also: parcluster parpool
 
-if ~exist('ppobj', 'var') || isempty(ppobj); ppobj = []; end
+if ~exist('ppobj', 'var') || isempty(ppobj)
+    ppobj = [];
+end
 
 if ~exist('ppobj', 'var') || isempty(ppobj)
     delete(gcp('nocreate'));

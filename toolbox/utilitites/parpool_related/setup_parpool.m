@@ -35,14 +35,16 @@ if ispc || ismac || contains(deviceID, 'int')
     
 else
     
-    ppprofile = parcluster('local');
-    
-    % use temporary folder
-    ppprofile.JobStorageLocation = ...
-        strcat('/tmp/', getenv('USER'), ...
-        '-', getenv('SLURM_JOB_ID'));
-    
-    ppobj = parpool(ppprofile, corenum);
+    if isempty(gcp('nocreate'))
+        ppprofile = parcluster('local');
+
+        % use temporary folder
+        ppprofile.JobStorageLocation = ...
+            strcat('/tmp/', getenv('USER'), ...
+            '-', getenv('SLURM_JOB_ID'));
+
+        ppobj = parpool(ppprofile, corenum);
+    end
     
 end
 
