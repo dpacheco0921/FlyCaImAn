@@ -10,6 +10,16 @@ function batch_fictrac_perfile(FolderName, FileName, iparams)
 %   iparams: parameters to update
 %       (redo: flag to redo tracking)
 %           (default, 0)
+%       (cDir: current directory)
+%           (default, pwd)
+%       (cDir: current directory)
+%           (default, pwd)
+%       (do_search_flag: flag to do search)
+%           (default, pwd)
+%       (load_template_flag: flag to load external template)
+%           (default, pwd)
+%       (template_fn: template image to use)
+%           (default, [])
 %
 % Notes:
 %   requires fictrac to be installed.
@@ -34,6 +44,9 @@ function batch_fictrac_perfile(FolderName, FileName, iparams)
 % default params
 fictracpars.redo = 0;
 fictracpars.cDir = pwd;
+fictracpars.do_search_flag = 0;
+fictracpars.load_template_flag = 0;
+fictracpars.template_fn = 'template_im.jpg';
 
 if ~exist('FolderName', 'var')
    FolderName = [];
@@ -104,7 +117,10 @@ for i = 1:numel(vid2run)
     if ~exist([vid2run{i}, '_fictrac.txt'], 'file') || ...
             fictracpars.redo
         % edit config file to include file name
-        edit_FicTrac_config(config_file, vid2run{i})
+        edit_FicTrac_config(config_file, ...
+            vid2run{i}, fictracpars.do_search_flag, ...
+            fictracpars.load_template_flag, ...
+            fictracpars.template_fn)
 
         command2run = ['FicTrac ', temp_config_file];
 
@@ -126,15 +142,25 @@ end
 
 end
 
-function edit_FicTrac_config(config_file, vid_name)
+function edit_FicTrac_config(config_file, ...
+    vid_name, do_search_flag, load_template_flag, ...
+    template_name)
 % edit_FicTrac_config: edit config_file to run each video file
 %
 % Usage:
-%	edit_FicTrac_config(config_file, vid_name)
+%	edit_FicTrac_config(config_file, ...
+%       vid_name, do_search_flag, load_template_flag, ...
+%       template_name)
 %
 % Args:
 %   config_file: config file to use as template
 %   vid_name: video name
+%   do_search_flag: flag to do search
+%   	(default, pwd)
+%   load_template_flag: flag to load external template
+%       (default, pwd)
+%   template_fn: template image to use
+%       (default, [])
 
 % load text file
 fid = fopen(config_file, 'r');
@@ -154,7 +180,17 @@ A{2} = ['input_vid_fn        ', vid_name, '_vid.mp4'];
 A{3} = ['output_fn           ', vid_name, '_fictrac.txt'];
 A{4} = ['mask_fn             ', vid_name, '_maskim.tiff'];
 A{5} = ['transform_fn        ', vid_name, '_calibration-transform.dat'];
-A{6} = ['template_fn         ', vid_name, '_template.jpg'];
+
+if load_template_flag
+    A{6} = ['template_fn         ', template_name];
+    A{7} = 'load_template        1';
+else
+    A{6} = ['template_fn         ', vid_name, '_template.jpg'];
+end
+
+if do_search_flag
+    A{26} = 'do_search           1';
+end
 
 % save txt file
 fid = fopen('temp_config.txt', 'w');
