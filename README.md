@@ -22,10 +22,14 @@ To register image segments to local whole brain and to in vivo atlas
 
 # Dependencies
 
-This pipeline requires the following packages:
+For processing of imaging data this pipeline requires the following packages:
 - [CaImAn](https://github.com/flatironinstitute/CaImAn-MATLAB), see link for dependencies.
 - [NoRMCorre](https://github.com/flatironinstitute/NoRMCorre), see link for dependencies.
 - [CMTK_matlab_wrapper](https://github.com/dpacheco0921/CMTK_matlab_wrapper), this requires the Computational Morphometry Toolkit [CMTK](https://www.nitrc.org/projects/cmtk)
+
+For processing of behavior videos with fictrac this pipeline requires the following packages:
+- [Fictrac](http://rjdmoore.net/fictrac/), see link for installation & dependencies (for windows see [fic-trac-win](https://github.com/murthylab/fic-trac-win)).
+- generate calibration-transform.dat, and update that file in /toolbox/fictrac_offline/fictrac_settings
 
 For saving figures install:
 - [export_fig](https://github.com/altmany/export_fig)
@@ -33,7 +37,7 @@ For saving figures install:
 # Acknowledgements
 
 Special thanks to:
-- [Eftychios Pnevmatikakis](https://github.com/epnev) and [Andrea A. Giovannuci](https://github.com/agiovann) for help with CaImAn and NoRMCorre toolboxes
+- [Eftychios Pnevmatikakis](https://github.com/epnev) and [Andrea A. Giovannuci](https://github.com/agiovann) for help with [CaImAn-MATLAB](https://github.com/flatironinstitute/CaImAn-MATLAB) and [NoRMCorre](https://github.com/flatironinstitute/NoRMCorre) toolboxes
 - [Gregory Jefferis](https://github.com/jefferis) and Torsten Rohlfing for help with [CMTK toolbox](https://www.nitrc.org/projects/cmtk)
 
 # Citation
