@@ -3,7 +3,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
     hc_plot_mtrace_per_clus(Y, clus_label, ...
     link_ths, colorvect, y_gap, textgate, axH, ...
     textorder, idx2use4clus, colorvect_mean, ...
-    idx2nan, indvidx, plottype, errortype)
+    idx2nan, indvidx, plottype, errortype, add_ref_trace)
 % hc_plot_mtrace_per_clus: plot mean trace per cluster,
 %   in addition it can get and plot the mean of subclusters 
 %   (use link_ths), or plot error shades
@@ -14,7 +14,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       hc_plot_mtrace_per_clus(Y, clus_label, ...
 %       link_ths, colorvect, y_gap, textgate, axH, ...
 %       textorder, idx2use4clus, colorvect_mean, ...
-%       idx2nan, indvidx, plottype, errortype)
+%       idx2nan, indvidx, plottype, errortype, add_ref_trace)
 %
 % Args:
 %   Y: signal [n, T], where n == length(clus_label), T timepoints
@@ -39,11 +39,14 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %   indvidx: individual indeces, when data comes from 
 %       many different individuals (size: size(Y, 1))
 %       (default, [])
-%   plottype: plot subclusters (using hierachical clustering)
+%   plottype: plot subclusters (using hierarchical clustering)
 %       or just plot error bars (sem or sd)
 %       (default, 0)
 %   errortype: type of errorbar to plot (@steom, @std)
 %       (default, @steom)
+%   add_ref_trace: add a reference line (line of the mean across all timepoints)
+%       to each plotted cluster
+%       (default, 0)
 %
 % Notes
 
@@ -94,6 +97,10 @@ end
 
 if ~exist('errortype', 'var') || isempty(errortype)
     errortype = @steom;
+end
+ 
+if ~exist('add_ref_trace', 'var') || isempty(add_ref_trace)
+    add_ref_trace = 0;
 end
 
 % get clusters (remove 0 labels)
@@ -165,7 +172,7 @@ for i = clus2run
             end
             
             plot(Y_mean_trace_sc{i}(j, :) + (i-1)*y_gap, ...
-                'Color', colorvect_(3, :), 'Linewidth', 2)
+                'Color', colorvect_(3, :), 'Linewidth', 1)
             
             if i == 1
                 hold(axH, 'on')
@@ -185,12 +192,11 @@ for i = clus2run
         Y_mean_trace(i, idx2nan) = nan;
     end
     
-    
     if plottype == 0
         
         % plot mean trace
         plot(Y_mean_trace(i, :) + (i-1)*y_gap, ...
-            'Color', colorvect_mean(i, :), 'Linewidth', 5) 
+            'Color', colorvect_mean(i, :), 'Linewidth', 2) 
         
     else
         
@@ -201,22 +207,53 @@ for i = clus2run
         
         if size(temp_Y, 1) > 1
             
-            shadedErrorBar([], temp_Y  + (i-1)*y_gap, ...
-                {@nanmean, errortype}, 'lineprops', ...
-                {'Color', colorvect_mean(i, :), 'linewidth', 5}, ...
-                'patchSaturation', 0.33, 'Parent', axH)
+            idx_nan = isnan(Y_mean_trace(i, :));
+            
+            if sum(idx_nan)
+                
+                time_st = 1:length(idx_nan);
+                time_st(idx_nan) = nan;
+                idx = all(isnan(time_st), 1);
+                idy = 1 + cumsum(idx);
+                idy(idx) = nan;
+                segments_ = unique(idy(~idx));
+                
+                for j = 1:numel(segments_)
+                   
+                    shadedErrorBar(time_st(idy == segments_(j)), ...
+                        temp_Y(:, idy == segments_(j)) + (i-1)*y_gap, ...
+                        {@nanmean, errortype}, 'lineprops', ...
+                        {'Color', colorvect_mean(i, :), 'Linewidth', 2}, ...
+                        'patchSaturation', 0.4, 'Parent', axH)
+                    
+                end
+                
+            else
+                
+                shadedErrorBar([], temp_Y + (i-1)*y_gap, ...
+                    {@nanmean, errortype}, 'lineprops', ...
+                    {'Color', colorvect_mean(i, :), 'Linewidth', 2}, ...
+                    'patchSaturation', 0.4, 'Parent', axH)
+                
+            end
             
         else
             
-            plot(temp_Y  + (i-1)*y_gap, ...
+            plot(temp_Y + (i-1)*y_gap, ...
                 'Color', colorvect_mean(i, :), ...
-                'linewidth', 5, 'Parent', axH)
+                'Linewidth', 2, 'Parent', axH)
             
         end
         
     end
     
     hold(axH, 'on')
+    
+    if add_ref_trace
+        y_ = mean(Y_mean_trace(i, :) + (i-1)*y_gap);
+        plot([0 size(Y_mean_trace, 2)], [y_ y_], ...
+           '--k', 'Linewidth', 2) 
+    end
     
     % add text with info on # of rows, and number of #files(individuals)
     if textgate
@@ -229,7 +266,7 @@ for i = clus2run
             text(axH, -80, (i-1)*y_gap, ...
                 [num2str(clus2run(end - k + 1)), ...
                 '(', num2str(size(temp_Y, 1)), ')', ...
-                '(', num2str(fileidx_n(clus2run(end - k + 1))), ')']);
+                '(', num2str(fileidx_n(i)), ')']);
         end
     end
     
