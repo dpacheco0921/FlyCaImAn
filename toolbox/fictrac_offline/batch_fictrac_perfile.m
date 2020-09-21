@@ -184,6 +184,7 @@ A{5} = ['transform_fn        ', vid_name, '_calibration-transform.dat'];
 if load_template_flag
     A{6} = ['template_fn         ', template_name];
     A{7} = 'load_template        1';
+    A{37} = 'do_update            0';
 else
     A{6} = ['template_fn         ', vid_name, '_template.jpg'];
 end
