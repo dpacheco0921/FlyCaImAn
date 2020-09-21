@@ -46,3 +46,18 @@ pi.lag = 0.001;
 pi.Y1 = brainmask;
 pi.figpos = genfigpos(1, 'nw', [879 659]);
 slice3Dmatrix(wDat.GreenChaMean, pi)
+
+%% Plot mean image and generated/saved mask
+% 1.2) slide through planes and contour of mask per plane
+im_range = [min(wDat.GreenChaMean(:)) ...
+    max(wDat.GreenChaMean(:))*0.7];
+
+pi = [];
+pi.iter = 0;
+pi.range = [im_range(1) im_range(1) + 100];
+pi.maskout = 0;
+pi.lag = 0.1;
+pi.Y1 = wDat.bMask;
+pi.figpos = genfigpos(1, 'nw', [879 659]);
+
+slice3Dmatrix(wDat.GreenChaMean, pi)
