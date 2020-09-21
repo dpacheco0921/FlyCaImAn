@@ -35,6 +35,8 @@ end
 
 if ~exist('input_colors', 'var') || isempty(input_colors)
     input_colors = [1 0 0; 0 0 0; 0 0 1; 0 0.5 0];
+elseif size(input_colors, 1) ~= numel(varargin)
+    input_colors = repmat(input_colors, [numel(varargin) 1]);
 end
 
 for i = 1:numel(varargin)

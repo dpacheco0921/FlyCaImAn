@@ -1,6 +1,6 @@
 function batch_NoRMCorre(FolderName, FileName, iparams)
 % batch_NoRMCorre: function to perform motion correction to files within a
-% folder
+%   folder
 %
 % Usage:
 %   batch_NoRMCorre(FolderName, FileName, iparams)
@@ -33,6 +33,8 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %           (1, default)
 %       (keepsize_flag: flag to keep original size across dimensions 
 %           after motion correction, pads wit nans)
+%           (0, default)
+%       (withinplane_flag: for 3DxT volumes do motion correction on each plane separately)
 %           (0, default)
 %       %%%%%%%%%%%% internal NoRMCorre params %%%%%%%%%%%%
 %       (def_maxshift: max shift allowed from frame-to-frame)
@@ -111,6 +113,8 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 % 20191028:
 %   1) it plots shifts and correlation to template
 %   2) option to provide smoothed data to estimate shifts (for low SNR stacks)
+% 20200918:
+%   1) add option to do within plane motion correction for 3DxT volumes
 %
 % ToDo:
 % add optical flow
@@ -134,6 +138,7 @@ pMC.nrigidg = 0;
 pMC.refcha = 1;
 pMC.iter_num = 1;
 pMC.keepsize_flag = 0;
+pMC.withinplane_flag = 0;
 pMC.def_maxshift = [5 5 2];
 pMC.phaseflag = 1;
 pMC.shifts_method = 'linear';
@@ -386,15 +391,36 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             % shifts: [height, width, depth]
             
             try
-                if ~isempty(pMC.smooth_siz) && ...
-                        isempty(pMC.smooth_sig)
-                    eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
-                        'normcorre_batch(imblur(', cha_str{pMC.refcha}, ...
-                        ', pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
+                
+                if pMC.withinplane_flag && length(dgDim) == 4
+                    
+                    % do each plane separately
+                    for plane_i = 1:dgDim(3)
+                        if ~isempty(pMC.smooth_siz) && ...
+                                isempty(pMC.smooth_sig)
+                            eval(['[~, shifts_pre{plane_i}, template_(:, :, plane_i), ~, col_shift{plane_i}] = ', ...
+                                'normcorre_batch(imblur(squeeze(', cha_str{pMC.refcha}, ...
+                                '(:, :, plane_i, :)), pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
+                        else
+                            eval(['[~, shifts_pre{plane_i}, template_(:, :, plane_i), ~, col_shift{plane_i}] = ', ...
+                                'normcorre_batch(squeeze(', cha_str{pMC.refcha}, '(:, :, plane_i, :)), options_r);']);
+                        end
+                    end
+                    
                 else
-                    eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
-                        'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
+                    
+                    if ~isempty(pMC.smooth_siz) && ...
+                            isempty(pMC.smooth_sig)
+                        eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
+                            'normcorre_batch(imblur(', cha_str{pMC.refcha}, ...
+                            ', pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
+                    else
+                        eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
+                            'normcorre_batch(', cha_str{pMC.refcha}, ', options_r);']);
+                    end
+                    
                 end
+                
             catch
                 fprintf(['normcorre_batch failed', ...
                     ' at iteration ', num2str(iter_i), '\n'])
@@ -448,14 +474,19 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                 figName = strrep(strrep(strrep(f2run, ...
                     ['.', filesep], ''), '_rawdata.mat', ''), '_', '-');
 
-                if length(dgDim) == 4
+                if length(dgDim) == 4 && ~pMC.withinplane_flag
                     [figH, axH] = plot_NoRMCorr_shitfs(3, ...
                          figH, axH, input_colors(iter_i, :), shifts_r);
                     %[figH, aH] = plot_NoRMCorr_shitfs(im_dim, varargin)
                     % shifts_pre, shifts_s,
                 else
-                    [figH, axH] = plot_NoRMCorr_shitfs(2, ...
-                         figH, axH, input_colors(iter_i, :), shifts_r);
+                    if ~pMC.withinplane_flag
+                        [figH, axH] = plot_NoRMCorr_shitfs(2, ...
+                             figH, axH, input_colors(iter_i, :), shifts_r);
+                    else
+                        [figH, axH] = plot_NoRMCorr_shitfs(2, ...
+                             figH, axH, input_colors(iter_i, :), shifts_r{:});                        
+                    end
                 end
 
                 figH.Name = figName;
@@ -470,15 +501,37 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             end
 
             % apply shifts to Y
-            eval([cha_str{pMC.refcha}, ' = apply_shifts(', cha_str{pMC.refcha}, ...
-                ', shifts_r, options_r, [], [], [], col_shift);']);
+            if pMC.withinplane_flag && length(dgDim) == 4
+                    
+                    % do each plane separately
+                    for plane_i = 1:dgDim(3)
+            
+                        eval([cha_str{pMC.refcha}, '(:, :, plane_i, :) = apply_shifts(squeeze(', cha_str{pMC.refcha}, ...
+                            '(:, :, plane_i, :)), shifts_r{plane_i}, options_r, [], [], [], col_shift{plane_i});']);
 
-            if eval(['~isempty(', cha_str{setdiff([1 2], pMC.refcha)}, ')'])
-                eval([cha_str{setdiff([1 2], pMC.refcha)}, ...
-                    ' = apply_shifts(', cha_str{setdiff([1 2], pMC.refcha)}, ...
+                        if eval(['~isempty(', cha_str{setdiff([1 2], pMC.refcha)}, ')'])
+                            eval([cha_str{setdiff([1 2], pMC.refcha)}, ...
+                                '(:, :, plane_i, :) = apply_shifts(squeeze(', cha_str{setdiff([1 2], pMC.refcha)}, ...
+                                '(:, :, plane_i, :)), shifts_r{plane_i}, options_r, [], [], [], col_shift{plane_i});']);
+                        end
+                        
+                    end
+                    
+            else
+            
+                eval([cha_str{pMC.refcha}, ' = apply_shifts(', cha_str{pMC.refcha}, ...
                     ', shifts_r, options_r, [], [], [], col_shift);']);
+
+                if eval(['~isempty(', cha_str{setdiff([1 2], pMC.refcha)}, ')'])
+                    eval([cha_str{setdiff([1 2], pMC.refcha)}, ...
+                        ' = apply_shifts(', cha_str{setdiff([1 2], pMC.refcha)}, ...
+                        ', shifts_r, options_r, [], [], [], col_shift);']);
+                end
+                
             end
 
+            clear col_shift
+            
             % find nan pixels per plane, and whole nan planes
             floatIm = [];
             if length(dgDim) == 4
@@ -560,6 +613,14 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             % add optic flow
             % edit opticalFlowFarneback
 
+            % if running each plane per volume separately save the average
+            %   across planes
+            if pMC.withinplane_flag && length(dgDim) == 4
+                shifts_r = average_shifts(shifts_r);
+                shifts_pre = average_shifts(shifts_pre);
+                shifts_nr = average_shifts(shifts_nr);
+            end
+            
             % Get displacements
             shifts = parseshift(shifts_r, shifts_pre, shifts_nr);
             mcDat.axes = {'Y', 'X', 'Z'};
@@ -742,7 +803,8 @@ function [options_r, options_nr] = ...
 %   template to each frame of floating image
 %
 % Usage:
-%   [options_r, options_nr] = generate_normcore_params(siz, pMC)
+%   [options_r, options_nr] = ..
+%       generate_normcore_params(siz, pMC)
 %
 % Args:
 %   siz: image dimensions
@@ -752,7 +814,7 @@ function [options_r, options_nr] = ...
 %   options_r & options_nr motion correction parameters (see NoRMCorreSetParms)
 
 % motion correction parameters
-if length(siz) == 4
+if length(siz) == 4 && ~pMC.withinplane_flag
     d3 = siz(3);
 else
     d3 = 1;
@@ -1119,36 +1181,49 @@ function [shifts_i, shifts_s, igate] = ...
 % Returns:
 %   shifts_i, shifts_s, igate: zeroed shifts in vector format
 
-igate = 0;
-shifts_s = shifts_i;
-shifts_r = shifts_editor(shifts_i, 'read');
-
-for i = 1:size(shifts_r, 2)
-    
-    % Smooth
-    shifts_sr(:, i) = smooth(shifts_r(:, i), smooth_span);
-    % Round to 2 decimal
-    shifts_sr(:, i) = round(shifts_sr(:, i)*100)/100;
-    
+if ~iscell(shifts_i)
+    shifts_i = {shifts_i};
 end
 
-shifts_delta = abs(shifts_sr - shifts_r);
-
-for i = 1:size(shifts_r, 2)
-    display([max(shifts_delta(:, i)) sum(shifts_delta(:, i))])
+for i = 1:numel(shifts_i)
     
-    if max(shifts_delta(:, i)) > shift_ths(2) ...
-            || sum(shifts_delta(:, i)) > shift_ths(1)
-        shifts_sr(:, i) = 0;
-        igate = 1;     
+    igate = 0;
+    shifts_s{i} = shifts_i{i};
+    shifts_r = shifts_editor(shifts_i{i}, 'read');
+
+    for ii = 1:size(shifts_r, 2)
+
+        % Smooth
+        shifts_sr(:, ii) = smooth(shifts_r(:, ii), smooth_span);
+        % Round to 2 decimal
+        shifts_sr(:, ii) = round(shifts_sr(:, ii)*100)/100;
+
     end
-    
+
+    shifts_delta = abs(shifts_sr - shifts_r);
+
+    for ii = 1:size(shifts_r, 2)
+        display([max(shifts_delta(:, ii)) sum(shifts_delta(:, ii))])
+
+        if max(shifts_delta(:, ii)) > shift_ths(2) ...
+                || sum(shifts_delta(:, ii)) > shift_ths(1)
+            shifts_sr(:, ii) = 0;
+            igate = 1;     
+        end
+
+    end
+
+    % if a max delta is greater than ths then zero all those shifts
+    % save smooth trace
+    shifts_s{i} = shifts_editor(shifts_s{i}, 'write_r', shifts_sr);
+    shifts_i{i} = shifts_editor(shifts_i{i}, 'write_r', shifts_sr);
+
 end
 
-% if a max delta is greater than ths then zero all those shifts
-% save smooth trace
-shifts_s = shifts_editor(shifts_s, 'write_r', shifts_sr);
-shifts_i = shifts_editor(shifts_i, 'write_r', shifts_sr);
+if numel(shifts_s) == 1
+    shifts_s = shifts_s{1};
+    shifts_i = shifts_i{1};
+end
 
 end
 
@@ -1166,23 +1241,35 @@ function shifts_s = smoothshift(shifts_i, ax2use, smooth_span)
 % Returns:
 %   shifts: smoothed shifts in vector format
 
-shifts_s = shifts_i;
-shifts_r = shifts_editor(shifts_i, 'read');
-shifts_sr = shifts_r;
-
-if ~exist('ax2use', 'var') || isempty(ax2use)
-    ax2use = 1:size(shifts_r, 2);
+if ~iscell(shifts_i)
+    shifts_i = {shifts_i};
 end
 
-for i = ax2use
-    % Smooth
-    shifts_sr(:, i) = smooth(shifts_r(:, i), smooth_span);
-    % Round to 2 decimal
-    shifts_sr(:, i) = round(shifts_sr(:, i)*100)/100;
+for i = 1:numel(shifts_i)
+    
+    shifts_s{i} = shifts_i{i};
+    shifts_r = shifts_editor(shifts_i{i}, 'read');
+    shifts_sr = shifts_r;
+
+    if ~exist('ax2use', 'var') || isempty(ax2use)
+        ax2use = 1:size(shifts_r, 2);
+    end
+
+    for ii = ax2use
+        % Smooth
+        shifts_sr(:, ii) = smooth(shifts_r(:, ii), smooth_span);
+        % Round to 2 decimal
+        shifts_sr(:, ii) = round(shifts_sr(:, ii)*100)/100;
+    end
+
+    % save smooth trace
+    shifts_s{i} = shifts_editor(shifts_s{i}, 'write_r', shifts_sr);
+    
 end
 
-% save smooth trace
-shifts_s = shifts_editor(shifts_s, 'write_r', shifts_sr);
+if numel(shifts_s) == 1
+    shifts_s = shifts_s{1};
+end
 
 end
 
@@ -1199,22 +1286,76 @@ function shifts_s = zeroshift(shifts_i, ax2use)
 % Returns:
 %   shifts: zeroed shifts in vector format
 
-shifts_s = shifts_i;
-shifts_r = shifts_editor(shifts_i, 'read');
-
-if ~exist('ax2use', 'var')
-    ax2use = 1:size(shifts_r, 2);
+if ~iscell(shifts_i)
+    shifts_i = {shifts_i};
 end
 
-shifts_sr = shifts_r;
+for i = 1:numel(shifts_i)
 
-% Zeroing values
-for i = ax2use
-    shifts_sr(:, i) = shifts_r(:, i)*0;
+    shifts_s{i} = shifts_i{i};
+    shifts_r = shifts_editor(shifts_i{i}, 'read');
+
+    if ~exist('ax2use', 'var')
+        ax2use = 1:size(shifts_r, 2);
+    end
+
+    shifts_sr = shifts_r;
+
+    % Zeroing values
+    for ii = ax2use
+        shifts_sr(:, ii) = shifts_r(:, ii)*0;
+    end
+
+    % save trace
+    shifts_s{i} = shifts_editor(shifts_s{i}, 'write_r', shifts_sr);
+
 end
 
-% save trace
-shifts_s = shifts_editor(shifts_s, 'write_r', shifts_sr);
+if numel(shifts_s) == 1
+    shifts_s = shifts_s{1};
+end
+
+end
+
+function shifts_out = average_shifts(shifts_in)
+% average_shifts: average shifts contained in a cell shifts_in
+%
+% Usage:
+%   shifts_out = average_shifts(shifts_in)
+%
+% Args:
+%   shifts_in: cell with many shifts
+%
+% Returns:
+%   shifts_out: mean shifts as structure
+
+if ~isempty(shifts_in)
+    
+    shifts_out = shifts_in{1};
+
+    for t_i = 1:numel(shifts_out)
+
+        for i = 1:numel(shifts_in)
+            shifts(:, :, :, :, i) = shifts_in{i}(t_i).shifts;
+            shifts_up(:, :, :, :, i) = shifts_in{i}(t_i).shifts_up;
+            diff(:, i) = shifts_in{i}(t_i).diff;
+        end
+
+        shifts_out(t_i).shifts = mean(shifts, 5);
+        shifts_out(t_i).shifts(:, :, :, 3) = 0;
+        shifts_out(t_i).shifts_up = mean(shifts_up, 5);
+        shifts_out(t_i).shifts_up(:, :, :, 3) = 0;
+        shifts_out(t_i).diff = mean(diff, 2);
+
+        clear shifts shifts_up diff
+
+    end
+    
+else
+    
+    shifts_out = [];
+    
+end
 
 end
 
