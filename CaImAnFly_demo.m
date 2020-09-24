@@ -24,21 +24,22 @@ clear url outfilename
     
 %% 3) process behavior videos with fictract
 %% Generate fictrac input files
+FolderName = '20200909'; FileName = '20200909_1';
 setupID = 'Alevel_2p1';
 % readout a tiff for mask or extract from video mp4
 im_mode = 1;
 
-batch_gen_fictrac_input_files(setupID, im_mode)
+batch_gen_fictrac_input_files(FolderName, FileName, setupID, im_mode)
 
 %% Run fictrac on each file per current directory
-FileName = '20200222_3_1';
+FolderName = '20200909'; FileName = '20200909_1';
 fictracpars = [];
 fictracpars.redo = 1;
 %fictracpars.do_search_flag = 1; % to do global search
 %fictracpars.load_template_flag = 1; % to load pre-generated template
 %fictracpars.template_fn = 'template_im.jpg'; % pre-generated template image
 
-batch_fictrac_perfile(FileName, fictracpars)
+batch_fictrac_perfile(FolderName, FileName, fictracpars)
 
 %% 4) process imaging videos 
 %% Test batch_tiff2mat
