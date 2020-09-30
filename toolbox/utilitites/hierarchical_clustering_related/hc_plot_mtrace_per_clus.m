@@ -1,9 +1,10 @@
 function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
     sub_clus_label, sub_clus_order] = ...
     hc_plot_mtrace_per_clus(Y, clus_label, ...
-    link_ths, colorvect, y_gap, textgate, axH, ...
+    link_ths, colorvect, y_gap, texton_flag, axH, ...
     textorder, idx2use4clus, colorvect_mean, ...
-    idx2nan, indvidx, plottype, errortype, add_ref_trace)
+    idx2nan, indvidx, plottype, errortype, ...
+    add_ref_trace, text_x_pos)
 % hc_plot_mtrace_per_clus: plot mean trace per cluster,
 %   in addition it can get and plot the mean of subclusters 
 %   (use link_ths), or plot error shades
@@ -12,9 +13,10 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %   [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       sub_clus_label, sub_clus_order] = ...
 %       hc_plot_mtrace_per_clus(Y, clus_label, ...
-%       link_ths, colorvect, y_gap, textgate, axH, ...
+%       link_ths, colorvect, y_gap, texton_flag, axH, ...
 %       textorder, idx2use4clus, colorvect_mean, ...
-%       idx2nan, indvidx, plottype, errortype, add_ref_trace)
+%       idx2nan, indvidx, plottype, errortype, ...
+%       add_ref_trace, text_x_pos)
 %
 % Args:
 %   Y: signal [n, T], where n == length(clus_label), T timepoints
@@ -25,7 +27,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       (default, jet(numel(unique(clus_label))))
 %   y_gap: gap between traces (y axis)
 %       (deafult, y_gap)
-%   textgate: gate to show text
+%   texton_flag: gate to show text
 %       (default, 1)
 %   axH: axes handle
 %   textorder: ascend (1), descend (0)
@@ -44,9 +46,11 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       (default, 0)
 %   errortype: type of errorbar to plot (@steom, @std)
 %       (default, @steom)
-%   add_ref_trace: add a reference line (line of the mean across all timepoints)
-%       to each plotted cluster
+%   add_ref_trace: add a reference line to each plotted cluster
 %       (default, 0)
+%       (1, line of the mean across all timepoints)
+%       (2, line of the min across all timepoints)
+%   text_x_pos: position on text on the x axis
 %
 % Notes
 
@@ -67,8 +71,8 @@ if ~exist('y_gap', 'var') || isempty(y_gap)
     y_gap = 4.2;
 end
 
-if ~exist('textgate', 'var') || isempty(textgate)
-    textgate = 1;
+if ~exist('texton_flag', 'var') || isempty(texton_flag)
+    texton_flag = 1;
 end
 
 if ~exist('textorder', 'var') || isempty(textorder)
@@ -101,6 +105,10 @@ end
  
 if ~exist('add_ref_trace', 'var') || isempty(add_ref_trace)
     add_ref_trace = 0;
+end
+
+if ~exist('text_x_pos', 'var') || isempty(text_x_pos)
+    text_x_pos = -80;
 end
 
 % get clusters (remove 0 labels)
@@ -250,20 +258,27 @@ for i = clus2run
     hold(axH, 'on')
     
     if add_ref_trace
-        y_ = mean(Y_mean_trace(i, :) + (i-1)*y_gap);
+        
+        if add_ref_trace == 1
+            y_ = nanmean(Y_mean_trace(i, :) + (i-1)*y_gap);
+        elseif add_ref_trace == 2
+            y_ = nanmin(Y_mean_trace(i, :) + (i-1)*y_gap);
+        end
+        
         plot([0 size(Y_mean_trace, 2)], [y_ y_], ...
-           '--k', 'Linewidth', 2) 
+           '--k', 'Linewidth', 2)
+       
     end
     
     % add text with info on # of rows, and number of #files(individuals)
-    if textgate
+    if texton_flag
         if textorder
-            text(axH, -80, (i-1)*y_gap, ...
+            text(axH, text_x_pos, (i-1)*y_gap, ...
                 [num2str(i), ...
                 '(',  num2str(size(temp_Y, 1)), ')', ...
                 '(', num2str(fileidx_n(i)), ')']);
         else
-            text(axH, -80, (i-1)*y_gap, ...
+            text(axH, text_x_pos, (i-1)*y_gap, ...
                 [num2str(clus2run(end - k + 1)), ...
                 '(', num2str(size(temp_Y, 1)), ')', ...
                 '(', num2str(fileidx_n(i)), ')']);
