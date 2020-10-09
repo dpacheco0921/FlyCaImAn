@@ -33,13 +33,16 @@ imtime = round(imtime*100)/100;
 vidtime = wDat.vid.fstEn{1}(:, 2);
 
 % calculate velocity (forward/lateral)
-fv_mm_s = diff(wDat.vid.var{1}(:, 15)*ball_radious*framerate);
+% in this setup y = forward
+fv_mm_s = diff(wDat.vid.var{1}(:, 16)*ball_radious*framerate);
 fv_mm_s = [fv_mm_s(1); fv_mm_s];
 
-lv_mm_s = diff(wDat.vid.var{1}(:, 16)*ball_radious*framerate);
+% in this setup x = lateral
+lv_mm_s = diff(wDat.vid.var{1}(:, 15)*ball_radious*framerate);
 lv_mm_s = [lv_mm_s(1); lv_mm_s];
 
 % calculate rotational velocity (pitch, yaw, roll)
+% in this setup x = yaw, y = pitch, z = roll
 yaw_deg_s = (wDat.vid.var{1}(:, 6))*framerate;
 pitch_deg_s = (wDat.vid.var{1}(:, 7))*framerate;
 roll_deg_s = (wDat.vid.var{1}(:, 8))*framerate;
