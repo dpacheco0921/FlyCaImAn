@@ -176,7 +176,8 @@ for st_i = sType
 end
 
 % get max oTrace length (count timepoints per stimuli trial)
-maxlength = max(nansum(tend - ti + 1, 2), [], 1);
+%maxlength = max(nansum(tend - ti + 1, 2), [], 1);
+maxlength = nansum(nanmax(tend - ti + 1, [], 1), 2);
 
 % get stimuli trial start index
 initidx = [0 cumsum(nanmax(tend - ti + 1, [], 1))];
