@@ -176,38 +176,49 @@ sIdx = stim_all_idx(1:size(wDat.sTime, 1), 1);
 % get Y dimensions
 siz = dataObj.sizY;
 
+% reduce stimuli to only available ones;
+stim2use = intersect(stim2use, unique(stim_all_idx'));
+
+fprintf(['Runing stimuli: ', num2str(stim2use), '\n'])
+for i = stim2use
+   display(sName{i})
+end
+
 stim_snr_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
 
 for sti_i = 1:numel(stim2use)
     
-    % select stim to use
-    sti_En = getStim_InitEnd(wDat.fTime, ...
-        wDat.sTime(ismember(sIdx, stim2use(sti_i)), :));
-    
-    for t_i = 1:size(sti_En, 1)
-        
-        if length(siz) == 4
-            stim_snr(:, :, :, t_i) = ...
-                get_avg_df_per_stim(dataObj, ...
-                sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
-                stat2use, chunk_size, corenumber);
-        else
-            stim_snr(:, :, t_i) = ...
-                get_avg_df_per_stim(dataObj, ...
-                sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
-                stat2use, chunk_size, corenumber);            
+    try
+        % select stim to use
+        sti_En = getStim_InitEnd(wDat.fTime, ...
+            wDat.sTime(ismember(sIdx, stim2use(sti_i)), :));
+
+        for t_i = 1:size(sti_En, 1)
+
+            if length(siz) == 4
+                stim_snr(:, :, :, t_i) = ...
+                    get_avg_df_per_stim(dataObj, ...
+                    sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
+                    stat2use, chunk_size, corenumber);
+            else
+                stim_snr(:, :, t_i) = ...
+                    get_avg_df_per_stim(dataObj, ...
+                    sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
+                    stat2use, chunk_size, corenumber);            
+            end
+
         end
-        
+
+        if length(siz) == 4
+            stim_snr_p_sti(:, :, :, sti_i) = ...
+                median(stim_snr, length(siz));
+        else
+            stim_snr_p_sti(:, :, sti_i) = ...
+                median(stim_snr, length(siz));
+        end
+    catch
+       keyboard 
     end
-    
-    if length(siz) == 4
-        stim_snr_p_sti(:, :, :, sti_i) = ...
-            mean(stim_snr, length(siz));
-    else
-        stim_snr_p_sti(:, :, sti_i) = ...
-            mean(stim_snr, length(siz));
-    end
-    
 end
 
 wDat.GreenChaSNR = stim_snr_p_sti;

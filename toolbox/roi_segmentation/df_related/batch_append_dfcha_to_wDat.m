@@ -176,6 +176,14 @@ sIdx = stim_all_idx(1:size(wDat.sTime, 1), 1);
 % get Y dimensions
 siz = dataObj.sizY;
 
+% reduce stimuli to only available ones;
+stim2use = intersect(stim2use, unique(stim_all_idx'));
+
+fprintf(['Runing stimuli: ', num2str(stim2use), '\n'])
+for i = stim2use
+   display(sName{i})
+end
+
 stim_dfof_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
 
 for sti_i = 1:numel(stim2use)
@@ -202,10 +210,10 @@ for sti_i = 1:numel(stim2use)
     
     if length(siz) == 4
         stim_dfof_p_sti(:, :, :, sti_i) = ...
-            mean(stim_dfof, length(siz));
+            median(stim_dfof, length(siz));
     else
         stim_dfof_p_sti(:, :, sti_i) = ...
-            mean(stim_dfof, length(siz));
+            median(stim_dfof, length(siz));
     end
     
 end
