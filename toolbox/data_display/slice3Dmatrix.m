@@ -276,6 +276,11 @@ for t = 1:size(Y, pi.axp)
         
         plotproj(pi.hAxes(1), temp_Y1, num2str(t), pi.iter, ...
             pi.range, pi.axesname, imobj_a, pi.cmap, pi.axisratio);               
+        
+        if t == size(Y, pi.axp) && pi.cbargate
+            pi = plotcolorbar(pi, temp_Y1);
+        end
+        
         clear temp_Y1
         
     end
@@ -398,8 +403,12 @@ if pi.vgate
     close(vHandle); 
     
     % save colorbar
-    if ~isempty(pi.Y2) && pi.cbargate
-        saveas(pi.figH_cb, [pi.vname, '_cb.tif']);
+    if isfield(pi, 'figH_cb') && ~isempty(pi.figH_cb)
+        print(pi.figH_cb, [pi.vname, '_cb.png'], ...
+            '-dpng', '-opengl', '-r300');
+        print(pi.figH_cb, [pi.vname, '_cb.svg'], ...
+            '-dsvg', '-painters', '-r300');
+        close(pi.figH_cb)
     end
     
     close(gcf);
@@ -575,14 +584,15 @@ end
 
 end
 
-function pi = plotcolorbar(pi)
+function pi = plotcolorbar(pi, extra_Y)
 % plotcolorbar: function to plot colorbar
 %
 % Usage:
-%   pi = plotcolorbar(pi)
+%   pi = plotcolorbar(pi, extra_Y)
 %
 % Args:
 %   pi: internal variable
+%   extra_Y: aditional image
 
 if ~isempty(pi.Y2)
     
@@ -604,6 +614,22 @@ if ~isempty(pi.Y2)
         [pi.range(1) mean(pi.range) pi.range(2)];
     pi.AxH_cb(2).Ticks = ...
         [0.001 + pi.range(1) mean(pi.range) pi.range(2) - 0.001];
+    
+    figEdit(pi.AxH_cb(1), pi.figH_cb)
+    
+end
+
+if exist('extra_Y', 'var') && ~isempty(extra_Y)
+    
+    % provide figure with colorbar
+    pi.figH_cb = figure();
+    pi.AxH_cb(1) = subplot(1, 1, 1);
+    
+    imagesc(squeeze(extra_Y), 'Parent', pi.AxH_cb(1))
+    caxis(pi.AxH_cb(1), pi.range);
+    colormap(pi.AxH_cb(1), pi.cmap);
+    
+    pi.AxH_cb(2) = colorbar(pi.AxH_cb(1));
     
     figEdit(pi.AxH_cb(1), pi.figH_cb)
     
