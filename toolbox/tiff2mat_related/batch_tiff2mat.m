@@ -64,6 +64,7 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (default, 4)
 %       %%%%%%%%%%%% histogram related %%%%%%%%%%%%
 %       (hbins: range to generate histogram plot)
+%       (oDir: directory where to save histogram plot)
 %
 % Notes:
 % this function assumes tiff files have the following structure:
