@@ -22,10 +22,16 @@ function batch_plot_stim_ln_of_motor_results(...
 %           (default, 0:0.01:1)
 %       (fdr: false discovery rate)
 %            (default, 0.01)
+%       (prct2use: bins for histogram)
+%           (default, 30)
 %       (mccor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%       (coeffname: name of coeff used (pearson correlation or explained variance))
+%           (default, 'pearson correlation')
+%       (coeffrange_im: range of coeff to display)
+%           (default, {[0 .12], [0 .4]})
 %
 % Notes:
 
@@ -34,8 +40,8 @@ motpar = [];
 motpar.fmetsuffix = '_prosmetadata.mat';
 motpar.hbins = -1:0.01:1;
 motpar.hbinsp = 0:0.1:1.1;
-motpar.prct2use = 100;
 motpar.fdr = 0.01;
+motpar.prct2use = 30;
 motpar.mccor_method = 'dep';
 motpar.dir_depth = 0;
 motpar.coeffname = 'pearson correlation';
@@ -143,7 +149,7 @@ end
 % correct correlations
 [eVar_stat, eVar_raw, eVar_shuffle] = ...
     correct_corrcoef(sti_ln_mot.eVar, ...
-    eVar_shuffle, 1);
+    eVar_shuffle, motpar.prct2use);
 
 % generate pvalues
 [pval_raw, pvalc_dep, pvalc_pdep, ...

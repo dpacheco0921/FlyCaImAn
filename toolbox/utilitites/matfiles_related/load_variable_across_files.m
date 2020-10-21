@@ -44,6 +44,21 @@ for i = 1:numel(filename)
     fprintf('*')
     load([iDir_1{i}, filesep, filename{i}], variable_name)
     
+    if i ~= 1
+        % get all current oVar fields and compare to new loaded structure
+        ifields = fieldnames(oVar);
+        eval(['newfields = fieldnames(', variable_name, ');']);
+        
+        % set this fields to be the ones loaded
+        if isempty(fieldstocompile)
+            fieldstocompile = ifields;
+        end
+        
+        %setdiff(ifields, newfields)
+        %setdiff(newfields, ifields)
+        
+    end
+    
     if ~isempty(fieldstocompile)
         
         for j = 1:numel(fieldstocompile)
@@ -60,25 +75,7 @@ for i = 1:numel(filename)
     eval(['clear ', variable_name])
     
 end
+
 fprintf('Done\n')
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

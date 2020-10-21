@@ -21,9 +21,11 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %       (zres: resolution in z axis (1))
 %       (pixelsym: pixel size is symmetric or not, 0 = asymmetric, 1 = symmetric)
 %       (integrate_flag: number of timepoints to integrate as single timepoint)
+%       (hbins: range to generate histogram plot)
+%       (oDir: directory where to save histogram plot)
 %
 % Notes:
-% FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
+%   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
 
 zt2m = []; 
 zt2m.cDir = pwd;
@@ -41,6 +43,8 @@ zt2m.zres = 1;
 zt2m.pixelsym = 0;
 zt2m.integrate_flag = 1;
 zt2m.shift_f = [5 5];
+zt2m.hbins = -10^3:3*10^3;
+zt2m.oDir = [pwd, filesep, 'rawtiff'];
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -48,6 +52,11 @@ if ~exist('iparams', 'var'); iparams = []; end
 zt2m = loparam_updater(zt2m, iparams);
 
 fprintf('Running Tiff2Mat for Zstack\n');
+
+if ~isempty(zt2m.oDir) && ...
+        ~exist(zt2m.oDir, 'dir')
+    mkdir(zt2m.oDir)
+end
 
 % finding folders and filtering out data that is not selected
 fo2run = dir;
@@ -261,6 +270,14 @@ end
 clear ch_num
 fprintf(['Data original size: ', num2str(size(Data)), '\n'])
 
+% get histograms
+for i = 1:size(Data, 4)
+    temp_data = Data(:, :, :, i);
+    temp_data = temp_data(:);
+    [hist_pre(:, i), ~] = hist(temp_data, zt2m.hbins);
+    clear temp_data
+end
+
 % shift distribution by 5 values to the right and make negative values 0
 Data(:, :, :, 1) = ...
     Data(:, :, :, 1) + zt2m.shift_f(1);
@@ -269,6 +286,14 @@ Data(:, :, :, 2) = ...
 Data(Data < 0) = 0;
 ImMeta.RepeatNum = floor(size(Data, 3)/ImMeta.Z); 
 ImMeta.FrameNum = ImMeta.Z;
+
+% get histograms
+for i = 1:size(Data, 4)
+    temp_data = Data(:, :, :, i);
+    temp_data = temp_data(:);
+    [hist_post(:, i), ~] = hist(temp_data, zt2m.hbins);
+    clear temp_data
+end
 
 % resize Data
 siz = size(Data);
@@ -303,7 +328,7 @@ end
 
 % get average signal
 fprintf('Averaging volumes\n')
-Data = avbrain(Data, zt2m.ths, siz, zt2m.AxH);
+Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, zt2m.AxH);
 
 Data = permute(Data, [1 2 4 3]);
 ImMeta.FrameNum = size(Data, 4);
@@ -324,6 +349,9 @@ display(['Max val per channel ', ...
 % generate metadata
 
 [fDat, iDat] = generatemetadata(mat_name, ImMeta, zt2m);
+
+% plot histograms
+plot_histogram(zt2m.hbins, hist_pre, hist_post, zt2m.oDir, fDat.FileName)
 
 siz = size(Data); 
 Data = reshape(Data, [siz(1:2), prod(siz(3:4))]);
@@ -417,16 +445,17 @@ iDat.volumerate = ImMeta.volumerate;
 
 end
 
-function avgim = avbrain(im, im_ths, isiz, axH)
+function avgim = avbrain(im, im_ths, isiz, shift_f, axH)
 % avbrain: get the average image of green and red channel
 %
 % Usage:
-%   avgIm = avbrain(flyname, segment_n, zt2m)
+%   avgim = avbrain(im, im_ths, isiz, shift_f, axH)
 %
 % Args:
 %   im: folders to use (name)
 %   im_ths: image intensity threshold
 %   isiz: image size
+%   shift_f: shift in F added.
 %   axH: axis handle
 %
 % Notes:
@@ -477,7 +506,8 @@ end
 
 M = squeeze(max(max(avgim, [], 1), [], 2));
 
-if sum(isinf(M(:))) ~= 0 || (sum(M(:) > 2060) ~= 0)
+if sum(isinf(M(:))) ~= 0 || ...
+        (sum(M(:) > 2048 + min(shift_f)) ~= 0)
     
     % for dealing with this exceptions use:
     
@@ -485,5 +515,88 @@ if sum(isinf(M(:))) ~= 0 || (sum(M(:) > 2060) ~= 0)
     keyboard
     
 end
+
+end
+
+function plot_histogram(hbins, hist_pre, hist_post, oDir, filename)
+% plot_histogram: function to plot histograms
+%
+% Usage:
+%   plot_histogram(hbins, hist_pre, hist_post, oDir, filename)
+%
+% Args:
+%   hbins: histogram bins
+%   hist_pre: histogram pre shift
+%   hist_post: histogram post shift
+%   oDir: output directory
+%   filename: filename
+%
+% Notes:
+
+% plot figure
+figH = figure('position', genfigpos(1, 'center', [1000 700]));
+axH(1) = subplot(2, 2, 1);
+axH(2) = subplot(2, 2, 3);
+axH(3) = subplot(2, 2, 2);
+axH(4) = subplot(2, 2, 4);
+color_vect = [1 0 0; 0 0.5 0];
+strH = [];
+
+% plot traces
+for i = 1:size(hist_pre, 2)
+    
+    lineH(i) = plot(hbins, hist_pre(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(1));
+    hold(axH(1), 'on')
+    
+    plot(hbins, hist_pre(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(2))
+    hold(axH(2), 'on')
+        
+    plot(hbins, hist_post(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(3));
+    hold(axH(3), 'on')
+    
+    plot(hbins, hist_post(:, i), ...
+        'Color', color_vect(i, :), ...
+        'Parent', axH(4))
+    hold(axH(4), 'on')
+    
+    strH{i} = ['cha-', num2str(i)];
+    
+end
+
+% add labels
+axH(1).XLabel.String = 'F (a.u)';
+axH(2).XLabel.String = 'F (a.u)';
+axH(3).XLabel.String = 'F (a.u)';
+axH(4).XLabel.String = 'F (a.u)';
+
+axH(1).YLabel.String = 'Count';
+axH(2).YLabel.String = 'Count';
+axH(3).YLabel.String = 'Count';
+axH(4).YLabel.String = 'Count';
+
+axH(2).YScale = 'log';
+axH(4).YScale = 'log';
+axH(1).XLim = hbins([1 end]);
+axH(2).XLim = hbins([1 end]);
+axH(3).XLim = hbins([1 end]);
+axH(4).XLim = hbins([1 end]);
+
+legH = legend(axH(1), lineH, strH);
+
+% figure format
+figformat = [1 0 0 0 0 0 0 0 1];
+resolution_ = '-r300';
+
+% save figure
+figEdit(axH, figH);
+savefig_int(figH, oDir, [filename, '_hist'], ...
+    figformat, resolution_);
+close(figH)
 
 end

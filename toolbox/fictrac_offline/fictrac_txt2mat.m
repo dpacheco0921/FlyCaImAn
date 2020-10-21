@@ -9,7 +9,9 @@ function fictrac_txt2mat(txt_filename)
 %   txt_filename: name of txt file to load
 % 
 % Notes
-% it generates a structure fictDat
+%   it generates the structure 'fictDat' and saves it to '_vDat.mat'
+%   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
+%   this setup y = forward and x = lateral
 
 fictDat = struct('varNames', [], 'var',  []);
 
@@ -27,7 +29,7 @@ fictDat.varNames = {'frame_cnt', ...
 
 % frame_cnt(1): frame count
 % del_rot_cam(2:4): change in orientation since last frame, represented as rotation angle/axis
-%   (radians) in camera coordinates (x right, y down, z forward).
+%   (radians) in camera coordinates, so for this setup x = yaw, y = pitch, z = roll.
 % del_rot_error(5): Error score associated with rotation estimate
 % del_rot_lab_*(6:8): Change in orientation since last frame, represented as rotation angle/axis
 %   (radians) in laboratory coordinates.
@@ -35,7 +37,7 @@ fictDat.varNames = {'frame_cnt', ...
 %   (radians) in camera coordinates.
 % abs_ori_lab_x(12:14): Absolute orientation of the sphere represented as rotation angle/axis
 %   (radians) in laboratory coordinates.
-% pos_*(15:16): Integrated x/y position (radians) in laboratory coordinates. Scale by
+% pos_*(15:16): Integrated x and y position (radians) in laboratory coordinates. Scale by
 %   sphere radius for metric position. Incorporates animal's changes in
 %   heading
 % heading(17): instantaneous heading direction (radians) lab,

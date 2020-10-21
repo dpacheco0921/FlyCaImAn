@@ -32,6 +32,12 @@ function batch_plot_stim_ln_of_Ca_results(...
 %            (default, 'dep')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%       (coeffname: name of coeff used (pearson correlation or explained variance))
+%           (default, 'pearson correlation')
+%       (coeffrange_im: range of coeff to display)
+%           (default, {[0 .12], [0 .4]})
+%       (coeffths: coeff threshold for splitting groups to plot)
+%           (default, 0.1)
 %
 % Notes:
 

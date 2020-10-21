@@ -1,10 +1,10 @@
-function batch_append_dfcha_to_wDat(...
+function batch_append_snrcha_to_wDat(...
     Filename, iparams)
-% batch_append_dfcha_to_wDat: plot MIP of segment to 
+% batch_append_snrcha_to_wDat: plot MIP of segment to 
 %   see match with brain side
 %
 % Usage:
-%   batch_append_dfcha_to_wDat(...
+%   batch_append_snrcha_to_wDat(...
 %       Filename, iparams)
 %
 % Args:
@@ -101,7 +101,7 @@ for i = 1:numel(filename)
     load([iDir{i}, filesep, filename{i}, ...
         metpars.fmetsuffix], 'wDat');
 
-    wDat = get_avg_df(wDat, filename{i}, ...
+    wDat = get_avg_snr(wDat, filename{i}, ...
         metpars.stat2use, metpars.sign2use, ...
         iDir{i}, metpars.bs_range, ...
         metpars.sti_range, metpars.stim2use, ...
@@ -118,14 +118,14 @@ fprintf('... Done\n')
 
 end
 
-function wDat = get_avg_df(wDat, filename, ...
+function wDat = get_avg_snr(wDat, filename, ...
         stat2use, sign2use, iDir, ...
         bs_range, sti_range, stim2use, ...
         chunk_size, corenumber, fisuffix)
-% get_avg_df: get dfof green channel
+% get_avg_snr: get SNR of green channel
 %
 % Usage:
-%   get_avg_df(wDat, filename, ...
+%   get_avg_snr(wDat, filename, ...
 %       stat2use, sign2use, iDir)
 %
 % Args:
@@ -184,48 +184,51 @@ for i = stim2use
    display(sName{i})
 end
 
-stim_dfof_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
+stim_snr_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
 
 for sti_i = 1:numel(stim2use)
     
-    % select stim to use
-    sti_En = getStim_InitEnd(wDat.fTime, ...
-        wDat.sTime(ismember(sIdx, stim2use(sti_i)), :));
-    
-    for t_i = 1:size(sti_En, 1)
-        
-        if length(siz) == 4
-            stim_dfof(:, :, :, t_i) = ...
-                get_avg_df_per_stim(dataObj, ...
-                sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
-                stat2use, chunk_size, corenumber);
-        else
-            stim_dfof(:, :, t_i) = ...
-                get_avg_df_per_stim(dataObj, ...
-                sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
-                stat2use, chunk_size, corenumber);            
+    try
+        % select stim to use
+        sti_En = getStim_InitEnd(wDat.fTime, ...
+            wDat.sTime(ismember(sIdx, stim2use(sti_i)), :));
+
+        for t_i = 1:size(sti_En, 1)
+
+            if length(siz) == 4
+                stim_snr(:, :, :, t_i) = ...
+                    get_avg_df_per_stim(dataObj, ...
+                    sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
+                    stat2use, chunk_size, corenumber);
+            else
+                stim_snr(:, :, t_i) = ...
+                    get_avg_df_per_stim(dataObj, ...
+                    sti_En(t_i, :), bs_range_f, sti_range_f, sign2use, ...
+                    stat2use, chunk_size, corenumber);            
+            end
+
         end
-        
+
+        if length(siz) == 4
+            stim_snr_p_sti(:, :, :, sti_i) = ...
+                median(stim_snr, length(siz));
+        else
+            stim_snr_p_sti(:, :, sti_i) = ...
+                median(stim_snr, length(siz));
+        end
+    catch
+       keyboard 
     end
-    
-    if length(siz) == 4
-        stim_dfof_p_sti(:, :, :, sti_i) = ...
-            median(stim_dfof, length(siz));
-    else
-        stim_dfof_p_sti(:, :, sti_i) = ...
-            median(stim_dfof, length(siz));
-    end
-    
 end
 
-wDat.GreenChaDfof = stim_dfof_p_sti;
+wDat.GreenChaSNR = stim_snr_p_sti;
 
 end
 
-function stim_dfof = get_avg_df_per_stim(dataObj, ...
+function stim_snr = get_avg_df_per_stim(dataObj, ...
     sti_En, bs_range_f, sti_range_f, sign2use, ...
     stat2use, chunk_size, corenumber)
-% get_avg_df_per_stim: generate mean/max dfof volume/plane
+% get_avg_df_per_stim: generate mean/max SNR volume/plane
 %
 % Usage:
 %   stim_dfof = get_avg_df_per_stim(dataObj, ...
@@ -268,26 +271,32 @@ bas_mean = mean(stackloader(dataObj, ...
     length(siz));
 toc
 
+tic
+bas_sd = std(stackloader(dataObj, ...
+    baseline_tp, chunk_size, corenumber), ...
+    [], length(siz));
+toc
+
 fprintf('generate df\n')
 
 tic
-stim_dfof = stackloader(dataObj, stim_tp, ...
+stim_snr = stackloader(dataObj, stim_tp, ...
     chunk_size, corenumber);
     
-stim_dfof = imblur(stim_dfof - bas_mean, 1, 3, length(siz) - 1);
+stim_snr = imblur(stim_snr - bas_mean, 1, 3, length(siz) - 1);
 
 if sign2use == 0
-    stim_dfof = abs(stim_dfof);
+    stim_snr = abs(stim_snr);
 else
-    stim_dfof = sign2use*stim_dfof;
+    stim_snr = sign2use*stim_snr;
 end
 
-stim_dfof = stim_dfof./abs(imblur(bas_mean, 1, 3, length(siz) - 1));
+stim_snr = stim_snr./abs(imblur(bas_sd, 1, 3, length(siz) - 1));
 
 if stat2use == 0
-    stim_dfof = mean(stim_dfof, length(siz));
+    stim_snr = mean(stim_snr, length(siz));
 else
-    stim_dfof = max(stim_dfof, [], length(siz));
+    stim_snr = max(stim_snr, [], length(siz));
 end
 
 toc

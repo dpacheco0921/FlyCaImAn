@@ -61,6 +61,8 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %            (default, 0.01)
 %       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
+%       (prct2use: bins for histogram)
+%           (default, 30)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
 %       (ball_radious: depth of directory search)
 %           (default, 4.5)
@@ -102,6 +104,7 @@ pSMMot.btn = 10^4;
 pSMMot.pst_time = [-10 10];
 pSMMot.fdr = 0.01;
 pSMMot.pval_cor_method = 'dep';
+pSMMot.prct2use = 30;
 pSMMot.serverid = 'int';
 pSMMot.corenum = 4;
 pSMMot.chunksiz = 80;
@@ -391,10 +394,12 @@ tgate = exist(filename_temp, 'file');
 if ~tgate || pSMMot.redo(2)
     
     % calculate filters and predicted traces for motor
-    [~, lFilter, motvar_pred] = ridgeregres_per_row_crossval(...
-        train_idx, motvar_in, sti_ln_mot.stimM, pSMMot.chunksiz, pSMMot.corenum, 'bayes');
+    [eVar, lFilter, motvar_pred] = ...
+        ridgeregres_per_row_crossval(...
+        train_idx, motvar_in, sti_ln_mot.stimM, ...
+        pSMMot.chunksiz, pSMMot.corenum, 'bayes');
     
-    eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)'));
+    %eVar = diag(corr(zscorebigmem(motvar_in)', zscorebigmem(motvar_pred)'));
     
     save(filename_temp, 'eVar', 'lFilter', 'motvar_pred', '-v7.3')
     
@@ -419,7 +424,7 @@ end
 stim_width = wDat.sTime(:, 2) - wDat.sTime(:, 1);
 stim_width = max(stim_width*1.2);
 add_stim_lag = [-ceil(6/dt) ceil(stim_width/dt)];
-shuffle2use = 2;
+shuffle2use = 1;
 fprintf(['adding stimuli lag of: ', ...
     num2str(add_stim_lag), ' (timestamps) \n'])
 
@@ -429,7 +434,8 @@ fprintf(['adding stimuli lag of: ', ...
     pSMMot.redo(3), filename_temp, ...
     chunk_minsize, chunk_splitn, ...
     pSMMot.chunksiz, pSMMot.corenum, ...
-    pSMMot.btn, shuffle2use, add_stim_lag, []);
+    pSMMot.btn, shuffle2use, add_stim_lag, ...
+    [], train_idx(1, :), 0, sti_ln_mot.stimM, 'bayes');
 
 % plot traces
 % i = 1;
@@ -443,7 +449,8 @@ stocf(t0, 'Time consumed so far: ')
 
 % get p-values
 sti_ln_mot.pval = calculate_pval_2(eVar, ...
-    eVar_cs, pSMMot.fdr, pSMMot.pval_cor_method);
+    eVar_cs, pSMMot.fdr, pSMMot.pval_cor_method, ...
+    pSMMot.prct2use);
 
 % split motor variable traces into trials
 fprintf('Split trace into trials\n')

@@ -20,6 +20,12 @@ function batch_fictrac_perfile(FolderName, FileName, iparams)
 %           (default, pwd)
 %       (template_fn: template image to use)
 %           (default, [])
+%       (oDir: directory to save figures)
+%           (default, [pwd, filesep, 'fictrac'])
+%       (ball_radious: radious of ball)
+%           (default, 4.5 mm)
+%       (hbins_speed: bins to use for histogram)
+%           (default, [-20:0.1:60])
 %
 % Notes:
 %   requires fictrac to be installed.
@@ -40,6 +46,11 @@ function batch_fictrac_perfile(FolderName, FileName, iparams)
 %   From command line fictrac can be run using the following lines
 %       FicTrac-PGR FicTracPGR_config.txt
 %       FicTrac FicTrac_config.txt
+%
+%   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
+%   this setup y = forward and x = lateral (this needs to be tested for every setup)
+%   if this order changes then edit fictrac_txt2mat.m accordingly to match
+%       the above.
 
 % default params
 fictracpars.redo = 0;
@@ -47,6 +58,9 @@ fictracpars.cDir = pwd;
 fictracpars.do_search_flag = 0;
 fictracpars.load_template_flag = 0;
 fictracpars.template_fn = 'template_im.jpg';
+fictracpars.oDir = [pwd, filesep, 'fictrac'];
+fictracpars.ball_radious = 4.5;
+fictracpars.hbins_speed = -20:0.1:60;
 
 if ~exist('FolderName', 'var')
    FolderName = [];
@@ -62,6 +76,11 @@ fictracpars = loparam_updater(fictracpars, iparams);
 fo2reject = {'.', '..', 'preprocessed', ...
     'BData', 'motcor', 'rawtiff', 'stitch'};
 
+if ~isempty(fictracpars.oDir) && ...
+        ~exist(fictracpars.oDir, 'dir')
+    mkdir(fictracpars.oDir)
+end
+
 % finding folders and filtering out data that is not selected
 fo2run = dir;
 fo2run = str2match(FolderName, fo2run);
@@ -74,7 +93,7 @@ for folder_i = 1:numel(fo2run)
     
     fprintf(['Running folder : ', fo2run{folder_i}, '\n']);
     cd(fo2run{folder_i}); 
-    runperfolder(FileName, fictracpars);
+    runperfolder(FileName, fictracpars);    
     cd(fictracpars.cDir)
     
 end
@@ -137,6 +156,9 @@ for i = 1:numel(vid2run)
     
     % add fictrac variable to '_vDat.mat' file
     fictrac_txt2mat([vid2run{i}, '_fictrac.txt'])
+    
+    % plot basic fictrac results
+    fictrac_plot_results([vid2run{i}, '_vDat.mat'], fictracpars)
     
 end
 
@@ -208,5 +230,92 @@ for i = 1:numel(A)
 end
 
 fclose(fid);
+
+end
+
+function fictrac_plot_results(fname, fictracpars)
+% fictrac_plot_results: function to plot results
+%
+% Usage:
+%	fictrac_plot_results(fname, fictracpars)
+%
+% Args:
+%   fname: name if file containing 'fictDat'
+%   fictracpars: video name
+%   fictracpars: input parameters
+%
+% Notes
+%   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
+%   this setup y = forward and x = lateral (this needs to be tested for every setup)
+
+% load fictDat
+load(fname, 'fictDat')
+
+% plot regular motion stats
+figH = figure('Position', genfigpos(1, 'center', [900 600]));
+axH(1) = subplot(2, 2, 1);
+axH(2) = subplot(2, 2, 2);
+axH(3) = subplot(2, 2, 3:4);
+
+x_mm = fictDat.var(:, 15)*fictracpars.ball_radious;
+y_mm = fictDat.var(:, 16)*fictracpars.ball_radious;
+speed_mm_s = fictDat.var(:, 19)*fictracpars.ball_radious;
+lv_mm_s = diff(x_mm);
+fv_mm_s = diff(y_mm);
+time_stamps = 1:numel(fictDat.var(:, 1));
+    
+% plot XY
+plot(x_mm, y_mm, 'Color', 'k', 'Parent', axH(1))
+
+[y_, ~] = hist(speed_mm_s, fictracpars.hbins_speed);
+
+lineH(1) = plot(fictracpars.hbins_speed, y_/sum(y_), ...
+    'Color', 'b', 'Parent', axH(2));
+
+hold(axH(2), 'on')
+
+[y_, ~] = hist(fv_mm_s, fictracpars.hbins_speed);
+
+lineH(2) = plot(fictracpars.hbins_speed, y_/sum(y_), ...
+    'Color', 'r', ...
+    'Parent', axH(2));
+
+[y_, ~] = hist(lv_mm_s, fictracpars.hbins_speed);
+
+lineH(3) = plot(fictracpars.hbins_speed, y_/sum(y_), ...
+    'Color', 'm', ...
+    'Parent', axH(2));
+
+% plot instantaneous speed
+plot(time_stamps, speed_mm_s, 'Color', 'b', ...
+    'Parent', axH(3))
+hold(axH(3), 'on')
+
+% plot instantaneous lateral speed
+plot(time_stamps(2:end), lv_mm_s, 'Color', 'm', ...
+    'Parent', axH(3))
+
+% plot instantaneous forward speed
+plot(time_stamps(2:end), fv_mm_s, 'Color', 'r', ...
+    'Parent', axH(3))
+
+axH(1).Title.String = 'Distance traveled';
+axH(1).XLabel.String = 'X distance (mm)';
+axH(1).YLabel.String = 'Y distance (mm)';
+
+axH(2).Title.String = 'Distribution of Speed/velocity';
+axH(2).XLabel.String = 'speed (mm/s)';
+axH(2).YLabel.String = 'Probability';
+
+axH(3).Title.String = 'Speed/velocity over time';
+axH(3).XLabel.String = 'Time (frames)';
+axH(3).YLabel.String = 'Instantaneous speed (mm/frame)';
+axH(3).XLim = [1 numel(time_stamps)];
+
+legend(axH(3), lineH, {'speed', 'f-velocity', 'l-velocity'}, 'Location', 'northeast')
+
+savefig_int(figH, fictracpars.oDir, [strrep(fname, '_vDat.mat', ''), '_fictrac_stats'], ...
+    [1 0 0 0 0 0 0 0 1])
+close(figH)
 
 end
