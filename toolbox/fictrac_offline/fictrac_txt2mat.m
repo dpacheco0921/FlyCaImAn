@@ -9,8 +9,9 @@ function fictrac_txt2mat(txt_filename)
 %   txt_filename: name of txt file to load
 % 
 % Notes
-%   it generates a structure fictDat
+%   it generates the structure 'fictDat' and saves it to '_vDat.mat'
 %   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
+%   this setup y = forward and x = lateral
 
 fictDat = struct('varNames', [], 'var',  []);
 

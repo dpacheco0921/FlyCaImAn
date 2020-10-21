@@ -30,8 +30,12 @@ function batch_gen_fictrac_input_files(...
 %       height_ = 0.82; % cm;
 %   2) get the angle
 %       vfov = radtodeg(2*atan(height_/(2*distance_))) = 2.6097;
+%   This example comes from a ROI of 882 x 992 [height width]
+%       if using full FOV 1024 x 1280 [height width], then height_ = 0.9520 % cm
+%       and vfov = 3.0296
 %   if cropping FOV update calculation
 %       (put ruler in focal point and measure distance between pixels)
+%   if using the same camera the height_ might change depending on final zoom used with lenses.   
 %
 % See also gen_fictrac_calibration_transform.m
 
@@ -59,7 +63,6 @@ cDir = pwd;
 % add setup and corresponding vfov
 allsetupIDs = {'bezos_2p', 'Alevel_2p1'};
 settingpersetup(1).vfov = deg2rad(2.15);
-%settingpersetup(2).vfov = deg2rad(2.55);
 settingpersetup(2).vfov = deg2rad(2.6097);
 
 % select settings given an input setup
