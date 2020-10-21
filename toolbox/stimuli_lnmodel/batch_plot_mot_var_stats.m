@@ -151,13 +151,12 @@ motor_fictrac = load_edit_fictrac_motor_var(wDat, pSLM.ball_radious, ...
     pSLM.sig, pSLM.siz, 0);
 
 % figure settings
-%color_1 = {'b', 'c', rgb('RoyalBlue'), 'r', rgb('Crimson'), rgb('DarkRed')};
-color_1 = colorGradient(rgb('Purple'), [1 1 1], 4);
-color_1 = [color_1(1:3, :); colorGradient(rgb('magenta'), [1 1 1], 4)];
-color_1 = color_1(1:6, :);
+icolormap_1 = colorGradient(rgb('Purple'), [1 1 1], 4);
+icolormap_1 = [icolormap_1(1:3, :); colorGradient(rgb('magenta'), [1 1 1], 4)];
+icolormap_1 = icolormap_1(1:6, :);
 
-color_2 = colorGradient(rgb('Green'), [1 1 1], 5);
-color_2 = [color_2(1:4, :); ...
+icolormap_2 = colorGradient(rgb('Green'), [1 1 1], 5);
+icolormap_2 = [icolormap_2(1:4, :); ...
     colorGradient([0 0 0], [0.8 0.8 0.8], size(motor_SVD, 1))];
 
 % 4) histograms
@@ -176,7 +175,7 @@ end
 
 % plot histograms
 plot_hist(vel_bins, deg_bins, sd_bins, ...
-    y_vel, y_deg, y_sd, color_1, color_2, filename, pSLM.oDir)
+    y_vel, y_deg, y_sd, icolormap_1, icolormap_2, filename, pSLM.oDir)
 clear vel_bins deg_bins sd_bins ...
     y_vel y_deg y_sd
 
@@ -188,7 +187,7 @@ auto_corr = cellfun(@(x) xcorr(x, lag_t, 'normalized'), auto_corr, 'uniformoutpu
 auto_corr = cell2mat(auto_corr);
 
 % plot crosscorrelations
-plot_croscorr(auto_corr, lag_t, color_1, color_2, ...
+plot_croscorr(auto_corr, lag_t, icolormap_1, icolormap_2, ...
     filename, pSLM.oDir)
 clear auto_corr
 
@@ -230,21 +229,21 @@ end
 stim2plot = unique(stim_all_idx)';
 
 plot_trial_med(motor_per_trial, time_rel, stim_name, ...
-    stim2plot, stim_idx, color_1, color_2, filename, pSLM.oDir)
+    stim2plot, stim_idx, icolormap_1, icolormap_2, filename, pSLM.oDir)
 
 % plot pixel components
 % plot mean image, mean energy, first 4 components and traces
 
 plot_SVD_spatial_temporal(SVD_Dat, imtime, ...
-    motor_all(7:10, :), filename, pSLM.oDir, color_2)
+    motor_all(7:10, :), filename, pSLM.oDir, icolormap_2)
 
 plot_fictrac_temporal(motor_all(1:6, :), ...
-    imtime, filename, pSLM.oDir, color_1)
+    imtime, filename, pSLM.oDir, icolormap_1)
 
 end
 
 function plot_fictrac_temporal(fictrac_temp_res, ...
-    fTime, filename, oDir, color_1)
+    fTime, filename, oDir, icolormap)
 % plot_fictrac_temporal: plot fictract variables
 %
 % Usage:
@@ -256,7 +255,7 @@ function plot_fictrac_temporal(fictrac_temp_res, ...
 %   fTime: frame time (imaging resolution)
 %   filename: filename
 %   oDir: outpud directory
-%   color_2: colormap
+%   icolormap: colormap
 
 [figH, axH] = makefigs(2, 3, [1000 450], 'center');
 axH(1) = subplot(2, 3, [1 2]);
@@ -266,28 +265,28 @@ axH(4) = subplot(2, 3, 6);
 
 for i = 1:3
     plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(1));
+        'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(1));
     hold(axH(1), 'on')
 end
 axH(1).XLim = fTime([1 end]);
 
 for i = 1:3
     linH_1(i == 1:3) = plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(2));
+        'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(2));
     hold(axH(2), 'on')
 end
 axH(2).XLim = [0 100];
 
 for i = 4:6
     plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(3));
+        'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(3));
     hold(axH(3), 'on')
 end
 axH(3).XLim = fTime([1 end]);
 
 for i = 4:6
     linH_2(i == 4:6) = plot(fTime, fictrac_temp_res(i, :), ...
-        'Color', color_1(i, :), 'Linewidth', 2, 'Parent', axH(4));
+        'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(4));
     hold(axH(4), 'on')
 end
 axH(4).XLim = [0 100];
@@ -321,7 +320,7 @@ close(figH)
 end
 
 function plot_SVD_spatial_temporal(SVD_Dat, ...
-    fTime, SVD_temp_res, filename, oDir, color_2)
+    fTime, SVD_temp_res, filename, oDir, icolormap)
 % plot_SVD_spatial_temporal: plot SVD components
 %
 % Usage:
@@ -334,7 +333,7 @@ function plot_SVD_spatial_temporal(SVD_Dat, ...
 %   SVD_temp_res: SVD variables resampled to fTime
 %   filename: filename
 %   oDir: outpud directory
-%   color_2: colormap
+%   icolormap: colormap
 
 np = [0 SVD_Dat.npix];
 np = cumsum(np);
@@ -389,31 +388,31 @@ for i = 1:spa_c2plot
     colorbar(axH(ax2use(i)))
     axH(ax2use(i)).XTick = [];
     axH(ax2use(i)).YTick = [];
-    axH(ax2use(i)).XColor = color_2(i, :);
-    axH(ax2use(i)).YColor = color_2(i, :);
+    axH(ax2use(i)).XColor = icolormap(i, :);
+    axH(ax2use(i)).YColor = icolormap(i, :);
     axH(ax2use(i)).LineWidth = 5;
 end
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(7));
+            'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(7));
         hold(axH(7), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(7));
+    'Color', icolormap(1, :), 'Linewidth', 2, 'Parent', axH(7));
 axH(7).XLim = fTime([1 end]);
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(8));
+            'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(8));
         hold(axH(8), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(8));
+    'Color', icolormap(1, :), 'Linewidth', 2, 'Parent', axH(8));
 axH(8).XLim = [0 100];
 
 % plot szcore
@@ -421,23 +420,23 @@ SVD_temp_res = zscorebigmem(SVD_temp_res);
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(9));
+            'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(9));
         hold(axH(9), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(9));
+    'Color', icolormap(1, :), 'Linewidth', 2, 'Parent', axH(9));
 axH(9).XLim = fTime([1 end]);
 
 for i = 1:size(SVD_temp_res, 1)
     if i ~= 1
         plot(fTime, SVD_temp_res(i, :), ...
-            'Color', color_2(i, :), 'Linewidth', 2, 'Parent', axH(10));
+            'Color', icolormap(i, :), 'Linewidth', 2, 'Parent', axH(10));
         hold(axH(10), 'on')
     end
 end
 plot(fTime, SVD_temp_res(1, :), ...
-    'Color', color_2(1, :), 'Linewidth', 2, 'Parent', axH(10));
+    'Color', icolormap(1, :), 'Linewidth', 2, 'Parent', axH(10));
 axH(10).XLim = [0 100];
 
 axH(7).YLabel.String = 'temporal SVD (a.u)';
@@ -473,7 +472,7 @@ close(figH)
 end
 
 function plot_trial_med(motor_per_trial, time_rel, stim_name, ...
-    stim2plot, stim_idx, color_1, color_2, filename, oDir)
+    stim2plot, stim_idx, icolormap_1, icolormap_2, filename, oDir)
 % plot_trial_med: plot median of each motor variable across trials
 %
 % Usage:
@@ -486,8 +485,8 @@ function plot_trial_med(motor_per_trial, time_rel, stim_name, ...
 %   stim_name: stimuli name
 %   stim2plot: stimuli to plot
 %   stim_idx: indeces of each stimuli
-%   color_1: colormap
-%   color_2: colormap
+%   icolormap_1: colormap
+%   icolormap_2: colormap
 %   filename: filename
 %   oDir: outpud directory
 
@@ -506,16 +505,16 @@ for i = 1:numel(stim2plot)
     
     for j = 8:size(motor_per_trial_mean, 1)
         plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
-            'Color', color_2(j - 6, :), 'Parent', axH(i))
+            'Color', icolormap_2(j - 6, :), 'Parent', axH(i))
         hold(axH(i), 'on')
     end
     
     plot(time_rel(stim_idx == 1), motor_per_trial_mean(7, :), ...
-        'Color', color_2(7 - 6, :), 'Parent', axH(i))
+        'Color', icolormap_2(7 - 6, :), 'Parent', axH(i))
     
     for j = 1:6
         plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
-            'Color', color_1(j, :), 'Parent', axH(i))
+            'Color', icolormap_1(j, :), 'Parent', axH(i))
     end
    
     axH(i).Title.String = stim_name{stim2plot(i)};
@@ -543,7 +542,7 @@ close(figH)
 end
 
 function plot_croscorr(temp_, lag_t, ...
-    color_1, color_2, filename, oDir)
+    icolormap_1, icolormap_2, filename, oDir)
 % plot_croscorr: plot autocorrelation across variables
 %
 % Usage:
@@ -553,8 +552,8 @@ function plot_croscorr(temp_, lag_t, ...
 % Args:
 %   temp_: motor variables
 %   lag_t: time lags to use for autocorrelation
-%   color_1: colormap
-%   color_2: colormap
+%   icolormap_1: colormap
+%   icolormap_2: colormap
 %   filename: filename
 %   oDir: outpud directory
 
@@ -563,18 +562,18 @@ axH(1) = subplot(1, 1, 1);
 
 for i = 5:(size(temp_, 1) - 6)
     plot((-lag_t:lag_t)*0.01, temp_(i + 6, :), ...
-        'Color', color_2(i, :), 'Parent', axH(1))
+        'Color', icolormap_2(i, :), 'Parent', axH(1))
     hold(axH(1), 'on')
 end
 
 for i = 1:4
     plot((-lag_t:lag_t)*0.01, temp_(i + 6, :), ...
-        'Color', color_2(i, :), 'Parent', axH(1))
+        'Color', icolormap_2(i, :), 'Parent', axH(1))
 end
 
 for i = 1:6
     plot((-lag_t:lag_t)*0.01, temp_(i, :), ...
-        'Color', color_1(i, :), 'Parent', axH(1))
+        'Color', icolormap_1(i, :), 'Parent', axH(1))
     hold(axH(1), 'on')
 end
 
@@ -600,7 +599,7 @@ close(figH)
 end
 
 function plot_hist(vel_bins, deg_bins, sd_bins, ...
-    y_vel, y_deg, y_sd, color_1, color_2, filename, oDir)
+    y_vel, y_deg, y_sd, icolormap_1, icolormap_2, filename, oDir)
 % plot_hist: plot histograms across variables
 %
 % Usage:
@@ -614,8 +613,8 @@ function plot_hist(vel_bins, deg_bins, sd_bins, ...
 %   y_vel: velocity histogram
 %   y_deg: angular histogram
 %   y_sd: SD histogram
-%   color_1: colormap
-%   color_2: colormap
+%   icolormap_1: colormap
+%   icolormap_2: colormap
 %   filename: filename
 %   oDir: outpud directory
 
@@ -629,7 +628,7 @@ for i = 1:size(y_sd, 1)
     
     if i > 4
         plot(sd_bins, y_sd(i, :)/sum(y_sd(i, :)), ...
-            'Color', color_2(i, :), 'Parent', axH(3))
+            'Color', icolormap_2(i, :), 'Parent', axH(3))
     end
     hold(axH(3), 'on')
     
@@ -638,18 +637,18 @@ end
 for i = 1:4
     
     linH_3(i) = plot(sd_bins, y_sd(i, :)/sum(y_sd(i, :)), ...
-        'Color', color_2(i, :), 'Parent', axH(3));        
+        'Color', icolormap_2(i, :), 'Parent', axH(3));        
     
 end
 
 for i = 1:3
     
     linH_1(i) = plot(vel_bins, y_vel(i, :)/sum(y_vel(i, :)), ...
-        'Color', color_1(i, :), 'Parent', axH(1));
+        'Color', icolormap_1(i, :), 'Parent', axH(1));
     hold(axH(1), 'on')
     
     linH_2(i) = plot(deg_bins, y_deg(i, :)/sum(y_deg(i, :)), ...
-        'Color', color_1(i + 3, :), 'Parent', axH(2));
+        'Color', icolormap_1(i + 3, :), 'Parent', axH(2));
     hold(axH(2), 'on')
     
 end
