@@ -14,6 +14,10 @@ function [Y, imtime, vidtime] = ...
 %   sig: std of gaussian kernel
 %   siz: size of kernel
 %   tres_flag: flag to resample to imaging time resolution
+%
+% Notes:
+%   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
+%   this setup y = forward and x = lateral (this needs to be tested for every setup)
 
 if ~exist('sig', 'var')
     sig = [];
