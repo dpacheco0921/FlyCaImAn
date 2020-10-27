@@ -9,33 +9,52 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %   FolderName: folders to use (name)
 %   FileName: files to use (name)
 %   iparams: parameters
-%       (FieldOfView: 768 um, hard coded constant (microscope dependent variable)
+%       (fo2reject: folders to reject)
+%           (default, {'.', '..', 'colldata', 'BData', 'preprocessed'})
 %       (FileName: files to use)
-%       (suffix: pattern of files to use '_Zstack_')
+%       (FieldOfView: field of view of microscope)
+%           (default, 768 um)
+%       (suffix: pattern of files to use)
+%           (default, 'Zstack_*_*.tif')
 %       (ch2save: channels to save ([1 2], red and green))
+%           (default, [1 2])
 %       (SpMode: type of data (3DxT))
 %       (ths: intensity threshold, to detect frames where PMTs went off)
-%       (unitres: number of decimals to keep (10^4))
+%           (default, 55)
+%       (unitres: number of decimals to keep)
+%           (default, 10^4)
 %       (format: nrrd format raw vs gzip ('gzip'))
+%           (default, 'gzip')
 %       (redo: gate to overwrite old files)
-%       (zres: resolution in z axis (1))
+%           (default, 0)
+%       (zres: resolution in z axis)
+%           (default, 1)
 %       (pixelsym: pixel size is symmetric or not, 0 = asymmetric, 1 = symmetric)
-%       (integrate_flag: number of timepoints to integrate as single timepoint)
+%           (default, 0)
+%       (integrate_flag: number of timepoints to integrate as single 
+%           timepoint before averaging across timepoints)
+%           (default, 1)
+%       (shift_f: shift distribution of F to the positive side)
+%           (default, [5 5])
 %       (hbins: range to generate histogram plot)
+%           (default, -10^3:3*10^3)
 %       (oDir: directory where to save histogram plot)
+%           (default, [pwd, filesep, 'rawtiff'])
+%       (dimOrder: order of dimensions time (t) then slice (z))
+%           (default: 'zt', alternative 'tz')
 %
 % Notes:
 %   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
 
 zt2m = []; 
 zt2m.cDir = pwd;
-zt2m.FieldOfView = 768;
+zt2m.fo2reject = {'.', '..', 'colldata', 'BData', 'preprocessed'};
 zt2m.FileName = []; 
+zt2m.FieldOfView = 768;
 zt2m.suffix = 'Zstack_*_*.tif';
 zt2m.ch2save = [1 2]; 
 zt2m.SpMode = '3DxT'; 
 zt2m.ths = 55;
-zt2m.fo2reject = {'.', '..', 'colldata', 'BData', 'preprocessed'};
 zt2m.unitres = 10^4;
 zt2m.format = 'gzip';
 zt2m.redo = 0;
@@ -45,6 +64,7 @@ zt2m.integrate_flag = 1;
 zt2m.shift_f = [5 5];
 zt2m.hbins = -10^3:3*10^3;
 zt2m.oDir = [pwd, filesep, 'rawtiff'];
+zt2m.dimOrder = 'zt';
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -304,12 +324,19 @@ catch
     siz(5) = 1; 
 end
 
-siz(3) = ImMeta.FrameNum; 
-siz(4) = ImMeta.RepeatNum;
+if strcmpi(zt2m.dimOrder, 'zt')
+    siz(3) = ImMeta.FrameNum; 
+    siz(4) = ImMeta.RepeatNum;
+elseif strcmpi(zt2m.dimOrder, 'tz')
+    siz(3) = ImMeta.RepeatNum;   
+    siz(4) = ImMeta.FrameNum; 
+end
+
 Data = Data(:, :, 1:siz(4)*siz(3), :);
 
 % integrate signal over time
 if zt2m.integrate_flag > 1
+    
     fprintf('integrate signal over time\n')
 
     new_vol_num = floor(siz(4)/zt2m.integrate_flag);
@@ -328,7 +355,7 @@ end
 
 % get average signal
 fprintf('Averaging volumes\n')
-Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, zt2m.AxH);
+Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, zt2m.dimOrder, zt2m.AxH);
 
 Data = permute(Data, [1 2 4 3]);
 ImMeta.FrameNum = size(Data, 4);
@@ -406,15 +433,22 @@ end
 
 % if Zres provided by scanimage then read that value
 if isfield(ImMeta, 'Z_stepsiz') && ~isempty(ImMeta.Z_stepsiz)
-    Zres = ImMeta.Z_stepsiz;
+    Zres = abs(ImMeta.Z_stepsiz);
     fprintf(['Z step size provided by scanimage: ', ...
         num2str(Zres), ' um \n'])
 else
     Zres = zt2m.zres;
 end
 
+% overwrite pixel symmetry flag if not provided by tiff
+if ~isfield(ImMeta, 'sympixels') || ...
+        (isfield(ImMeta, 'sympixels') && ...
+        isempty(ImMeta.sympixels))
+   ImMeta.sympixels = zt2m.pixelsym;
+end
+
 % pixel size (symmetric or not)
-if zt2m.pixelsym == 0
+if ImMeta.sympixels == 0
     
     iDat.MetaData = {'voxelsize', 'x y z', ...
         round([zt2m.FieldOfView/(ImMeta.Zoom*ImMeta.X), ...
@@ -445,7 +479,7 @@ iDat.volumerate = ImMeta.volumerate;
 
 end
 
-function avgim = avbrain(im, im_ths, isiz, shift_f, axH)
+function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH)
 % avbrain: get the average image of green and red channel
 %
 % Usage:
@@ -456,9 +490,19 @@ function avgim = avbrain(im, im_ths, isiz, shift_f, axH)
 %   im_ths: image intensity threshold
 %   isiz: image size
 %   shift_f: shift in F added.
+%   dimOrder: order of dimensions time (t) then slice (z)
+%   	(default: 'zt', alternative 'tz')
 %   axH: axis handle
 %
 % Notes:
+
+% reshape volume to be have this order: x,y,z,t,channel
+if strcmpi(dimOrder, 'tz')
+    im = reshape(im, isiz);
+    im = permute(im, [1 2 4 3 5]);
+    isiz([3 4]) = isiz([4 3]);
+    im = reshape(im, [isiz(1:2) prod(isiz(3:4)) isiz(5)]);
+end
 
 % get max per frame (both channels)
 maxpertime_r = squeeze(max(max(im(:, :, :, 1), [], 1), [], 2));
