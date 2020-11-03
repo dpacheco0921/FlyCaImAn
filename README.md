@@ -34,6 +34,9 @@ For processing of behavior videos with fictrac this pipeline requires the follow
 For saving figures install:
 - [export_fig](https://github.com/altmany/export_fig)
 
+For stitching Z-stacks:
+- [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [stitching plugin](https://imagej.net/Image_Stitching)
+
 # Acknowledgements
 
 Special thanks to:
