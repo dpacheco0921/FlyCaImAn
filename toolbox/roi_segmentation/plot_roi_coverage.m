@@ -1,5 +1,5 @@
 function plot_roi_coverage(filename, ...
-    vid2plot, wDat, roi, oDir, roi2sel)
+    vid2plot, wDat, roi, oDir, roi2sel, cha2use)
 % plot_roi_coverage: plot roi coverage
 %   it plot both sum of max norm weights 
 %   and binarized voxels
@@ -17,6 +17,7 @@ function plot_roi_coverage(filename, ...
 %   roi: roi parameter
 %   oDir: output directory
 %   roi2sel: indeces of ROIs to use
+%   channel2use: define the channel to use
 
 if ~exist('vid2plot', 'var') || isempty(vid2plot)
    vid2plot = [1 1 1];
@@ -30,6 +31,10 @@ if ~exist('oDir', 'var') || isempty(oDir)
    oDir = pwd;
 end
 
+if ~exist('cha2use', 'var') || isempty(cha2use)
+   cha2use = 'wDat.GreenChaMean';
+end
+
 % deafult video settings
 vidpar.xyzres = wDat.XYZres{2};
 vidpar.overcor = [1 0 0];
@@ -37,7 +42,7 @@ vidpar.lag = 0.01;
 vidpar.vgate = 1;
         
 % set brackground image and intensity range
-vidpar.Y2 = double(wDat.GreenChaMean); 
+eval(['vidpar.Y2 = double(', cha2use,' )']); 
 vidpar.Y2range = [0 prctile(vidpar.Y2(:), 95)];
 vidpar.sizY = size(vidpar.Y2);
  
