@@ -419,7 +419,6 @@ try
 end
 
 % fDat
-
 fDat.FileName = strprune(t_fname, '_', 3); 
 fDat.FolderOrigin = zt2m.cDir;
 fDat.FolderTrace = zt2m.cDir((max(strfind(zt2m.cDir, filesep)) + 1):end);
