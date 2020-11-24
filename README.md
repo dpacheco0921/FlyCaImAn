@@ -42,7 +42,13 @@ For stitching Z-stacks:
 To use this package
 1) Copy and edit fiji_fullpathedit.m (see that file for details), and save as fiji_fullpath.m.
 
-For examples see all the demos: FlyCaImAn_*_demo.m
+For examples see all the demos:
+FlyCaImAn_demo.m
+FlyCaImAn_behavior_only_demo.m
+FlyCaImAn_behavior_plus_stimuli_demo.m
+FlyCaImAn_behavior_plus_stimuli_plus_imaging_demo.m
+FlyCaImAn_imaging_only_demo.m
+FlyCaImAn_Zstack_demo.m
 
 # Acknowledgements
 
