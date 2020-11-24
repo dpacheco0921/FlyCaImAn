@@ -37,6 +37,13 @@ For saving figures install:
 For stitching Z-stacks:
 - [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [stitching plugin](https://imagej.net/Image_Stitching)
 
+# Usage
+
+To use this package
+1) Copy and edit fiji_fullpathedit.m (see that file for details), and save as fiji_fullpath.m.
+
+For examples see all the demos: FlyCaImAn_*_demo.m
+
 # Acknowledgements
 
 Special thanks to:
