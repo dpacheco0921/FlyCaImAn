@@ -1,5 +1,6 @@
-# CaImProPi-MATLAB
-Calcium Imaging Processing Pipeline of 3D time series
+# FlyCaImAn - Fly Calcium Imaging Analysis Pipeline
+
+Matlab code for analysis of calcium imaging data from the Drosophila brain, including motion correction, ROI segmentation, and detection of stimulus-modulated ROIs.
 
 # Organization of data
 
@@ -42,5 +43,5 @@ Special thanks to:
 
 # Citation
 
-If you use this code please cite the following corresponding paper:
-[Diego Pacheco, Stephan Thiberge, Eftychios Pnevmatikakis, Mala Murthy (2019). Auditory Activity is Diverse and Widespread Throughout the Central Brain of Drosophila](https://doi.org/10.1101/709519)
+If you use this code please cite the following paper:
+Pacheco, D.A., Thiberge, S.Y., Pnevmatikakis, E. et al. Auditory activity is diverse and widespread throughout the central brain of Drosophila. Nat Neurosci (2020). https://doi.org/10.1038/s41593-020-00743-y
