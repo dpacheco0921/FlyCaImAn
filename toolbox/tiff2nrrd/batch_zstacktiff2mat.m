@@ -25,6 +25,8 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %           (default, 10^4)
 %       (format: nrrd format raw vs gzip ('gzip'))
 %           (default, 'gzip')
+%       (im_format: image format ".nrrd" or ".nii")
+%           (default, '.nrrd')
 %       (redo: gate to overwrite old files)
 %           (default, 0)
 %       (zres: resolution in z axis)
@@ -57,6 +59,7 @@ zt2m.SpMode = '3DxT';
 zt2m.ths = 55;
 zt2m.unitres = 10^4;
 zt2m.format = 'gzip';
+zt2m.im_format = '.nrrd';
 zt2m.redo = 0;
 zt2m.zres = 1;
 zt2m.pixelsym = 0;
@@ -166,11 +169,11 @@ for basename_i = 1:numel(BaseFName)
                 
                 NameRoot = [BaseFName{basename_i}, '_', ...
                         animal_str, '_Zstack_', trial_str, '_'];
-                nrrd_name = [BaseFName{basename_i}, '_', ...
+                im_name = [BaseFName{basename_i}, '_', ...
                         num2str(ani_i), '_Zstack_', ...
                         num2str(Trial2Load(trial_i))];
                     
-                if ~exist([nrrd_name, '.nrrd'], 'file') || zt2m.redo
+                if ~exist([im_name, zt2m.im_format], 'file') || zt2m.redo
 
                     tic;
                     collalltrials(NameRoot, zt2m);
@@ -179,8 +182,8 @@ for basename_i = 1:numel(BaseFName)
 
                 else
 
-                    fprintf(['File ', nrrd_name, ...
-                        '.nrrd already exist - skipping \n'])
+                    fprintf(['File ', im_name, ...
+                        zt2m.im_format, ' already exist - skipping \n'])
 
                 end
 
@@ -384,8 +387,31 @@ siz = size(Data);
 Data = reshape(Data, [siz(1:2), prod(siz(3:4))]);
 
 % save data as nrrd image
-nrrdWriter([mat_name, '.nrrd'], mat2uint16(Data, 0), ...
-    iDat.MetaData{3}, [0 0 0], zt2m.format);
+if strcmp(zt2m.im_format, '.nrrd')
+    
+    nrrdWriter([mat_name, zt2m.im_format], mat2uint16(Data, 0), ...
+        iDat.MetaData{3}, [0 0 0], zt2m.format);
+    
+elseif strcmp(zt2m.im_format, '.nii')
+
+    % permute to match acquisition axis
+    Data = permute(Data, [2 1 3 4]);
+    
+    % create initial
+    niftiwrite(mat2uint16(Data, 0), [mat_name, zt2m.im_format]);
+    
+    % readout and edit metadata
+    Data = niftiread(fullfile([mat_name, zt2m.im_format]));
+    nifti_info = niftiinfo(fullfile([mat_name, zt2m.im_format]));
+    nifti_info.SpaceUnits = 'Micron';
+    nifti_info.Datatype = 'uint16';
+    nifti_info.ImageSize = size(Data);
+    nifti_info.PixelDimensions = iDat.MetaData{3};
+
+    niftiwrite(mat2uint16(Data, 0), [mat_name, zt2m.im_format], ...
+        nifti_info);
+    
+end
 
 % save metadata
 save([zt2m.cDir, filesep, zt2m.Folder2Run, filesep, ...

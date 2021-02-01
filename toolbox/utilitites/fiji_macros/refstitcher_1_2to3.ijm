@@ -17,12 +17,13 @@ init_yb=args[12];
 init_zb=args[13];
 fusion_method=args[14];
 Debugflag=args[15];
+im_format=args[16];
 
 // open files and reshape them
 print("Collecting all stacks to stitch");
 
 for (i=1; i<=FNum; i++) {
-    imName = FileName + "_" + i + ".nrrd";
+    imName = FileName + "_" + i + im_format;
     print("reshaping image: " + imName);
     open(FileDir + imName);
     selectWindow(imName);
@@ -64,8 +65,8 @@ if (ch2use==2){
 print("Stitching all pairs");
 
 // fusing images 1-2
-im1 = "first_image=" + FileName + "_1.nrrd";
-selectWindow(FileName + "_1.nrrd");
+im1 = "first_image=" + FileName + "_1" + im_format;
+selectWindow(FileName + "_1" + im_format);
 getDimensions(w, h, channels, slices, frames);
 w = w - 1;
 h = h - 1;
@@ -74,30 +75,30 @@ h = h - 1;
 run("TransformJ Crop", "x-range=0," + w + " y-range=0," + h + " z-range=1," + slices + " c-range=1,2");
 
 // close unused windows
-selectWindow(FileName + "_1.nrrd");
+selectWindow(FileName + "_1" + im_format);
 close();
 
 // rename final window to be used
-selectWindow(FileName + "_1.nrrd cropped");
-rename(FileName + "_1_a.nrrd");
+selectWindow(FileName + "_1" + im_format " cropped");
+rename(FileName + "_1_a" + im_format);
 
 // fusing images 2-3
 if (FNum>1){
 
-    im1 = "first_image=" + FileName + "_2.nrrd";
+    im1 = "first_image=" + FileName + "_2" + im_format;
     if (FNum==3){
-        im2 = "second_image=" + FileName + "_3.nrrd";
+        im2 = "second_image=" + FileName + "_3" + im_format;
     } else {
-        im2 = "second_image=" + FileName + "_2.nrrd";
+        im2 = "second_image=" + FileName + "_2" + im_format;
     }
 
     posInit = " compute_overlap x=" + init_xb + " y=" + init_yb + " z=" + init_zb;
-    newIm = " fused_image=" + FileName + "_1_b.nrrd";
+    newIm = " fused_image=" + FileName + "_1_b" + im_format;
     print("Stitching images round 1");
     order2run = im1 + " " + im2 + method + newIm + peakNum + posInit + ch2reg;
     print(order2run);
     run("Pairwise stitching", order2run);
-    selectWindow(FileName + "_1_b.nrrd");
+    selectWindow(FileName + "_1_b" + im_format);
     getDimensions(w, h, channels, slices, frames);
     w = w - 1;
     h = h - 1;
@@ -105,19 +106,19 @@ if (FNum>1){
     run("TransformJ Crop", "x-range=0," + w + " y-range=0," + h + " z-range=1," + slices + " c-range=1,2");
 
     // close unused windows
-    selectWindow(FileName + "_2.nrrd");
+    selectWindow(FileName + "_2" + im_format);
     close();
     if (FNum==3){
-        selectWindow(FileName + "_3.nrrd");
+        selectWindow(FileName + "_3" + im_format);
         close();
     }
 
-    selectWindow(FileName + "_1_b.nrrd");
+    selectWindow(FileName + "_1_b" + im_format);
     close();
 
     // rename final window to be used
-    selectWindow(FileName + "_1_b.nrrd cropped");
-    rename(FileName + "_1_b.nrrd");
+    selectWindow(FileName + "_1_b" + im_format " cropped");
+    rename(FileName + "_1_b" + im_format);
 
 }
 
@@ -127,10 +128,10 @@ if (Debugflag == 1){
 
 // second round of fusion
 if (FNum>1){
-    im1b = "first_image=" + FileName + "_1_a.nrrd";
-    im2b = "second_image=" + FileName + "_1_b.nrrd";
+    im1b = "first_image=" + FileName + "_1_a" + im_format;
+    im2b = "second_image=" + FileName + "_1_b" + im_format;
        
-    newIm = " fused_image=" + FileName + "_1_c.nrrd";
+    newIm = " fused_image=" + FileName + "_1_c" + im_format;
     print("Stitching images round 2");
     run("Pairwise stitching", im1b + " " + im2b + newIm + posInit + ch2reg);
 
@@ -140,15 +141,31 @@ if (FNum>1){
     selectWindow(newIm);
 
 } else {
-    selectWindow(FileName + "_1_a.nrrd");
+    selectWindow(FileName + "_1_a" + im_format);
+}
+
+if (Debugflag == 1){
+    waitForUser("manual checking");
 }
 
 // saving image
 print("Saving files");
 
-FinalName = FileName + ".nrrd";
-run("Properties...", "unit=microns pixel_width=" + p_width + " pixel_height=" + p_heigh + " voxel_depth=" + p_depth);
-run("Nrrd ... ", "nrrd=" + FileDir + FinalName);
+FinalName = FileName + im_format;
+
+if (Debugflag == 1){
+    waitForUser("manual checking");
+}
+
+if (im_format==".nrrd"){
+    run("Properties...", "unit=microns pixel_width=" + p_width + " pixel_height=" + p_heigh + " voxel_depth=" + p_depth);
+    run("Nrrd ... ", "nrrd=" + FileDir + FinalName);
+}
+
+if (im_format==".nii"){
+    run("Properties...", "unit=Micron pixel_width=" + p_width + " pixel_height=" + p_heigh + " voxel_depth=" + p_depth);
+    run("NIfTI-1", "save=" + FileDir + FinalName);
+}
 
 print("Done");
 eval("script", "System.exit(0);");

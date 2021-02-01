@@ -35,7 +35,7 @@ For saving figures install:
 - [export_fig](https://github.com/altmany/export_fig)
 
 For stitching Z-stacks:
-- [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [stitching plugin](https://imagej.net/Image_Stitching)
+- [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [stitching plugin](https://imagej.net/Image_Stitching) and [NIfTI plugin](https://imagej.nih.gov/ij/plugins/nifti.html)
 
 # Usage
 

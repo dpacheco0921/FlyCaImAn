@@ -35,12 +35,17 @@ function batch_stitcher_nrrd(FolderName, FileName, iparams)
 %           (1, 'Max. Intensity')
 %       (debug_flag: flag for debug mode for loading FIJI)
 %           (default, 0)
-%
+%       (im_format: 'nrrd' or 'NIfTI')
+%           (default, '.nrrd', if NIfTI use '.nii')
+% 
 % Notes:
 % requires the following Fiji pluggins:
 %   ImageScience & Image_Stitching
 % see https://imagej.net/ImageScience
 % see http://imagej.net/Image_Stitching
+%
+% 20210122
+%   generalize to .nrrd and .nii image formats
 
 stpars = [];
 
@@ -55,6 +60,7 @@ stpars.redo = 0;
 stpars.ijscript = 'refstitcher_1to2_3to4.ijm';
 stpars.fusion_method = 0;
 stpars.debug_flag = 0;
+stpars.im_format = '.nrrd';
 
 % update variables
 if ~exist('FolderName','var')
@@ -119,7 +125,7 @@ stpars.cDir = pwd;
 
 % Stitching and getting metadata from whole brain images
 
-[rootName, ~] = NameSplitter([], stpars.suffix, FileName);
+[rootName, ~] = NameSplitter([], stpars.suffix, FileName, stpars.im_format);
 fly_names = unique(rootName);
 
 fprintf('Stitching nrrd files\n');
@@ -128,7 +134,8 @@ for fly_i = 1:numel(fly_names)
     % Determine the number of stacks to stitch
     
     flyname_i = [fly_names{fly_i}, stpars.suffix(1:end-1)];
-    [~, segname] = NameSplitter(fly_names(fly_i), stpars.suffix, FileName);
+    [~, segname] = NameSplitter(fly_names(fly_i), ...
+        stpars.suffix, FileName, stpars.im_format);
     seg_n = numel(segname);
     
     % Get metadata from mat file (to get XYZ resolution) and update fDat
@@ -138,58 +145,76 @@ for fly_i = 1:numel(fly_names)
     fDat.FileName = flyname_i;
 
     for iSeg = 1:numel(segname)
-        fDat.InputFile{1, iSeg} = [flyname_i, segname{iSeg}, '.nrrd'];
+        fDat.InputFile{1, iSeg} = [flyname_i, segname{iSeg}, stpars.im_format];
     end
 
     stpars.width = num2str(iDat.MetaData{3}(1));
     stpars.height = num2str(iDat.MetaData{3}(2));
     stpars.depth = num2str(iDat.MetaData{3}(3));
     
-    if ~exist([flyname_i, '.nrrd'], 'file') || stpars.redo
+    if ~exist([flyname_i, stpars.im_format], 'file') || stpars.redo
         
         if seg_n > 1
             
             % Stitch volumes
-
             brainStitch(flyname_i, seg_n, stpars)
 
             % Update metadata
-
-            Data = []; 
-            [Data, ~] = nrrdread(fullfile([flyname_i, '.nrrd']));
+            Data = [];
+            
+            if strcmp(stpars.im_format, '.nrrd')
+                
+                [Data, ~] = nrrdread(fullfile([flyname_i, stpars.im_format]));
+                
+            elseif strcmp(stpars.im_format, '.nii')
+                
+                Data = niftiread(fullfile([flyname_i, stpars.im_format]));
+                
+            end
+            
             nDim = size(Data); 
             Data = [];
-
-            iDat.FrameN = nDim(3)/stpars.nchannel; % Z
-            iDat.FrameSize = [nDim(1) nDim(2)]; % Y X
-
-            % save stitched volume
-
-            save([stpars.cDir, filesep, fDat.FileName, ...
-                '_metadata.mat'], 'fDat', 'iDat')
-        
+            
         else
             
             % Update metadata
-
             Data = []; 
-            [Data, ~] = nrrdread(fullfile([flyname_i, '_1.nrrd']));
-            nDim = size(Data); 
 
-            iDat.FrameN = nDim(3)/stpars.nchannel; % Z
-            iDat.FrameSize = [nDim(1) nDim(2)]; % Y X
-
-            % save stitched volume
-            nrrdWriter([flyname_i, '.nrrd'], mat2uint16(Data, 0), ...
-                iDat.MetaData{3}, [0 0 0], 'gzip');
-            save([stpars.cDir, filesep, fDat.FileName, ...
-                '_metadata.mat'], 'fDat', 'iDat')
+            if strcmp(stpars.im_format, '.nrrd')
+                
+                % load original file
+                [Data, ~] = nrrdread(fullfile([flyname_i, '_1', stpars.im_format]));
+                nDim = size(Data); 
+            
+                % save stitched volume
+                nrrdWriter([flyname_i, stpars.im_format], mat2uint16(Data, 0), ...
+                    iDat.MetaData{3}, [0 0 0], 'gzip');
+                
+            elseif strcmp(stpars.im_format, '.nii')
+                
+                % load original file
+                Data = niftiread(fullfile([flyname_i, '_1', stpars.im_format]));
+                nifti_info = niftiinfo(fullfile([flyname_i, stpars.im_format]));
+                
+                nDim = size(Data);                
+                
+                niftiwrite(mat2uint16(Data, 0), [flyname_i, stpars.im_format], ...
+                    nifti_info)
+                
+            end
             
         end
         
+        iDat.FrameN = nDim(3)/stpars.nchannel; % Z
+        iDat.FrameSize = [nDim(1) nDim(2)]; % Y X
+        
+        % save mat metadata file
+        save([stpars.cDir, filesep, fDat.FileName, ...
+            '_metadata.mat'], 'fDat', 'iDat')
+        
     else
         
-        fprintf(['File ', flyname_i, '.nrrd already exist - skipping \n'])
+        fprintf(['File ', flyname_i, stpars.im_format, ' already exist - skipping \n'])
         
     end
     
@@ -242,7 +267,8 @@ inputarg = [inputDir, '*', filename, ...
     '*', num2str(stpars.init_xyz(5)), ...
     '*', num2str(stpars.init_xyz(6)), ...
     '*', num2str(stpars.fusion_method), ...
-    '*', num2str(stpars.debug_flag)];
+    '*', num2str(stpars.debug_flag), ...
+    '*', stpars.im_format];
 
 % execute
 CMD = sprintf('%s -macro %s %s', ij, ijmScript, inputarg);
@@ -256,27 +282,34 @@ end
 end
 
 function [basename, segment] = ...
-    NameSplitter(inputsuffix, suffix, FileName)
+    NameSplitter(inputsuffix, ...
+    suffix, FileName, im_format)
 % NameSplitter: splits name into: basename_file-number and rep-number
 % 
 % Usage:
-%   [basename, segment] = NameSplitter(inputsuffix, stpars)
+%   [basename, segment] = ...
+%       NameSplitter(inputsuffix, ...
+%       suffix, FileName, im_format)
 %
 % Args:
 %   inputsuffix: folders to use (name)
-%   FileName: filename to select
 %   suffix: suffix to use
+%   FileName: filename to select
+%   im_format: image format 'nrrd' or 'NIfTI'
+%   	(default, '.nrrd', if NIfTI use 'nii')
 %
 % Notes:
 
-if ~exist('inputsuffix', 'var'); inputsuffix = []; end
+if ~exist('inputsuffix', 'var')
+    inputsuffix = [];
+end
 
-fi_all = rdir(['*', suffix, '*.nrrd']);
+fi_all = rdir(['*', suffix, '*', im_format]);
 fi_all = str2match(FileName, fi_all);
 fi_all = str2match(inputsuffix, fi_all);
 
 fi_all = {fi_all.name};
-fi_all = strrep(fi_all, '.nrrd', '');
+fi_all = strrep(fi_all, im_format, '');
 
 basename = cell(1, numel(fi_all));  
 segment = cell(1, numel(fi_all));

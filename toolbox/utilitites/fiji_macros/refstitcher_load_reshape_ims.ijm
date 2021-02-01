@@ -18,12 +18,13 @@ init_yb=args[12];
 init_zb=args[13];
 fusion_method=args[14];
 Debugflag=args[15];
+im_format=args[16];
 
 // open files and reshape them
 print("Collecting all stacks to stitch");
 
 for (i=1; i<=FNum; i++) {
-    imName = FileName + "_" + i + ".nrrd";
+    imName = FileName + "_" + i + im_format;
     print("reshaping image: " + imName);
     open(FileDir + imName);
     selectWindow(imName);
@@ -65,15 +66,15 @@ if (ch2use==2){
 print("Stitching all pairs");
 
 // fusing images 1-2
-im1 = "first_image=" + FileName + "_1.nrrd";
-im2 = "second_image=" + FileName + "_2.nrrd";
+im1 = "first_image=" + FileName + "_1" + im_format;
+im2 = "second_image=" + FileName + "_2" + im_format;
    
-newIm = " fused_image=" + FileName + "_1_a.nrrd";
+newIm = " fused_image=" + FileName + "_1_a" + im_format;
 print("Stitching images round 1");
 order2run = im1 + " " + im2 + method + newIm + peakNum + posInit + ch2reg;
 print(order2run);
 run("Pairwise stitching", order2run);
-selectWindow(FileName + "_1_a.nrrd");
+selectWindow(FileName + "_1_a" + im_format);
 getDimensions(w, h, channels, slices, frames);
 w = w - 1;
 h = h - 1;
