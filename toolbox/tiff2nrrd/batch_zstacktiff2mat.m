@@ -44,6 +44,8 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %           (default, [pwd, filesep, 'rawtiff'])
 %       (dimOrder: order of dimensions time (t) then slice (z))
 %           (default: 'zt', alternative 'tz')
+%       (debug_flag: flag to evaluate results prior to saving)
+%           (default: 1)
 %
 % Notes:
 %   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
@@ -68,6 +70,7 @@ zt2m.shift_f = [5 5];
 zt2m.hbins = -10^3:3*10^3;
 zt2m.oDir = [pwd, filesep, 'rawtiff'];
 zt2m.dimOrder = 'zt';
+zt2m.debug_flag = 0;
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -304,8 +307,10 @@ end
 % shift distribution by 5 values to the right and make negative values 0
 Data(:, :, :, 1) = ...
     Data(:, :, :, 1) + zt2m.shift_f(1);
-Data(:, :, :, 2) = ...
-    Data(:, :, :, 2) + zt2m.shift_f(2);
+if length(size(Data)) > 3
+    Data(:, :, :, 2) = ...
+        Data(:, :, :, 2) + zt2m.shift_f(2);
+end
 Data(Data < 0) = 0;
 ImMeta.RepeatNum = floor(size(Data, 3)/ImMeta.Z); 
 ImMeta.FrameNum = ImMeta.Z;
@@ -358,7 +363,8 @@ end
 
 % get average signal
 fprintf('Averaging volumes\n')
-Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, zt2m.dimOrder, zt2m.AxH);
+Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, ...
+    zt2m.dimOrder, zt2m.AxH, zt2m.debug_flag);
 
 Data = permute(Data, [1 2 4 3]);
 ImMeta.FrameNum = size(Data, 4);
@@ -379,6 +385,7 @@ display(['Max val per channel ', ...
 % generate metadata
 
 [fDat, iDat] = generatemetadata(mat_name, ImMeta, zt2m);
+width_height_depth = iDat.MetaData{3};
 
 % plot histograms
 plot_histogram(zt2m.hbins, hist_pre, hist_post, zt2m.oDir, fDat.FileName)
@@ -390,7 +397,7 @@ Data = reshape(Data, [siz(1:2), prod(siz(3:4))]);
 if strcmp(zt2m.im_format, '.nrrd')
     
     nrrdWriter([mat_name, zt2m.im_format], mat2uint16(Data, 0), ...
-        iDat.MetaData{3}, [0 0 0], zt2m.format);
+        width_height_depth, [0 0 0], zt2m.format);
     
 elseif strcmp(zt2m.im_format, '.nii')
 
@@ -406,7 +413,7 @@ elseif strcmp(zt2m.im_format, '.nii')
     nifti_info.SpaceUnits = 'Micron';
     nifti_info.Datatype = 'uint16';
     nifti_info.ImageSize = size(Data);
-    nifti_info.PixelDimensions = iDat.MetaData{3};
+    nifti_info.PixelDimensions = width_height_depth;
 
     niftiwrite(mat2uint16(Data, 0), [mat_name, zt2m.im_format], ...
         nifti_info);
@@ -492,7 +499,7 @@ end
 iDat.FrameN = ImMeta.FrameNum; 
 iDat.StackN = ImMeta.RepeatNum;
 
-%[lines, pixels per line, slices] [y, x, z]
+%[lines, pixels per line, slices] [height width depth] [y, x, z]
 iDat.FrameSize = [ImMeta.Y, ImMeta.X];
 
 iDat.Power = ImMeta.Power; 
@@ -504,11 +511,11 @@ iDat.volumerate = ImMeta.volumerate;
 
 end
 
-function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH)
+function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, debug_flag)
 % avbrain: get the average image of green and red channel
 %
 % Usage:
-%   avgim = avbrain(im, im_ths, isiz, shift_f, axH)
+%   avgim = avbrain(im, im_ths, isiz, shift_f, axH, debug_flag)
 %
 % Args:
 %   im: folders to use (name)
@@ -518,6 +525,7 @@ function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH)
 %   dimOrder: order of dimensions time (t) then slice (z)
 %   	(default: 'zt', alternative 'tz')
 %   axH: axis handle
+%   debug_flag: debug flag
 %
 % Notes:
 
@@ -555,15 +563,21 @@ hold(axH(1), 'on'); hold(axH(2), 'on')
 % generate average brain
 avgim = inf(size(im, 1), size(im, 2), size(im, 3), size(im, 5));
 
+if size(im, 4) == 1
+    slice_n = 1;
+else
+    slice_n = 2;
+end
+
 for z = 1:size(im, 3)
     
-    if sum((maxpertime_r(z, :)) > im_ths) >= 2
+    if sum((maxpertime_r(z, :)) > im_ths) >= slice_n
         avgim(:, :, z, 1) = mean(squeeze(im(:, :, z, ...
             (maxpertime_r(z, :)) > im_ths, 1)), 3);
     end
     
     if isiz(end) > 1
-        if sum((maxpertime_g(z, :)) > im_ths) >= 2
+        if sum((maxpertime_g(z, :)) > im_ths) >= slice_n
             avgim(:, :, z, 2) = mean(squeeze(im(:, :, z, ...
                 (maxpertime_g(z, :)) > im_ths, 2)), 3);
         end
@@ -576,7 +590,8 @@ end
 M = squeeze(max(max(avgim, [], 1), [], 2));
 
 if sum(isinf(M(:))) ~= 0 || ...
-        (sum(M(:) > 2048 + min(shift_f)) ~= 0)
+        (sum(M(:) > 2048 + min(shift_f)) ~= 0) ...
+        || debug_flag
     
     % for dealing with this exceptions use:
     

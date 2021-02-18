@@ -94,19 +94,20 @@ if strcmp(z2spars.im_format, '.nrrd')
     [Data, meta] = nrrdread(filename_in);
     iXYZres = nrrdread_res(meta);
 
-    % reshape flat XYChZ image to 4D matrix XYChZ
+    % reshape flat YXChZ image to 4D matrix YXChZ
     siz = size(Data);
     Data = double(reshape(Data, ...
         [siz(1:2), z2spars.nchannels, ...
         prod(siz(3:end))/(z2spars.nchannels)]));
 
-    % reorder to X Y Z and channel
+    % reorder to X Y Z 1 and channel
     Data = permute(Data, [2 1 4 3]);
 
     siz = size(Data);
     
+    % if more than on channel, pass channel to 5th dimension
     if numel(siz) > 3 && siz(4) > 1
-        Data = reshape(Data, [siz(1:2), prod(siz(3:4))]);
+        Data = reshape(Data, [siz(1:2), siz(3), 1, siz(4)]);
     end
     
     % create initial
@@ -119,7 +120,7 @@ if strcmp(z2spars.im_format, '.nrrd')
     nifti_info.SpaceUnits = 'Micron';
     nifti_info.Datatype = 'uint16';
     nifti_info.ImageSize = size(Data);
-    nifti_info.PixelDimensions = iXYZres;
+    nifti_info.PixelDimensions(1:3) = iXYZres;
 
     niftiwrite(mat2uint16(Data, 0), filename_out, nifti_info);
 
@@ -132,7 +133,7 @@ elseif strcmp(z2spars.im_format, '.nii')
     iXYZres = nifti_info.PixelDimensions;
     iXYZres = iXYZres(1:3);
 
-    % flip XY and channel to get X Y Z and channel
+    % flip XY and channel to get Y X Z and channel
     Data = permute(Data, [2 1 3 5 4]);
     
     siz = size(Data);

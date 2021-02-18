@@ -187,8 +187,9 @@ for fly_i = 1:numel(fly_names)
                 nDim = size(Data); 
             
                 % save stitched volume
+                width_height_depth = iDat.MetaData{3};
                 nrrdWriter([flyname_i, stpars.im_format], mat2uint16(Data, 0), ...
-                    iDat.MetaData{3}, [0 0 0], 'gzip');
+                    width_height_depth, [0 0 0], 'gzip');
                 
             elseif strcmp(stpars.im_format, '.nii')
                 
