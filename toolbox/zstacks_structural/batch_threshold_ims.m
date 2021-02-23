@@ -138,6 +138,10 @@ end
 
 % load nrrd and smooth
 [Data, meta] = nrrdread([full_dir_path, filesep, filename, '.nrrd']);
+
+% optional extra editing
+% Data = medfilt3(double(Data), [3 3 1]);
+
 Data_smooth = double(Data);
 Data_smooth(ipars.padval >= Data_smooth) = nan;
 Data_smooth = imblur(Data_smooth, [10 10 5], [20 20 10], 3);
