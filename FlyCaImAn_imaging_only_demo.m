@@ -105,7 +105,7 @@ cd('20161129')
 
 % run patches independently
 segmentation_type = 1;
-roi_parameter2use = 'roiseg_3D_dense_singleplane_fr_1Hz_z15';
+roi_parameter2use = 'roiseg_3D_dense_fr_2Hz_z2';
 batch_CaROISegSer(FileName, roi_parameter2use, ...
     'int', segmentation_type, [], [], [], [], 1)
 
