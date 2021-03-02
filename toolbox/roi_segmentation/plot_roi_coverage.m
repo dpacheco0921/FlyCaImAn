@@ -6,12 +6,12 @@ function plot_roi_coverage(filename, ...
 %
 % Usage:
 %   plot_roi_coverage(filename, ...
-%       vid2plot, wDat, roi, oDir)
+%       vid2plot, wDat, roi, oDir, roi2sel, cha2use)
 %
 % Args:
 %   filename: file name
 %   vid2plot: type of video to plot
-%       energy normalized, max normalized, binarized
+%       [1 0 0] energy normalized, [0 1 0] max normalized, [0 0 1] binarized
 %       (default, [1 1 1])
 %   wDat: metadata parameter
 %   roi: roi parameter

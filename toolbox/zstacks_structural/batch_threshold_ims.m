@@ -12,36 +12,30 @@ function batch_threshold_ims(FolderName, FileName, iparams)
 %   FileName: File name to load
 %   ipars: parameters to update
 %       (fisuffix: file suffix)
-%           ('_Zstack', default)
-%       (redo: redo)
-%           (0, default)
-%       (refcha: channel to save as nrrd, for wholebrain)
-%           (1 = red channel, default)
-%       (nchannels: number of channels)
-%           (2, default)
-%       %%% smoothing settings %%%
-%       (sig: sigma)
-%           (2, default)
-%       (size: size)
-%           (3, default)
-%       %%% resampling settings %%%
-%       (oXYZres: output spatial resolution (width, height, depth))
-%           ([1.2 1.2 1] um, default)
-%       %%% padding settings %%%
-%       (padgate: gate to pad)
-%           (0, default)
-%       (padnum: number of planes, lines to use for padding)
-%           (10, default)
-%       (zflipgate: gate to flip orientation in Z)
-%           (1, default)
-%       (mirror_flag: flag to also save mirror image (_mw))
-%           (1, default)
+%           ('', default)
 %       (im_format: image format ".nrrd" or ".nii")
 %           (default, '.nrrd')
 %       (dir_depth: depth of directory search)
 %           (default, 1)
+%       (padval: value that is assumed to be padding)
+%           (0, default)
 %       (oDir: output directory)
 %           (pwd, default)
+%       (input_int_ths: set of intensity thresholds)
+%           ([75 75 75 90 95], default)
+%       (z_slices_per_int_ths: z slice number per input_int_ths)
+%           ([0 100 130 170 200 240], default)
+%       (z_slices_per_int_ths: z slice number per input_int_ths)
+%           ([0 100 130 170 200 240], default)
+%       (default_planes: planes to be plotted)
+%           ([10 30 50 70 100 130 170 200 230], default)
+%       (medfilt_flag: flag to do median filtering)
+%           (0, default)
+%       (medfilt: filter)
+%           ([3 3 1], default)
+%
+% Todo
+%   generalize to nii
 
 % Default iparams
 ipars.fisuffix = '';
@@ -52,6 +46,8 @@ ipars.oDir = ['.', filesep];
 ipars.input_int_ths = [75 75 75 90 95];
 ipars.z_slices_per_int_ths = [0 100 130 170 200 240];
 ipars.default_planes = [10 30 50 70 100 130 170 200 230];
+ipars.medfilt_flag = 0;
+ipars.medfilt = [3 3 1];
 
 % update variables
 if ~exist('FolderName', 'var') || isempty(FolderName)
@@ -110,10 +106,10 @@ fprintf('... Done\n')
 end
 
 function threslholdims(filename, full_dir_path, ipars)
-% genrrdIm: per file name, _w nrrd images
+% threslholdims: crop each image
 %
 % Usage:
-%   gennrrd(filename, full_dir_path, ipars)
+%   threslholdims(filename, full_dir_path, ipars)
 %
 % Args:
 %   filename: file name
@@ -132,15 +128,17 @@ if ~exist(oDir, 'dir')
 end
 
 % remove '.nrrd' from image
-if contains(filename, '.nrrd')
-    filename = strrep(filename, '.nrrd', '');
+if contains(filename, ipars.im_format)
+    filename = strrep(filename, ipars.im_format, '');
 end
 
 % load nrrd and smooth
-[Data, meta] = nrrdread([full_dir_path, filesep, filename, '.nrrd']);
+[Data, meta] = nrrdread([full_dir_path, filesep, filename, ipars.im_format]);
 
 % optional extra editing
-% Data = medfilt3(double(Data), [3 3 1]);
+if ipars.medfilt_flag
+    Data = medfilt3(double(Data), ipars.medfilt);
+end
 
 Data_smooth = double(Data);
 Data_smooth(ipars.padval >= Data_smooth) = nan;
@@ -164,9 +162,13 @@ keyboard
 %   displayresults(Data_smooth, Data_mask, ipars)
 
 % save image
-Data = Data.*uint16(Data_mask);
+if ipars.medfilt_flag
+    Data = Data.*double(Data_mask);   
+else
+    Data = Data.*uint16(Data_mask);   
+end
 
-nrrdWriter([oDir, filesep, filename, '.nrrd'], ...
+nrrdWriter([oDir, filesep, filename, ipars.im_format], ...
     mat2uint16(Data), nrrdread_res(meta), [0 0 0], 'gzip');
 
 end

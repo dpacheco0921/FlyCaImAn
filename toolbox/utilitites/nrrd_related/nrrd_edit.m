@@ -14,6 +14,8 @@ function nrrd_edit(FolderName, FileName, iparams)
 %           (default, [])
 %       (compression: type of compresssion (gzip, or raw))
 %           (default, [])
+%       (planes2zero: set of planes to set to zero)
+%           (default, [])
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 
@@ -29,6 +31,7 @@ ipars.XYZres = [];
 ipars.numtype = [];
 ipars.compression = [];
 ipars.fsuffix = '.nrrd';
+ipars.planes2zero = [];
 ipars.dir_depth = 0;
 
 % update variables
@@ -119,6 +122,10 @@ else
     
     numtype = 'uint16';
     
+end
+
+if ~isempty(ipars.planes2zero)
+    Data(:, :, ipars.planes2zero) = 0;
 end
 
 switch numtype
