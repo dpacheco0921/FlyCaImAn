@@ -16,6 +16,10 @@ function nrrd_edit(FolderName, FileName, iparams)
 %           (default, [])
 %       (planes2zero: set of planes to set to zero)
 %           (default, [])
+%       (cuboid2erode:  creates a 3-D cuboidal structuring element of size [m n p])
+%           (default, [])
+%       (medfilt: median filter)
+%           (default, [3 3 1])
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 
@@ -32,6 +36,8 @@ ipars.numtype = [];
 ipars.compression = [];
 ipars.fsuffix = '.nrrd';
 ipars.planes2zero = [];
+ipars.cuboid2erode = [];
+ipars.medfilt = [];
 ipars.dir_depth = 0;
 
 % update variables
@@ -124,10 +130,17 @@ else
     
 end
 
+% set come planes to zero
 if ~isempty(ipars.planes2zero)
     Data(:, :, ipars.planes2zero) = 0;
 end
 
+% do median filtering
+if ~isempty(ipars.medfilt)
+    Data = medfilt3(double(Data), ipars.medfilt);
+end
+
+% apply numeric type change
 switch numtype
 
     case 'uint16'
@@ -138,6 +151,29 @@ switch numtype
 
         Data = mat2uint8(Data, 1);
 
+end
+
+% erode image
+if ~isempty(ipars.cuboid2erode)
+    
+    % fill in holes
+    mask_ = medfilt3(double(Data > 0), [7 7 1]);
+    
+    mask_ = imfill(mask_ > 0, 26, 'holes');
+    
+    % erode edge planes
+    mask_ = imerode(mask_, strel('cuboid', ipars.cuboid2erode));
+    
+    % fill in holes
+    mask_ = imfill(mask_, 26, 'holes');
+    
+    Data(mask_ == 0) = 0;
+    
+    % to visualize use
+    % pi = [];
+    % pi.range = [0 prctile(double(Data(:)), 98)];
+    % slice3Dmatrix(double(Data), pi)
+    
 end
 
 fprintf(['Saving nrrd as ', numtype, '\n'])
