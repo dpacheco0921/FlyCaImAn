@@ -47,9 +47,14 @@ for i = unique(stack_idx)'
     try
         
         % start and end of stacks to stitch
-        idx_i = find(stack_idx == i, 1, 'first');
-        idx_e = find(stack_idx == i + 1, 1, 'last');
-
+        if strcmp(wDat.vOrient, 'invert')
+            idx_i = find(stack_idx == i, 1, 'first');
+            idx_e = find(stack_idx == i + 1, 1, 'last');
+        else
+            idx_i = find(stack_idx == i, 1, 'last');
+            idx_e = find(stack_idx == i + 1, 1, 'first');
+        end
+        
         im_1 = mat2gray(im(:, :, idx_i), ip.range);
         im_2 = mat2gray(im(:, :, idx_e), ip.range);
 

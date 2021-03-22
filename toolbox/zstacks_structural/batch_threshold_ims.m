@@ -146,7 +146,6 @@ Data_smooth = imblur(Data_smooth, [10 10 5], [20 20 10], 3);
 im_size = size(Data_smooth);
 
 ipars.z_slices_per_int_ths(end) = im_size(end);
-ipars.default_planes = [10 30 50 70 100 130 170 200 230];
 
 [Data_mask, ipars.int_ths_per_z] = generate_binary_mask(ipars.input_int_ths, ...
     ipars.z_slices_per_int_ths, Data_smooth);
@@ -154,12 +153,9 @@ ipars.default_planes = [10 30 50 70 100 130 170 200 230];
 % plot results so far
 displayresults(Data_smooth, Data_mask, ipars)
 
-keyboard
 % Edit manually input_int_ths by looking at the intensity in plotted planes
-%   ipars.input_int_ths = [75 75 75 90 95];
-% and re-run
-%   [Data_mask, ipars.int_ths_per_z] = generate_binary_mask(ipars.input_int_ths, ipars.z_slices_per_int_ths, Data_smooth);
-%   displayresults(Data_smooth, Data_mask, ipars)
+edit threshold_ims_maninput
+keyboard
 
 % save image
 if ipars.medfilt_flag
@@ -235,14 +231,15 @@ function displayresults(Data_smooth, Data_mask, ipars)
 figH = figure('Position', genfigpos(1, [], [1600 900]));
 colormap(jet)
 
-for i = 1:9
+for i = 1:numel(ipars.default_planes)
     
     axH(i) = subplot(3, 3, i);
     imagesc(Data_smooth(:, :, ipars.default_planes(i)), 'Parent', axH(i));
     hold(axH(i), 'on')
     contour(Data_mask(:, :, ipars.default_planes(i)) > 0, 1, ...
         'color', 'k', 'Linewidth', 2, 'Parent', axH(i));
-    axH(i).Title.String = ['Int ths: ', num2str(ipars.int_ths_per_z(ipars.default_planes(i)))];
+    axH(i).Title.String = ['Plane ', num2str(ipars.default_planes(i)), ...
+        ' Int ths: ', num2str(ipars.int_ths_per_z(ipars.default_planes(i)))];
     colorbar(axH(i))
     
 end
