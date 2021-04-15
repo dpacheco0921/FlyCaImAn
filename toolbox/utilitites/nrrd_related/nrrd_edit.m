@@ -22,6 +22,12 @@ function nrrd_edit(FolderName, FileName, iparams)
 %           (default, [3 3 1])
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%       (flip_axis: axis to flip)
+%           (default, [0 0 0], 'height witdh depth')
+%       (save_mirror: save also mirror image on selected axis)
+%           (default, [0 0 0], 'height witdh depth')
+%       (save_mirror_str: string to replace for naming mirror image)
+%           (default, {'w', 'mw'}, 'height witdh depth')
 
 if ~exist('FileName','var')
     FileName = [];
@@ -39,6 +45,9 @@ ipars.planes2zero = [];
 ipars.cuboid2erode = [];
 ipars.medfilt = [];
 ipars.dir_depth = 0;
+ipars.flip_axis = [0 0 0];
+ipars.save_mirror = [0 0 0];
+ipars.save_mirror_str = {'w', 'ymw'; 'w', 'xmw'; 'w', 'zmw'};
 
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
@@ -101,8 +110,20 @@ function editnrrd(filename, ipars)
 %           (default, [])
 %       (compression: type of compresssion (gzip, or raw))
 %           (default, [])
+%       (planes2zero: set of planes to set to zero)
+%           (default, [])
+%       (cuboid2erode:  creates a 3-D cuboidal structuring element of size [m n p])
+%           (default, [])
+%       (medfilt: median filter)
+%           (default, [3 3 1])
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%       (flip_axis: axis to flip)
+%           (default, [0 0 0], 'height witdh depth')
+%       (save_mirror: save also mirror image on selected axis)
+%           (default, [0 0 0], 'height witdh depth')
+%       (save_mirror_str: string to replace for naming mirror image)
+%           (default, {'w', 'mw'}, 'height witdh depth')
 
 % load image
 [Data, meta] = nrrdread(filename);
@@ -190,6 +211,24 @@ end
 
 fprintf(['Saving nrrd as ', compressiontype, '\n'])
 
+% flip axis
+for i = 1:3
+    if ipars.flip_axis(i)
+        Data = flip(Data, i);
+    end
+end
+
 nrrdWriter(filename, Data, ipars.XYZres, [0 0 0], compressiontype);
+
+% save, in addition, mirror images of defined axis
+for i = 1:3
+    if ipars.save_mirror(i)
+        
+        Data_m = flip(Data, i);
+        nrrdWriter(strrep(filename, ipars.save_mirror_str{i, 1}, ipars.save_mirror_str{i, 2}), ...
+            Data_m, ipars.XYZres, [0 0 0], compressiontype);
+        
+    end
+end
 
 end
