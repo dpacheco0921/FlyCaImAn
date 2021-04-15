@@ -15,6 +15,7 @@ pi.range = [0 200];
 slice3Dmatrix(double(Data).*Data_mask, pi);
 
 pi.range = [0 500];
+% pi.range = [0 10^5];
 pi.Y1 = Data_mask;
 pi.vgate = 1;
 pi.vgate = 'test';
