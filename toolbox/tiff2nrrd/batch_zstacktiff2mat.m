@@ -304,6 +304,16 @@ for i = 1:size(Data, 4)
     clear temp_data
 end
 
+if zt2m.debug_flag
+    
+    % plot histograms with current settings (zt2m.hbins)
+    plot_histogram(zt2m.hbins, hist_pre, hist_pre, zt2m.oDir, 'test')
+    
+    keyboard
+    % pause to decide if manually update 'zt2m.shift_f' and/or 'zt2m.hbins'
+    
+end
+
 % shift distribution by 5 values to the right and make negative values 0
 Data(:, :, :, 1) = ...
     Data(:, :, :, 1) + zt2m.shift_f(1);
