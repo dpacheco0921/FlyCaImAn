@@ -13,6 +13,7 @@ function plot_stitch_results(wDat, ...
 %   iparams: parameters to update
 %       (range: range of intensity to display)
 %       (refcha: reference channel (red channel == 1, green channel == 2))
+%       (axisratio: flag to use equal axis or not)
 
 % default params
 ip.range = [0 1];
@@ -22,7 +23,12 @@ if ~exist('iparams', 'var'); iparams = []; end
 ip = loparam_updater(ip, iparams);
 
 % 1) plot overlay of edges
-im = double(wDat.RedChaMean);
+if ip.refcha == 1
+    im = double(wDat.RedChaMean);
+elseif ip.refcha == 2
+    im = double(wDat.GreenChaMean);
+end
+
 im = im - prctile(im(:), 1);
 im = im/prctile(im(:), 99);
 
@@ -76,6 +82,10 @@ end
 ip.vgate = 1;
 ip.frate = 1;
 ip.vname = [oDir, filesep, fname, '_red'];
+ip.axisratio = 1;
+
+if ~exist('iparams', 'var'); iparams = []; end
+ip = loparam_updater(ip, iparams);
 
 im = double(wDat.RedChaMean);
 im = im - prctile(im(:), 1);
