@@ -200,6 +200,30 @@ options_temp.nb = 1;
 
 [P, Y] = preprocess_data_int(Y, p, options_temp);
 
+% pass pre-defined ROI centers if exist
+if isfield(options_temp, 'ROI_center_matrix') && ~isempty(options_temp.ROI_center_matrix)
+    
+    % chop the ROI mask if it exist
+    if length(sizY) == 3
+        ROI_center_matrix = ...
+            options_temp.ROI_center_matrix(...
+            patches{pacthIdx}(1):patches{pacthIdx}(2), ...
+            patches{pacthIdx}(3):patches{pacthIdx}(4));
+    else
+        ROI_center_matrix = ...
+            options_temp.ROI_center_matrix(...
+            patches{pacthIdx}(1):patches{pacthIdx}(2), ...
+            patches{pacthIdx}(3):patches{pacthIdx}(4), ...
+            patches{pacthIdx}(5):patches{pacthIdx}(6));
+    end
+    
+    idx = find(ROI_center_matrix(:) ~= 0);
+    [idx(:, 1) idx(:, 2) idx(:, 3)] = ind2sub([d1, d2, d3], idx);
+    
+    P.ROI_list = idx;
+    
+end
+
 % initialize
 [Ain, Cin, bin, fin] = ...
     initialize_components_int(Y, K, tau, options_temp, P);

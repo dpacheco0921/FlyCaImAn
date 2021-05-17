@@ -1,8 +1,8 @@
 function plot_roi_coverage(filename, ...
     vid2plot, wDat, roi, oDir, roi2sel, cha2use)
 % plot_roi_coverage: plot roi coverage
-%   it plot both sum of max norm weights 
-%   and binarized voxels
+%   it overlays both sum of max norm weights 
+%   and binarized voxels to defined channel wDat.GreenChaMean/wDat.RedChaMean
 %
 % Usage:
 %   plot_roi_coverage(filename, ...

@@ -150,6 +150,16 @@ obj.options.sr = roiparams.sr;
 obj.options.freq_th = roiparams.freq_th;
 obj.options.brainmask = wDat.bMask;
 
+% add user defined ROI centers
+if isfield(wDat, 'ROI_center_matrix') && ~isempty(wDat.ROI_center_matrix)
+    
+    obj.options.ROI_center_matrix = wDat.ROI_center_matrix;
+    
+    % overwrite K
+    roiparams.K = numel(find(obj.options.ROI_center_matrix ~= 0));
+    
+end
+
 % add extra options for detending
 obj.options.d_prct = roiparams.d_prct;
 obj.options.d_window = roiparams.d_window;

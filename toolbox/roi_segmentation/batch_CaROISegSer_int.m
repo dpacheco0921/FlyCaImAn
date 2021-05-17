@@ -156,7 +156,6 @@ function roiseg_int(filename, roiparams, roipars)
 % runs ROI segmentation per mat file
 %   it requires the mat file to be in the right mat format
 
-
 % make object and update parameters
 loDir = pwd;
 
@@ -205,6 +204,16 @@ updateParams(obj, ...
 obj.options.sr = roiparams.sr;
 obj.options.freq_th = roiparams.freq_th;
 obj.options.brainmask = wDat.bMask;
+
+% add user defined ROI centers
+if isfield(wDat, 'ROI_center_matrix') && ~isempty(wDat.ROI_center_matrix)
+    
+    obj.options.ROI_center_matrix = wDat.ROI_center_matrix;
+    
+    % overwrite K
+    roiparams.K = numel(find(obj.options.ROI_center_matrix ~= 0));
+    
+end
 
 % add extra options for detending
 obj.options.dtype = roiparams.dtype; % 0 = lowpass filter, 1 = percentile filter
