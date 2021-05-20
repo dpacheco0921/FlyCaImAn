@@ -15,5 +15,8 @@ edit FlyCaImAn_behavior_plus_stimuli_demo.m
 %% 3) preprocess imaging + behavior + stimuli (song)
 edit FlyCaImAn_behavior_plus_stimuli_plus_imaging_demo.m
 
-%% 4) preprocess imaging only (song) (with stitching across sequentially imaged segments)
+%% 4) preprocess imaging only (+ stimuli (song)) (with stitching across sequentially imaged segments)
 edit FlyCaImAn_imaging_only_demo.m
+
+%% 5) preprocess structural zstacks
+edit FlyCaImAn_Zstack_demo.m

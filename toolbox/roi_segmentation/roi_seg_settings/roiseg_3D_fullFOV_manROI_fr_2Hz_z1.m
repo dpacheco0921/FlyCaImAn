@@ -10,7 +10,7 @@ roiparams.merge_thr = 1;                        % merging threshold
 roiparams.p = 0;                                % order of autoregressive system
                                                 %(p = 0 no dynamics, p=1 just decay, p = 2, both rise and decay)
 roiparams.K = 600;                              % number of components to be found
-roiparams.patch_size = [300, 300, 100];          % size of each patch along each dimension (optional, default: [32,32])
+roiparams.patch_size = [300, 300, 20];          % size of each patch along each dimension (optional, default: [32,32])
 roiparams.overlap = [10, 10, 3];                % amount of overlap in each dimension (optional, default: [4,4])
 roiparams.patch_minsiz = [4, 4, 1];             % minimun size of patch
 roiparams.cropseg = 0;                          % lines to prune from border
