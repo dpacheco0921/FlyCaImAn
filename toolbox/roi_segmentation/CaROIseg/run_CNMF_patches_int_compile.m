@@ -154,6 +154,8 @@ for ii = 1:numel(f2load)
 end
 repnum = sort(repnum);
 
+fprintf(['Loading patches (*_t_* files): ', num2str(repnum), '\n'])
+
 for ij = repnum
     
     fprintf('*')
@@ -179,6 +181,11 @@ for ij = repnum
     
 end
 fprintf(' done. \n');
+
+% reducing RESULTS and patches to loaded patches only
+fprintf('Reducing patches & RESULTS to available *_t_* files \n')
+RESULTS = RESULTS(repnum);
+patches = patches(repnum);
 
 % Combine results into one structure
 fprintf('Combining results from different patches...');

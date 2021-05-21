@@ -246,6 +246,10 @@ function brainStitch(filename, segment_n, stpars)
 %
 % Notes:
 
+if ~exist('fiji_fullpath.m', 'file')
+   fprintf('fiji_fullpath.m does not exist, edit fiji_fullpathtoedit.m or add paths')
+end
+
 ij = fiji_fullpath;
 repoDir = which('FlyCaImAn_demo');
 repoDir = strrep(repoDir, 'FlyCaImAn_demo.m', '');
@@ -272,12 +276,12 @@ inputarg = [inputDir, '*', filename, ...
     '*', stpars.im_format];
 
 % execute
-CMD = sprintf('%s -macro %s %s', ij, ijmScript, inputarg);
+CommandStr = sprintf('"%s" -macro "%s" "%s"', ij, ijmScript, inputarg);
 
 if ispc
-    system(CMD)
+    system(CommandStr)
 else
-    unix(CMD)
+    unix(CommandStr)
 end
 
 end

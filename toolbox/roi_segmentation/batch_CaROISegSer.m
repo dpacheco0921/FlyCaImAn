@@ -80,7 +80,7 @@ end
 
 if ~exist('serverid', 'var') || ...
         isempty(serverid)
-    serverid = 'spock';
+    serverid = 'int';
 end
 
 if ~exist('jobpart', 'var') || ...
@@ -169,17 +169,36 @@ if jobpart == 2
     corenum = 4;
 end
 
-% get scratch (temporary) and bucket (permanent) directories
-[~, username, ~, temporary_dir, ~, userdomain] = ...
-    user_defined_directories(serverid);
-
-if ~exist(temporary_dir, 'dir')
+% check if you have pu_cluster_interface related functions
+if ~exist('user_defined_directories', 'file') && ...
+        ~strcmpi(serverid, 'PC') && ~strcmpi(serverid, 'int')
     
-    repo_temp_folder = strrep(which('server_interface'), ...
-        'server_interface.m', '');
-    disp([temporary_dir, ' directory does not exist using pu_cluster_interface repo folder ', ...
-        repo_temp_folder, ' instead'])
-    temporary_dir = repo_temp_folder;
+    fprintf(['You dont have "user_defined_directories"', ...
+        ' function from "pu_cluster_interface" to run ', ...
+        '/submit this to the cluster to run locally set "serverid" to "PC" or "int"'])
+    return
+    
+end
+
+if exist('user_defined_directories', 'file')
+    
+    % get scratch (temporary) and bucket (permanent) directories
+    [~, username, ~, temporary_dir, ~, userdomain] = ...
+        user_defined_directories(serverid);
+    
+    if ~exist(temporary_dir, 'dir')
+        fprintf('define directoties in "user_defined_directories" function\n')
+        return
+    end
+    
+else
+
+    % use FlyCaImAn directory as temporary folder
+    username = '';
+    userdomain = '';
+    temporary_dir = strrep(which('FlyCaImAn_demo'), ...
+        'FlyCaImAn_demo.m', '');
+    disp(['Using FlyCaImAn repo folder: ', temporary_dir])
     
 end
 

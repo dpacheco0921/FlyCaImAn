@@ -18,6 +18,11 @@ pi.lag = 0.1;
 pi.Y1 = brainmask;
 pi.figpos = genfigpos(1, 'nw', [879 659]);
 
+% 1.3 optional save this movie to local directory (uncomment the code below)
+% pi.vgate = 1;
+% pi.vname = [pwd, filesep, f2run, '_brainmask_temp'];
+% pi.frate = 1;
+
 slice3Dmatrix(wDat.GreenChaMean, pi)
 % slice3Dmatrix(wDat.RedChaMean, pi)
 % 1.3) if it looks good then just continue (F5 or Run)
