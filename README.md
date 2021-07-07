@@ -36,7 +36,7 @@ For saving figures install:
 - [export_fig](https://github.com/altmany/export_fig)
 
 For stitching Z-stacks:
-- [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [bio format plugin](https://imagej.net/Bio-Formats), [Imagescience plugin](https://imagej.net/Imagescience) (make sure you have File/Save as/Analyze(nifti-1)), [stitching plugin](https://imagej.net/Image_Stitching) (make sure you have Plugins/Stitching/Pairwise Stitching) and [NIfTI plugin](https://imagej.nih.gov/ij/plugins/nifti.html)
+- [fiji](https://imagej.net/Fiji/Downloads), make sure you have the [bio format plugin](https://imagej.net/Bio-Formats), [Imagescience plugin](https://imagej.net/Imagescience), [stitching plugin](https://imagej.net/Image_Stitching)(make sure you have Plugins/Stitching/Pairwise Stitching) and [NIfTI plugin](https://imagej.nih.gov/ij/plugins/nifti.html)(make sure you have File/Save as/Analyze(nifti-1))
 
 For interfacing with a cluster:
 - download [pu_cluster_interface](https://github.com/dpacheco0921/pu_cluster_interface) (it requires the user defined temporary folder to save job parameters)
