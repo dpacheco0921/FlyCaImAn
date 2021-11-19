@@ -903,6 +903,26 @@ else
         num2str(frame_num), ')\n']);
 end
 
+% checking frame duration
+frame_duration = Frame_End - Frame_Init;
+median_frame_duration = median(frame_duration);
+
+% find points outside the median (longer frame widths due to a NEXT FILE induced break)
+timesteps2check = find(frame_duration > median_frame_duration*1.1);
+
+if numel(timesteps2check) ~= 0
+    fprintf(['Found ', num2str(numel(timesteps2check)), ' abnormal frame widths\n'])
+    fprintf('Correcting them using the median frame width\n')
+end
+
+for i = 1:numel(timesteps2check)
+    
+    % Correct Frame Init using the next timestamps difference
+    Frame_Init(timesteps2check(i)) = Frame_Init(timesteps2check(i) + 1) - ...
+        Frame_Init(timesteps2check(i) + 3) + Frame_Init(timesteps2check(i) + 2);
+    
+end
+
 fprintf([' Interframe (start) stats min( ', num2str(min(diff(Frame_Init))), ' ) ', ...
     'max( ', num2str(max(diff(Frame_Init))), ' ) ', ...
     'mean( ', num2str(mean(diff(Frame_Init))), ' )\n'])

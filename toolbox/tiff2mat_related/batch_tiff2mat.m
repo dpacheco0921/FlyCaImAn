@@ -401,6 +401,28 @@ end
 dataObj = matfile([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
     mat_name, '_rawdata.mat'], 'Writable', true);
 
+% testing that frames within a tiff file are multiples of channel*stack
+status_ = zeros(tif_num, 1);
+
+for tif_i = 1:tif_num
+    
+    tif_idx = tif_i + start_n - 1;
+    tif_idx = sprintf(['%0', num2str(str_length(tif_i, 4)), 'd'], tif_idx);  
+    temp_fName = [tif_name, '_', tif_idx];
+    
+    % tiff2mat_scanimage output is 4D or 3D (Y, X, frame, pmt)
+    ImMeta = tiff2mat_getmetadata(temp_fName, tifpars.SpMode, 1);
+
+    status_(tif_i) = mod(ImMeta.frame_num, ImMeta.ChNum*ImMeta.Z);
+    
+end
+
+clear ImMeta tif_idx
+
+if sum(status_) ~= 0
+    fprintf('Error tiff files have uneven number of frames (not matching channel # X number of planes)\n')
+end
+
 % importing and concatenating Data on the 3r dim
 
 % dimension to accumulate across tiffs
