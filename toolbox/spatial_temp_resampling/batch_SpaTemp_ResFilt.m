@@ -65,6 +65,9 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 % Update:
 % 20190911 - it preprocess green and red channel sequentially (reduces memory load by half)
 % 20190917 - generalized to 3DxT and 2DxT
+% 20210930 - deal with empty newtimeres, it basically interpolates all
+%   frames per z-stack to the first frame timestamp per z-stack - beware that
+%   for the first z-stack planes ~= 1 will be black (due to the lack of previous timepoint).
 
 % default params
 spte = [];
@@ -292,6 +295,10 @@ for i = 1:numel(repnum)
         orig_timestamp = orig_timestamp - lstEn(1, 1);
         iDat.lstEn = lstEn - lstEn(1, 1);
         
+        if isempty(res_timestamps)
+            res_timestamps = orig_timestamp(1, :);
+        end
+        
         % chop stim trace
         itIdx = round((res_timestamps(1) + lstEn(1, 1))*lStim.fs);
         lStim.trace = lStim.trace(itIdx:end);
@@ -311,6 +318,11 @@ for i = 1:numel(repnum)
     else
         
         orig_timestamp = orig_timestamp - iDat.lstEn(1, 1);
+        
+        if isempty(res_timestamps)
+            res_timestamps = orig_timestamp(1, :);
+        end
+        
         fprintf('Already added lstEn to iDat ')
         
     end
@@ -669,8 +681,13 @@ if ~check_gate
     fprintf('All onset-offset times:/n')
     display(iniT)
     
-    start_end_time(1) = ceil(max(iniT(:, 1))/newtimeres)*newtimeres;
-    start_end_time(2) = floor(min(iniT(:, 2))/newtimeres)*newtimeres;
+    if ~isempty(newtimeres)
+        start_end_time(1) = ceil(max(iniT(:, 1))/newtimeres)*newtimeres;
+        start_end_time(2) = floor(min(iniT(:, 2))/newtimeres)*newtimeres;
+    else
+        start_end_time(1) = max(iniT(:, 1));
+        start_end_time(2) = min(iniT(:, 2));
+    end
 
 else
 
