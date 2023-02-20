@@ -95,7 +95,7 @@ function runperfolder(filename, pSLM)
 % runperfolder: run all files per folder
 %
 % Usage:
-%   runperfolder(filename)
+%   runperfolder(filename, pSLM)
 %
 % Args:
 %   filename: file name pattern
@@ -231,6 +231,12 @@ stim2plot = unique(stim_all_idx)';
 plot_trial_med(motor_per_trial, time_rel, stim_name, ...
     stim2plot, stim_idx, icolormap_1, icolormap_2, filename, pSLM.oDir)
 
+for mot_var_i = 1:numel(pSLM.mot2use)
+    plot_trial_and_med_per_motor(motor_per_trial{mot_var_i}, time_rel, stim_name, ...
+        stim2plot, stim_idx, icolormap_1(mot_var_i, :), pSLM.mot2use{mot_var_i}, ...
+        filename, pSLM.oDir)
+end
+
 % plot pixel components
 % plot mean image, mean energy, first 4 components and traces
 
@@ -248,13 +254,13 @@ function plot_fictrac_temporal(fictrac_temp_res, ...
 %
 % Usage:
 %   plot_fictrac_temporal(fictrac_temp_res, ...
-%       fTime, filename, oDir, color_1)
+%       fTime, filename, oDir, icolormap)
 %
 % Args:
 %   fictrac_temp_res: fictrac variables resampled to fTime
 %   fTime: frame time (imaging resolution)
 %   filename: filename
-%   oDir: outpud directory
+%   oDir: output directory
 %   icolormap: colormap
 
 [figH, axH] = makefigs(2, 3, [1000 450], 'center');
@@ -325,14 +331,14 @@ function plot_SVD_spatial_temporal(SVD_Dat, ...
 %
 % Usage:
 %   plot_SVD_spatial_temporal(SVD_Dat, ...
-%       fTime, SVD_temp_res, filename, oDir, color_2)
+%       fTime, SVD_temp_res, filename, oDir, icolormap)
 %
 % Args:
 %   SVD_Dat: parameter variable from SVD analysis
 %   fTime: frame time (imaging resolution)
 %   SVD_temp_res: SVD variables resampled to fTime
 %   filename: filename
-%   oDir: outpud directory
+%   oDir: output directory
 %   icolormap: colormap
 
 np = [0 SVD_Dat.npix];
@@ -476,8 +482,8 @@ function plot_trial_med(motor_per_trial, time_rel, stim_name, ...
 % plot_trial_med: plot median of each motor variable across trials
 %
 % Usage:
-%   plot_trial_med(motor_per_trial, time_rel, ...
-%   	stim2plot, stim_idx, color_1, color_2, filename, oDir)
+%   plot_trial_med(motor_per_trial, time_rel, stim_name, ...
+%   	stim2plot, stim_idx, icolormap_1, icolormap_2, filename, oDir)
 %
 % Args:
 %   motor_per_trial: motor variable per trial
@@ -488,7 +494,7 @@ function plot_trial_med(motor_per_trial, time_rel, stim_name, ...
 %   icolormap_1: colormap
 %   icolormap_2: colormap
 %   filename: filename
-%   oDir: outpud directory
+%   oDir: output directory
 
 figH = figure('Position', genfigpos(1, 'center', [400 900]));
 for i = 1:numel(stim2plot)
@@ -498,22 +504,22 @@ end
 for i = 1:numel(stim2plot)
     
     % normalize
-    motor_per_trial_mean = cf(@(x) x(:, stim_idx == stim2plot(i)), motor_per_trial);
-    motor_per_trial_mean = cf(@(x, y) reshape(zscorebigmem(x(:)'), y), motor_per_trial_mean, ...
-        cf(@(x) size(x), motor_per_trial_mean));
-    motor_per_trial_mean = cell2mat(cf(@(x) median(x, 1), motor_per_trial_mean));
+    motor_per_trial_med = cf(@(x) x(:, stim_idx == stim2plot(i)), motor_per_trial);
+    motor_per_trial_med = cf(@(x, y) reshape(zscorebigmem(x(:)'), y), motor_per_trial_med, ...
+        cf(@(x) size(x), motor_per_trial_med));
+    motor_per_trial_med = cell2mat(cf(@(x) median(x, 1), motor_per_trial_med));
     
-    for j = 8:size(motor_per_trial_mean, 1)
-        plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
+    for j = 8:size(motor_per_trial_med, 1)
+        plot(time_rel(stim_idx == 1), motor_per_trial_med(j, :), ...
             'Color', icolormap_2(j - 6, :), 'Parent', axH(i))
         hold(axH(i), 'on')
     end
     
-    plot(time_rel(stim_idx == 1), motor_per_trial_mean(7, :), ...
+    plot(time_rel(stim_idx == 1), motor_per_trial_med(7, :), ...
         'Color', icolormap_2(7 - 6, :), 'Parent', axH(i))
     
     for j = 1:6
-        plot(time_rel(stim_idx == 1), motor_per_trial_mean(j, :), ...
+        plot(time_rel(stim_idx == 1), motor_per_trial_med(j, :), ...
             'Color', icolormap_1(j, :), 'Parent', axH(i))
     end
    
@@ -541,13 +547,123 @@ close(figH)
 
 end
 
+function plot_trial_and_med_per_motor(motor_per_trial, ...
+    time_rel, stim_name, stim2plot, stim_idx, ...
+    icolormap_1, motvar_suffix, filename, oDir)
+% plot_trial_and_med_per_motor: plot each trial and median of a
+%   selected motor variable
+%
+% Usage:
+%   plot_trial_and_med_per_motor(motor_per_trial, ...
+%   	time_rel, stim_name, stim2plot, stim_idx, ...
+%       icolormap_1, motvar_suffix, filename, oDir)
+%
+% Args:
+%   motor_per_trial: motor variable per trial
+%   time_rel: frame time (imaging resolution)
+%   stim_name: stimuli name
+%   stim2plot: stimuli to plot
+%   stim_idx: indeces of each stimuli
+%   icolormap_1: colormap
+%   motvar_suffix: suffix of motor variable
+%   filename: filename
+%   oDir: output directory
+
+% figure settings
+figformat = [1 0 0 0 0 0 0 0 1 0 1];
+fitsize = 0;
+axcolor = 'none';
+figcolor = 'none';
+xyzcolor = 'k';
+tickgate = 'on';
+fontsiz = 10;
+
+timestamps = time_rel(stim_idx == 1);
+
+% make figure
+figH = figure('Position', genfigpos(1, 'center', [400 900]));
+for ii = 1:numel(stim2plot)
+    axH(ii) = subplot(numel(stim2plot), 1, ii);
+end   
+
+figH_ = figure('Position', genfigpos(1, 'center', [400 900]));
+for ii = 1:numel(stim2plot)
+    axH_(ii) = subplot(numel(stim2plot), 1, ii);
+end
+
+for i = 1:numel(stim2plot)
+    
+    %reshape data
+    motor_per_trial_temp = motor_per_trial(:, stim_idx == stim2plot(i));
+   
+    % z-score along full trial
+    motor_per_trial_zs = zscorebigmem(motor_per_trial_temp);
+        
+    % baseline-z-score
+    baseline_mean = nanmean(motor_per_trial_temp(:, timestamps < 0), 2);
+    baseline_sd = nanstd(motor_per_trial_temp(:, timestamps < 0), [], 2);
+    
+    motor_per_trial_bs = motor_per_trial_temp - baseline_mean;
+    motor_per_trial_bs = bsxfun(@rdivide, motor_per_trial_bs, baseline_sd);
+    
+    motor_per_trial_bs_med = nanmedian(motor_per_trial_bs, 1);
+    
+    motor_per_trial_zs_med = nanmedian(motor_per_trial_zs, 1);
+    
+    % plot each trial
+    colormap = parula(size(motor_per_trial_bs, 1));
+    for ii = 1:size(motor_per_trial_bs, 1)
+        plot(timestamps, motor_per_trial_bs(ii, :), ...
+            'Color', colormap(ii, :), 'Parent', axH(i))
+        hold(axH(i), 'on')
+    end
+    
+    plot(timestamps, motor_per_trial_bs_med, ...
+        'Color', icolormap_1, 'Linewidth', 2, 'Parent', axH(i))
+    
+    % plot each trial
+    colormap = parula(size(motor_per_trial_zs, 1));
+    for ii = 1:size(motor_per_trial_zs, 1)
+        plot(timestamps, motor_per_trial_zs(ii, :), ...
+            'Color', colormap(ii, :), 'Parent', axH_(i))
+        hold(axH_(i), 'on')
+    end
+    
+    plot(timestamps, motor_per_trial_zs_med, ...
+        'Color', icolormap_1, 'Linewidth', 2, 'Parent', axH_(i))
+
+    axH(i).Title.String = stim_name{stim2plot(i)};
+    axH_(i).Title.String = stim_name{stim2plot(i)};
+    
+end
+    
+axH(round(numel(stim2plot)/2)).YLabel.String = 'motor variable change (SD)';
+axH(end).XLabel.String = 'Time (s)';
+axH_(round(numel(stim2plot)/2)).YLabel.String = 'motor variable change (SD)';
+axH_(end).XLabel.String = 'Time (s)';
+
+save_edit_fig_int(axH, figH, oDir, ...
+    [strrep(filename, '_metadata.mat', ''), '_motvar_trial_med_', motvar_suffix, '_bs'], ...
+    figformat, fitsize, axcolor, figcolor, xyzcolor, ...
+    tickgate, [], fontsiz)
+
+save_edit_fig_int(axH_, figH_, oDir, ...
+    [strrep(filename, '_metadata.mat', ''), '_motvar_trial_med_', motvar_suffix, '_zs'], ...
+    figformat, fitsize, axcolor, figcolor, xyzcolor, ...
+    tickgate, [], fontsiz)
+
+close(figH)
+close(figH_)
+
+end
+
 function plot_croscorr(temp_, lag_t, ...
     icolormap_1, icolormap_2, filename, oDir)
 % plot_croscorr: plot autocorrelation across variables
 %
 % Usage:
 %   plot_croscorr(temp_, lag_t, ...
-%      color_1, color_2, filename, oDir)
+%      icolormap_1, icolormap_2, filename, oDir)
 %
 % Args:
 %   temp_: motor variables
@@ -555,7 +671,7 @@ function plot_croscorr(temp_, lag_t, ...
 %   icolormap_1: colormap
 %   icolormap_2: colormap
 %   filename: filename
-%   oDir: outpud directory
+%   oDir: output directory
 
 figH = figure('Position', genfigpos(1, 'center', [300 300]));
 axH(1) = subplot(1, 1, 1);
@@ -604,7 +720,7 @@ function plot_hist(vel_bins, deg_bins, sd_bins, ...
 %
 % Usage:
 %   plot_hist(vel_bins, deg_bins, sd_bins, ...
-%       y_vel, y_deg, y_sd, color_1, color_2, filename, oDir)
+%       y_vel, y_deg, y_sd, icolormap_1, icolormap_2, filename, oDir)
 %
 % Args:
 %   vel_bins: velocity bins (mm/s)
@@ -616,7 +732,7 @@ function plot_hist(vel_bins, deg_bins, sd_bins, ...
 %   icolormap_1: colormap
 %   icolormap_2: colormap
 %   filename: filename
-%   oDir: outpud directory
+%   oDir: output directory
 
 figH = figure('Position', genfigpos(1, 'center', [1200 300]));
 
