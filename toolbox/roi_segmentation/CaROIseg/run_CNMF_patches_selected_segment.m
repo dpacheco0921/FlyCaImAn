@@ -193,7 +193,7 @@ if isfield(options, 'ROI_center_matrix') && ~isempty(options.ROI_center_matrix)
     idx = find(ROI_center_matrix(:) ~= 0);
     [idx(:, 1) idx(:, 2) idx(:, 3)] = ind2sub([d1, d2, d3], idx);
     
-    P.ROI_list = idx(:, [2 1 3]);
+    P.ROI_list = idx;
     
 end
 
