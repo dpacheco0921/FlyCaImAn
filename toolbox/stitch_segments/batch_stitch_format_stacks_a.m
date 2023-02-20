@@ -209,12 +209,6 @@ function fcompiler(fname, reps, cspfa)
 %   reps: all repetitions to use
 %   cspfa: parameter variable
 
-if exist('flip', 'builtin')
-    str2use = 'flip';
-else
-    str2use = 'flipdim';
-end
-
 % Get Z-displacement
 SimRed = [];
 SimGreen = [];
