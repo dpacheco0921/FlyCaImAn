@@ -332,7 +332,7 @@ for i = 1:numel(repnum)
     
     if isempty(spte.newres)
         
-        if isnan(inpres(1)) || isnan(inpres(1))
+        if isnan(inpres(1))
             spte.newres = nan(size(inpres));
         else
             spte.newres = inpres;
