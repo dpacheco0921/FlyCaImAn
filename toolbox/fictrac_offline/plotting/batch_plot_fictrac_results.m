@@ -1,5 +1,6 @@
 function batch_plot_fictrac_results(FolderName, Filename, iparams)
-% batch_plot_fictrac_results: plot basic stats from fictrac tracking
+% batch_plot_fictrac_results: plot basic stats from raw fictrac tracking, and
+%   and from locomotion parsed according to stimuli presentation.
 %
 % Usage:
 %   batch_plot_fictrac_results(FolderName, Filename, iparams)
@@ -229,7 +230,7 @@ close(figH)
 end
 
 function plot_vid_stim_results(wDat, fname, metpars)
-% plot_vid_stim_results: plot basic stim vs locolotion stats
+% plot_vid_stim_results: plot basic stim vs locomotion stats
 %
 % Usage:
 %   plot_vid_stim_results(wDat, fname, metpars)
@@ -304,9 +305,28 @@ for ii = 1:size(wDat.sTime)
     if ~isempty(idx2use)
         
         time_per_stim{ii, 1} = time_res(idx2use) - wDat.sTime(ii, 1);
-        speed_mm_per_stim{ii, 1} = centerbigmem(speed_mm_s(idx2use));
-        fspeed_mm_per_stim{ii, 1} = centerbigmem(fv_mm_s(idx2use + 1));
-        lspeed_mm_per_stim{ii, 1} = centerbigmem(lv_mm_s(idx2use + 1));
+        speed_mm_per_stim{ii, 1} = speed_mm_s(idx2use);
+        fspeed_mm_per_stim{ii, 1} = fv_mm_s(idx2use + 1);
+        lspeed_mm_per_stim{ii, 1} = lv_mm_s(idx2use + 1);
+        
+        % normalize to baseline
+        index2use = time_per_stim{ii, 1} < 0;
+        speed_mm_bs = nanmean(speed_mm_per_stim{ii, 1}(:, index2use), 2);
+        fspeed_mm_bs = nanmean(fspeed_mm_per_stim{ii, 1}(:, index2use),2);
+        lspeed_mm_bs = nanmean(lspeed_mm_per_stim{ii, 1}(:, index2use), 2);
+        
+        speed_mm_sd = nanstd(speed_mm_per_stim{ii, 1}(:, index2use), [], 2);
+        fspeed_mm_sd = nanstd(fspeed_mm_per_stim{ii, 1}(:, index2use), [], 2);
+        lspeed_mm_sd = nanstd(lspeed_mm_per_stim{ii, 1}(:, index2use), [], 2);
+        
+        % z-score to baseline
+        speed_mm_per_stim_c{ii, 1} = speed_mm_per_stim{ii, 1} - speed_mm_bs;
+        fspeed_mm_per_stim_c{ii, 1} = fspeed_mm_per_stim{ii, 1} - fspeed_mm_bs;
+        lspeed_mm_per_stim_c{ii, 1} = lspeed_mm_per_stim{ii, 1} - lspeed_mm_bs;
+        
+        speed_mm_per_stim{ii, 1} = bsxfun(@rdivide, speed_mm_per_stim_c{ii, 1}, speed_mm_sd);
+        fspeed_mm_per_stim{ii, 1} = bsxfun(@rdivide, fspeed_mm_per_stim_c{ii, 1}, fspeed_mm_sd);
+        lspeed_mm_per_stim{ii, 1} = bsxfun(@rdivide, lspeed_mm_per_stim_c{ii, 1}, lspeed_mm_sd);       
         
     end
     
@@ -341,45 +361,47 @@ for i = 1:numel(sName)
         [1 0 1], numel(stim2plot) + 3);
     colorvect_3 = colorvect_3(4:end, :);
     
+    colormap = parula(numel(stim2plot));
+    
     for ii = stim2plot
-        
+
         % plot speed/velocities
         plot(time_per_stim{ii, 1}, ...
-            speed_mm_per_stim{ii, 1}, ...
-            'Color', colorvect_1(stim2plot == ii, :), ...
+            speed_mm_per_stim_c{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
             'Parent', axH(i*3))
-        
+
         hold(axH(i*3), 'on')
-        
+
         plot(time_per_stim{ii, 1}, ...
-            fspeed_mm_per_stim{ii, 1}, ...
-            'Color', colorvect_2(stim2plot == ii, :), ...
+            fspeed_mm_per_stim_c{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
             'Parent', axH(i*3 - 1))
-        
+
         hold(axH(i*3 - 1), 'on')
-        
+
         plot(time_per_stim{ii, 1}, ...
-            lspeed_mm_per_stim{ii, 1}, ...
-            'Color', colorvect_3(stim2plot == ii, :), ...
+            lspeed_mm_per_stim_c{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
             'Parent', axH(i*3 - 2))
-        
+
         hold(axH(i*3 - 2), 'on')
-        
+
     end
     
     % overlay mean
     lineH = plot(time_per_stim{ii, 1}, ...
-        mean(cell2mat(speed_mm_per_stim(stim2plot, 1)), 1), '--', ...
+        mean(cell2mat(speed_mm_per_stim_c(stim2plot, 1)), 1), ...
         'Color', 'k', 'Linewidth', 1, ...
         'Parent', axH(i*3));
     
     plot(time_per_stim{ii, 1}, ...
-        mean(cell2mat(fspeed_mm_per_stim(stim2plot, 1)), 1), '--', ...
+        mean(cell2mat(fspeed_mm_per_stim_c(stim2plot, 1)), 1), ...
         'Color', 'k', 'Linewidth', 1, ...
         'Parent', axH(i*3 - 1))
     
     plot(time_per_stim{ii, 1}, ...
-        mean(cell2mat(lspeed_mm_per_stim(stim2plot, 1)), 1), '--', ...
+        mean(cell2mat(lspeed_mm_per_stim_c(stim2plot, 1)), 1), ...
         'Color', 'k', 'Linewidth', 1, ...
         'Parent', axH(i*3 - 2))
     
@@ -397,8 +419,89 @@ for i = 1:numel(sName)
     
 end
 
-savefig_int(figH, metpars.oDir, [fname, '_locomotion_vs_stim'], ...
+savefig_int(figH, metpars.oDir, [fname, '_locomotion_vs_stim_centered'], ...
     [1 0 0 0 0 0 0 0 1])
 close(figH)
+
+figH_ = figure('Position', genfigpos(1, 'center', [1200 900]));
+
+for i = 1:numel(sName)
+    
+    axH_(i*3 - 2) = subplot(numel(sName), 3, i*3 - 2);
+    axH_(i*3 -1) = subplot(numel(sName), 3, i*3 - 1);
+    axH_(i*3) = subplot(numel(sName), 3, i*3);
+
+    stim2plot = find(stim_all_idx == i)';
+    colorvect_1 = colorGradient([1 1 1], ...
+        [0 0 1], numel(stim2plot) + 3);
+    colorvect_1 = colorvect_1(4:end, :);
+    colorvect_2 = colorGradient([1 1 1], ...
+        [1 0 0], numel(stim2plot) + 3);
+    colorvect_2 = colorvect_2(4:end, :);
+    colorvect_3 = colorGradient([1 1 1], ...
+        [1 0 1], numel(stim2plot) + 3);
+    colorvect_3 = colorvect_3(4:end, :);
+    
+    colormap = parula(numel(stim2plot));
+    
+    for ii = stim2plot
+
+        % plot speed/velocities
+        plot(time_per_stim{ii, 1}, ...
+            speed_mm_per_stim{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
+            'Parent', axH_(i*3))
+
+        hold(axH_(i*3), 'on')
+
+        plot(time_per_stim{ii, 1}, ...
+            fspeed_mm_per_stim{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
+            'Parent', axH_(i*3 - 1))
+
+        hold(axH_(i*3 - 1), 'on')
+
+        plot(time_per_stim{ii, 1}, ...
+            lspeed_mm_per_stim{ii, 1}, ...
+            'Color', colormap(ii == stim2plot, :), ...
+            'Parent', axH_(i*3 - 2))
+
+        hold(axH_(i*3 - 2), 'on')
+
+    end
+    
+    % overlay mean
+    lineH = plot(time_per_stim{ii, 1}, ...
+        mean(cell2mat(speed_mm_per_stim(stim2plot, 1)), 1), ...
+        'Color', 'k', 'Linewidth', 1, ...
+        'Parent', axH_(i*3));
+    
+    plot(time_per_stim{ii, 1}, ...
+        mean(cell2mat(fspeed_mm_per_stim(stim2plot, 1)), 1), ...
+        'Color', 'k', 'Linewidth', 1, ...
+        'Parent', axH_(i*3 - 1))
+    
+    plot(time_per_stim{ii, 1}, ...
+        mean(cell2mat(lspeed_mm_per_stim(stim2plot, 1)), 1), ...
+        'Color', 'k', 'Linewidth', 1, ...
+        'Parent', axH_(i*3 - 2))
+    
+    axH_(i*3 - 2).Title.String = {'l-velocity', strrep(sName{i}, '_', '-')};
+    axH_(i*3 - 1).Title.String = {'f-velocity', ''};
+    axH_(i*3).Title.String = {'speed', ''};
+    axH_(i*3 - 2).XLabel.String = 'Time (s)';
+    axH_(i*3 - 1).XLabel.String = 'Time (s)';
+    axH_(i*3).XLabel.String = 'Time (s)';
+    axH_(i*3 - 2).YLabel.String = 'z-scored speed (SD)';
+    axH_(i*3 - 2).XLim = [metpars.time_buffer(1) + wDat.sTime(1, 1), ...
+        metpars.time_buffer(2) + wDat.sTime(1, 2)];
+
+    legend(axH_(i*3), lineH, 'mean')
+    
+end
+
+savefig_int(figH_, metpars.oDir, [fname, '_locomotion_vs_stim_zscored'], ...
+    [1 0 0 0 0 0 0 0 1])
+close(figH_)
 
 end
