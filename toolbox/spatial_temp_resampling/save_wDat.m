@@ -59,7 +59,7 @@ if contains(datatype, '3DxT')
     if contains(imdirection, 'invert')
         
         if ~isfield(iDat, 'RedChaMean') || ...
-                ~isfield(iDat, 'RedChaMean')
+                ~isfield(iDat, 'GreenChaMean')
             iDat.RedChaMean = [];
             iDat.GreenChaMean = [];
         else
