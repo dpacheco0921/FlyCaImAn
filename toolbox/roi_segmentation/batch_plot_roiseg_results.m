@@ -9,41 +9,36 @@ function batch_plot_roiseg_results(Filename, oDir, iparams)
 %       (default, [])
 %   oDir: output directory.
 %   iparams: parameters to update
-%       (fsuffix: suffix of raw data)
+%       (fsuffix: suffix of roi file - contains roi var)
 %           (default, '_rawdata.mat')
-%       (fmetsuffix: suffix of metadata file)
+%       (fmetsuffix: suffix of metadata file - contains wDat var)
 %           (default, '_metadata.mat')
-%       (hbins: bins for histogram)
-%           (default, -1:0.01:1)
-%       (hbinsp: bins for histogram pvals)
-%           (default, 0:0.01:1)
-%       (prct2use: bins for histogram)
-%           (default, 30)
-%       (fdr: bins for histogram)
-%           (default, .01)
-%       (mccor_method: multiple comparison 
-%           correction to use: dep, pdep, bh)
-%           see calculate_pval.m
-%            (default, 'dep')
 %       (dir_depth: depth of directory search)
+%           (default, 0)
+%       (roi2sel: indeces of ROIs to use)
+%           (default, [])
+%       (channel2use: define the channel to use)
+%           (default, 'wDat.GreenChaMean')
+%       (com_flag: flag to overlay ROI number using its center of mass)
+%           (default, 0)
+%       (indroi_color_flag: flag to use different color for each ROI)
 %           (default, 0)
 %
 % Notes:
-%
-% ToDo:
-%   add legends to pull plots and stitch ones
+%   when using indroi_color_flag, be aware that for this you are generating
+%       a full volume per ROI to be plotted, so it is fine for plotting tens of
+%       ROIs but not for hundreds (but this depends on how big your volume is)
 
 % default params
 motpar = [];
 motpar.fsuffix = '_prosroi.mat';
 motpar.fmetsuffix = '_prosmetadata.mat';
-motpar.hbins = -1:0.01:1;
-motpar.hbinsp = 0:0.01:1.1;
-motpar.prct2use = 30;
-motpar.fdr = 0.01;
-motpar.mccor_method = 'dep';
 motpar.dir_depth = 0;
-
+motpar.roi2sel = [];
+motpar.cha2use = 'wDat.GreenChaMean';
+motpar.com_flag = 0;
+motpar.indroi_color_flag = 0;
+    
 if ~exist('Filename', 'var')
     Filename = [];
 end
@@ -86,10 +81,12 @@ end
 fprintf(['Generating plots for ', ...
     num2str(numel(filename)), ' files\n'])
 
-% plot sMod results
+% plot ROI segmentation results
 for i = 1:numel(filename)
 
-    plotperfly(filename{i}, iDir{i}, oDir, motpar);
+    plot_roi_coverage_int([iDir{i}, filesep, filename{i}], ...
+        oDir, motpar.fmetsuffix, motpar.roi2sel, ...
+        motpar.cha2use, motpar.com_flag, motpar.indroi_color_flag);
 
 end
 
@@ -98,26 +95,37 @@ fprintf('... Done\n')
 end
 
 function plot_roi_coverage_int(...
-    filename, oDir, filesuffix)
+    filename, oDir, filesuffix, roi2sel, ...
+    cha2use, com_flag, indroi_color_flag)
 % plot_roi_coverage_int: plot roi coverage
-%   it plot both sum of max norm weights and binarized voxels
+%   it plots both sum of max normalized weights and binarized voxels
 %
 % Usage:
 %   plot_roi_coverage_int(...
-%       filename, oDir, filesuffix)
+%       filename, oDir, filesuffix, roi2sel, ...
+%       cha2use, com_flag, indroi_color_flag)
 %
 % Args:
 %   filename: file name
 %   oDir: output directory
 %   filesuffix: metadata suffix
+%   roi2sel: indeces of ROIs to use
+%   channel2use: define the channel to use
+%   com_flag: flag to overlay ROI number using its center of mass
+%   indroi_color_flag: flag to use different color for each ROI
 
 % load metadata file
 load([filename, filesuffix], 'wDat')
+
 % load ROI file
 load([filename, '_prosroi'], 'roi')
 
 % plot videos
 plot_roi_coverage(filename, ...
-    [1 1 1], wDat, roi, oDir)
+    [1 1 1], wDat, roi, oDir, roi2sel, ...
+    cha2use, com_flag, indroi_color_flag)
+% plot_roi_coverage(filename, ...
+%     vid2plot, wDat, roi, oDir, roi2sel, ...
+%     cha2use, com_flag, indroi_color_flag)
 
 end
