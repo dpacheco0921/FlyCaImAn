@@ -435,5 +435,7 @@ load(roi_fullpath, 'roi')
 % plot videos
 plot_roi_coverage(filename, ...
     [1 1 1], wDat, roi, oDir)
+% plot_roi_coverage(filename, ...
+%     vid2plot, wDat, roi, oDir, roi2sel, cha2use)
 
 end
