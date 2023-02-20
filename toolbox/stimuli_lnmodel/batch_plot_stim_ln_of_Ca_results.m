@@ -38,6 +38,18 @@ function batch_plot_stim_ln_of_Ca_results(...
 %           (default, {[0 .12], [0 .4]})
 %       (coeffths: coeff threshold for splitting groups to plot)
 %           (default, 0.1)
+%       (videotype: define the type of coverage video to plot)
+%           (default, [1 1 0])
+%       (channel2use: define the channel to use)
+%           (default, 'wDat.GreenChaMean')
+%       (display_all: flag to display mean traces of all ROIs)
+%           (default, 0)
+%       (channel2use: define the channel to use)
+%           (default, 'wDat.GreenChaMean')
+%       (com_flag: flag to overlay ROI number using its center of mass)
+%           (default, 0)
+%       (indroi_color_flag: flag to use different color for each ROI)
+%           (default, 0)
 %
 % Notes:
 
@@ -55,6 +67,11 @@ plotpars.var2load = 'sMod';
 plotpars.coeffname = 'pearson correlation';
 plotpars.coeffrange_im = {[0 .12], [0 .4]};
 plotpars.coeffths = 0.1;
+plotpars.videotype = [1 1 0];
+plotpars.channel2use = 'wDat.GreenChaMean';
+plotpars.display_all = 0;
+plotpars.com_flag = 0;
+plotpars.indroi_color_flag = 0;
 
 if ~exist('Filename', 'var')
     Filename = [];
@@ -127,7 +144,7 @@ function plotperfly(filename, iDir, oDir, plotpars)
 % plotperfly: plot results per file
 %
 % Usage:
-%   plotperfly(filename, motpar)
+%   plotperfly(filename, iDir, oDir, plotpars)
 %
 % Args:
 %   filename: file name to load
@@ -135,6 +152,7 @@ function plotperfly(filename, iDir, oDir, plotpars)
 %   oDir: output directory
 %   plotpars: internal plotting variable
 
+% load variables to use
 load([iDir, filesep, filename, plotpars.fsuffix], ...
     plotpars.var2load, 'roi')
 load([iDir, filesep, filename, plotpars.fmetsuffix], ...
@@ -236,10 +254,19 @@ if contains(wDat.datatype, 'opto')
         nan nan; -2 5; -2 5; -2 5];
 end
 
+% go from logical to index
+selIdx = find(selIdx)';
+
+% plot all ROIs
+if plotpars.display_all
+    selIdx = (1:size(CaRaw, 1))';
+    fprintf('Plotting traces of all ROIs\n')
+end
+
 % generate traces per trial
 if sum(selIdx)
     
-    fprintf(['Processing ', num2str(sum(selIdx)), ' ROIs\n'])
+    fprintf(['Processing ', num2str(numel(selIdx)), ' ROIs\n'])
     
     [wDat, CaRaw_zs_tl, CaPred_zs_tl, CaRef_zs_tl, ...
         stim_idx, stim_vect, time_tl, time_tl_rel] = ...
@@ -250,25 +277,30 @@ if sum(selIdx)
 end
 
 % plot smod traces
-if sum(selIdx)
+if numel(selIdx)
     
     fprintf('Plotting smod ROI responses\n')
     
-    plot_med_sig_per_smodroi(CaRef_zs_tl, ...
+    new_order = plot_med_sig_per_smodroi(CaRef_zs_tl, ...
         CaRaw_zs_tl, corrcoef_stat(selIdx), ...
         time_tl, stim_vect, stim_idx, wDat, ...
-        plotpars, filename, oDir)
+        plotpars, filename, oDir);
     
 end
 
 % plot coverage videos
-if sum(selIdx)
+if numel(selIdx)
     
     fprintf('Plotting smod ROI coverage\n')
     
     plot_roi_coverage([filename, '_smod'], ...
-        [1 1 0], wDat, roi, oDir, find(selIdx)')
-    
+        plotpars.videotype, wDat, roi, oDir, ...
+        selIdx(new_order), plotpars.channel2use, ...
+        plotpars.com_flag, plotpars.indroi_color_flag)
+    % plot_roi_coverage(filename, ...
+    %     vid2plot, wDat, roi, oDir, roi2sel, ...
+    %     cha2use, com_flag, indroi_color_flag)
+
 end
 
 end
@@ -283,7 +315,7 @@ function plot_distribution_all(corrcoef_hist, ...
 %   plot_distribution_all(corrcoef_hist, ...
 %      corrcoef_hist_null, corrcoef_stat, ...
 %      smod_hist, nsmod_hist, pval_raw, ...
-%      pval_cor, plotpars, filename)
+%      pval_cor, plotpars, filename, oDir)
 %
 % Args:
 %   corrcoef_hist: distribution of correlation of raw data
@@ -474,7 +506,7 @@ close(figH)
 
 end
 
-function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
+function [new_order] = plot_med_sig_per_smodroi(CaRef_zs_tl, ...
     CaRaw_zs_tl, corrcoef_stat, time_tl, stim_vect, ...
     stim_idx, wDat, plotpars, filename, oDir)
 % plot_med_sig_per_smodroi: plot traces of smod rois
@@ -482,7 +514,7 @@ function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
 % Usage:
 %   plot_med_sig_per_smodroi(CaRef_zs_tl, ...
 %       CaRaw_zs_tl, corrcoef_stat, time_tl, stim_vect, ...
-%       wDat, motpar, filename)
+%       stim_idx, wDat, plotpars, filename, oDir)
 %
 % Args:
 %   CaRef_zs_tl: z-scored median traces of reference channel
@@ -495,23 +527,30 @@ function plot_med_sig_per_smodroi(CaRef_zs_tl, ...
 %   plotpars: internal plotting variable
 %   filename: file name
 %   oDir: output directory
+%  
+% Output:
+%   new_order: new order of ROIs
 
 color_vect = cool(numel(unique(stim_idx)));
 
 figH = figure('Position', ...
     genfigpos(1, 'center', [1600 700])); 
-axH(1) = subplot(2, 3, 1);
-axH(2) = subplot(2, 3, 2);
-axH(3) = subplot(2, 3, 4);
-axH(4) = subplot(2, 3, 5);
+axH(3) = subplot(2, 3, 1);
+axH(4) = subplot(2, 3, 2);
+axH(1) = subplot(2, 3, 4);
+axH(2) = subplot(2, 3, 5);
+
+init_order = 1:numel(corrcoef_stat);
+new_order = [];
+max_n = 0;
 
 if size(CaRaw_zs_tl, 1) > 1
     
     low_idx = corrcoef_stat < plotpars.coeffths;
     
     if sum(low_idx)
-        axH(3) = subplot(2, 3, 4);
-        axH(4) = subplot(2, 3, 5);
+        axH(1) = subplot(2, 3, 4);
+        axH(2) = subplot(2, 3, 5);
         
         CaRaw_zs_tl_low = CaRaw_zs_tl(low_idx, :);
         CaRaw_zs_tl = CaRaw_zs_tl(~low_idx, :);
@@ -532,6 +571,10 @@ if size(CaRaw_zs_tl, 1) > 1
             idx_order = 1;
         end
 
+        temp_order = [];
+        temp_order = init_order(~low_idx);
+        new_order = temp_order(idx_order);
+        
         imagesc(time_tl, 1:numel(idx_order), ...
             CaRaw_zs_tl(idx_order, :), 'Parent', axH(1))
         colormap(axH(1), 'parula')
@@ -545,9 +588,12 @@ if size(CaRaw_zs_tl, 1) > 1
         caxis(axH(2), [-1 1])
 
         axH(1).YLabel.String = 'ROI number';
-        axH(1).Title.String = ['ROI >= ', num2str(plotpars.coeffths)];
+        axH(1).Title.String = ['(GREEN CHA) ROI >= ', num2str(plotpars.coeffths)];
+        axH(2).Title.String = '(RED CHA)';
         axH(1).YDir = 'normal';
         axH(2).YDir = 'normal';
+        
+        max_n = numel(idx_order);
         
     end
     
@@ -561,20 +607,25 @@ if size(CaRaw_zs_tl, 1) > 1
             idx_order = 1;
         end
 
-        imagesc(time_tl, 1:numel(idx_order), ...
+        temp_order = [];
+        temp_order = init_order(low_idx);
+        new_order = [new_order, temp_order(idx_order)];
+        
+        imagesc(time_tl, max_n + (1:numel(idx_order)), ...
             CaRaw_zs_tl_low(idx_order, :), 'Parent', axH(3))
         colormap(axH(3), 'parula')
         hold(axH(3), 'on')
         caxis(axH(3), [-1 1])
 
-        imagesc(time_tl, 1:numel(idx_order), ...
+        imagesc(time_tl, max_n + (1:numel(idx_order)), ...
             CaRef_zs_tl_low(idx_order, :), 'Parent', axH(4))
         colormap(axH(4), 'parula')
         hold(axH(4), 'on')
         caxis(axH(4), [-1 1])
 
         axH(3).YLabel.String = 'ROI number';
-        axH(3).Title.String = ['ROI < ', num2str(plotpars.coeffths)];
+        axH(3).Title.String = ['(GREEN CHA) ROI < ', num2str(plotpars.coeffths)];
+        axH(4).Title.String = '(RED CHA)';
         axH(3).YDir = 'normal';
         axH(4).YDir = 'normal';
         
