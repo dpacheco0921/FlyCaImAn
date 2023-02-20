@@ -34,6 +34,7 @@ fprintf(['Updating ', num2str(size(sheet_template, 1)), ' rows'])
 % make replacements
 sheet_template(:, columns2update(2, :)) = sheet_edits(:, columns2update(1, :));
 display(sheet_template)
+status = [];
 
 for i = 1:numel(row_idx)
     fprintf('*')
