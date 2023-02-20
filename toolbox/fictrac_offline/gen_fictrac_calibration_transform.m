@@ -27,17 +27,19 @@ function gen_fictrac_calibration_transform(...
 % Notes
 %   vfov, to calculate this see:
 %       1) https://www.reddit.com/r/fictrac/comments/e71ida/how_to_get_the_right_vfov/
-%       2) using roating stepper:
-%       with point grey Flee3 FL3-U3-13Y3M and the objective: https://computar.com/product/559/MLM3X-MP,
-%       with the camera at the largest possible distance from the ball, max zoom
-%       and 480*480 pixels, the VFOV is 2.15deg. This was found by rotating a
-%       stepper moter and finding the VFOV that makes no jump at the end of each 360deg ball rotation.     
-%   if for a constant camera settings (zoom, distance, and location in
-%       general) the field of view is changed (more or less pixels), then
-%       the vfov needs to be scaled/updated
-%           examples: 
-%               if going from 480x480 to 640x640
-%               vfov = (640/480)*2.15 for 640*640 pixels
+%       2) Use a ruler and:
+%           2.1) calculate distance from camera to ruler
+%               distance_ = 18; % cm;
+%           2.2) measure the height of the FOV (using the ruler, see camera_fov_callibration.jpg)
+%               height_ = 0.82; % cm;
+%       3) get the angle
+%           vfov = radtodeg(2*atan(height_/(2*distance_))) = 2.6097;
+%       This example comes from a ROI of 882 x 992 [height width]
+%       if using full FOV 1024 x 1280 [height width], then height_ = 0.9520 % cm
+%           and vfov = 3.0296
+%       if cropping FOV update calculation
+%           (put ruler in focal point and measure distance between pixels)
+%       if using the same camera the height_ might change depending on final zoom used with lenses.   
 
 % Default Parameters
 if ~exist('width_pix', 'var') || isempty(width_pix)
