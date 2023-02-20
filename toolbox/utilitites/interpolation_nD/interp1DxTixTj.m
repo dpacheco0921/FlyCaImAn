@@ -1,6 +1,6 @@
 function Data1DxT = interp1DxTixTj(Data1D, iniT, endT, intmethod)
 % interp1DxTixTj: This function interpolates the calcium matrix M (n, t) 
-%   usint Time matrix iniT
+%   using Time matrix iniT
 %
 % Usage:
 %   Data1DxT = interp1DxTixTj(Data1D, iniT, endT, method)
