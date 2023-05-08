@@ -11,12 +11,14 @@ function Out = shifts_editor(shifts_i, edit2use, ishifts, idiff)
 %   idiff: 
 % 
 % Notes:
-% beware shifts is a struct with fields: 'shifts', 'shifts_up' and 'diff'
-% for a linear or cubic interpolation (using apply_shifts) you only need 'shifts'
-% but for fft interpolation you also need 'shifts_up' and 'diff', so far not saved
-% see normcorre_batch, apply_shifts
+%   beware shifts is a struct with fields: 'shifts', 'shifts_up' and 'diff'
+%       for a linear or cubic interpolation (using apply_shifts) you only need 'shifts'
+%       but for fft interpolation you also need 'shifts_up' and 'diff', so far not saved
+%   see normcorre_batch, apply_shifts
 
-if ~exist('idiff', 'var'); idiff = []; end
+if ~exist('idiff', 'var')
+    idiff = [];
+end
 
 switch edit2use
     case 'read'

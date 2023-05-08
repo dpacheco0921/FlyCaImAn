@@ -2,14 +2,14 @@ function iIm = pruneIm(iIm, mask)
 % pruneIm: uses a 2D mask to prune volumes (deletes edges: rows and columns)
 %
 % Usage:
-%   newvar_sorted = st_add_newvarperroi(obj, fly_idx, roi_idx, input_var)
+%   iIm = pruneIm(iIm, mask)
 %
 % Args:
 %   iIm: input volume
 %   mask: 2D/3D image with 0 and 1, zero are pixels to keep
 %
 % Notes
-% 3D images are max projected
+%   3D images are max projected
 
 if ~isempty(iIm)
     

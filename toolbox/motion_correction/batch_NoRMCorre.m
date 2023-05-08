@@ -379,7 +379,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
 
         % crispness of the mean        
         if iter_i == 1
-            eval(['mcDat.crisp(1, 1) = get_crisp_idx(', ...
+            eval(['mcDat.crisp(1, 1) = get_crispnessidx(', ...
                 cha_str{pMC.refcha}, ');']);
         end
 
@@ -428,7 +428,7 @@ if iDat.MotCorr == 0 || pMC.redo == 1
             
             % correlation with the mean (CM):
             if iter_i == 1
-                eval(['mcDat.CM(1, :) = get_CM(template_,', ...
+                eval(['mcDat.CM(1, :) = get_ref2floatcorr_overtime(template_,', ...
                     cha_str{pMC.refcha}, ');']);
             end
 
@@ -605,10 +605,10 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                 
             % correlation after correction      
             mcDat.CM(iter_i + 1, :) = ...
-                get_CM(pruneIm(template_, nan_mask), floatIm);
+                get_ref2floatcorr_overtime(pruneIm(template_, nan_mask), floatIm);
 
             % crispness of the mean
-            mcDat.crisp(iter_i + 1, 1) = get_crisp_idx(floatIm);
+            mcDat.crisp(iter_i + 1, 1) = get_crispnessidx(floatIm);
 
             clear floatIm
 
@@ -853,49 +853,8 @@ end
 % ************* measure of correction goodness *************
 % **********************************************************
 
-function CM = get_CM(templateIm, floatIm)
-% get_CM: calculate correlation of template to each frame of floating image
-%
-% Usage:
-%   CM = get_crisp_idx(iDat, fDat, data_obj)
-%
-% Args:
-%   templateIm: reference channel to use
-%   floatIm: floating image
-%
-% Returns:
-%   CM: correlation
-
-siz_ = size(floatIm);
-templateIm = reshape(templateIm, [prod(siz_(1:end-1)) 1]);
-floatIm = reshape(floatIm, [prod(siz_(1:end-1)) siz_(end)]);
-
-CM = corr(templateIm, floatIm)';
-
-end
-
-function crisp_idx = get_crisp_idx(Y)
-% get_crisp_idx: calculate crispness index as in
-%   (http://dx.doi.org/10.1016/j.jneumeth.2017.07.031)
-%
-% Usage:
-%   crisp_idx = get_crisp_idx(Y)
-%
-% Args:
-%   Y: input 3D or 2D matrix
-%
-% Returns:
-%   crisp_idx: crispness
-
-crisp_idx = [];
-
-siz_ = size(Y);
-pre_matrix = abs(reshape(squeeze(mean(Y, length(siz_))),...
-    [prod(siz_(1:end-1)) 1]));
-
-crisp_idx = norm(pre_matrix, 'fro');
-
-end
+% see get_ref2floatcorr_overtime
+% see get_crispnessidx
 
 % *****************************************
 % ************* stack editing *************
