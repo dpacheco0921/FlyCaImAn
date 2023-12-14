@@ -48,6 +48,8 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %           (default: 1)
 %       (maxtiff2load: maximun tiffs to load per session)
 %           (default: [])
+%       (flybackplane: fly back plane when using a fast zstack mode with a piezo)
+%           (default: 1)
 %
 % Notes:
 %   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
@@ -74,6 +76,7 @@ zt2m.oDir = [pwd, filesep, 'rawtiff'];
 zt2m.dimOrder = 'zt';
 zt2m.debug_flag = 0;
 zt2m.maxtiff2load = [];
+zt2m.flybackplane = 'first';
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -382,7 +385,7 @@ end
 % get average signal
 fprintf('Averaging volumes\n')
 Data = avbrain(Data, zt2m.ths, siz, zt2m.shift_f, ...
-    zt2m.dimOrder, zt2m.AxH, zt2m.debug_flag);
+    zt2m.dimOrder, zt2m.AxH, zt2m.debug_flag, zt2m.flybackplane);
 
 Data = permute(Data, [1 2 4 3]);
 ImMeta.FrameNum = size(Data, 4);
@@ -390,9 +393,9 @@ ImMeta.FrameNum = size(Data, 4);
 fprintf(['Data final size: ',num2str(size(Data)), '\n'])
 eval(['Data = ', ImMeta.Imclass, '(Data);'])
 
-premaxRed = max(Data(:, :, :, 1), [], 3); 
+premaxRed = max(Data(:, :, 1, :), [], 4); 
 try 
-    preMaxGreen = max(Data(:, :, :, 2), [], 3);
+    preMaxGreen = max(Data(:, :, 2, :), [], 4);
 catch
     preMaxGreen = nan;
 end
@@ -529,7 +532,7 @@ iDat.volumerate = ImMeta.volumerate;
 
 end
 
-function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, debug_flag)
+function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, debug_flag, flybackplane)
 % avbrain: get the average image of green and red channel
 %
 % Usage:
@@ -544,10 +547,11 @@ function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, debug_flag)
 %   	(default: 'zt', alternative 'tz')
 %   axH: axis handle
 %   debug_flag: debug flag
+%   flybackplane: fly back plane when using a fast zstack mode with a piezo
 %
 % Notes:
 
-% reshape volume to be have this order: x,y,z,t,channel
+% reshape volume to this order: x,y,z,t,channel
 if strcmpi(dimOrder, 'tz')
     im = reshape(im, isiz);
     im = permute(im, [1 2 4 3 5]);
@@ -569,9 +573,15 @@ if isiz(end) > 1
 end
 
 % remove flyback planes
-im(:, :, 1, :, :) = [];
-maxpertime_r(1, :) = [];
-try maxpertime_g(1, :) = []; end
+if contains(flybackplane, 'first')
+    im(:, :, 1, :, :) = [];
+    maxpertime_r(1, :) = [];
+    try maxpertime_g(1, :) = []; end
+elseif contains(flybackplane, 'last')
+    im(:, :, end, :, :) = [];
+    maxpertime_r(end, :) = [];
+    try maxpertime_g(end, :) = []; end
+end
 
 % plot max's
 plot(maxpertime_r(:), 'r', 'Parent', axH(2));

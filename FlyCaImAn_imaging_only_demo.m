@@ -78,6 +78,15 @@ cspfpars.fshift = [6 6];
 
 batch_stitch_format_stacks_a(FolderName, FileName, cspfpars)
 
+% to just plot/re-plot stitching results
+Filename = '20161129_1';
+oDir = [];
+metpars.refcha = 2;
+metpars.dir_depth = 1;
+metpars.axisratio = 0;
+
+batch_plot_stitch_results(Filename, oDir, metpars)
+
 %% 3.6) generate brain mask based on F threshold + manual editing
 FolderName = {'20161129'}; FileName = [];
 bmpar = [];

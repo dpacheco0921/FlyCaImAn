@@ -240,7 +240,7 @@ function [Y, X, Channels, Zoom, Power, Z, ...
 params = strfind(info(1,1).ImageDescription, 'scanimage.');
 
 if ~isempty(params)
-    % works for scaimage 2014
+    % works for scanimage 2014
     
     for pIdx = 2:numel(params)
         try
@@ -257,7 +257,7 @@ if ~isempty(params)
     
 else
     
-    % for scanimage 2016
+    % works for scanimage 2016 and later versions
     params = strfind(info(1,1).Software, 'SI.');
 
     for pIdx = 1:numel(params)
@@ -279,14 +279,27 @@ end
 Y = scanimage.SI.hRoiManager.linesPerFrame;
 X = scanimage.SI.hRoiManager.pixelsPerLine;
 
-try
-    Z = scanimage.SI.hFastZ.numFramesPerVolume;
-catch
-    if isfield(scanimage.SI, 'hStackManager') && ...
-        scanimage.SI.hStackManager.enable
-        Z = scanimage.SI.hStackManager.numSlices;
-    else
-        Z = 1;
+% determine which mode of zstack was used
+stackmode = [];
+Z = 1;
+try 
+    stackmode = scanimage.SI.hStackManager.stackMode;
+end
+
+if ~isempty(stackmode)
+    if contains(stackmode, 'slow')
+        Z = scanimage.SI.hStackManager.actualNumSlices;
+    elseif contains(stackmode, 'fast')
+        Z = scanimage.SI.hStackManager.numFramesPerVolumeWithFlyback;
+    end
+else
+    try
+        Z = scanimage.SI.hFastZ.numFramesPerVolume;
+    catch
+        if isfield(scanimage.SI, 'hStackManager') && ...
+            scanimage.SI.hStackManager.enable
+            Z = scanimage.SI.hStackManager.numSlices;
+        end
     end
 end
 
@@ -297,10 +310,9 @@ framerate = scanimage.SI.hRoiManager.scanFrameRate;
 volumerate = scanimage.SI.hRoiManager.scanVolumeRate;
 sympixels = scanimage.SI.hRoiManager.forceSquarePixels;
 
+Z_stepsiz = [];
 if isfield(scanimage.SI, 'hStackManager')
     Z_stepsiz = scanimage.SI.hStackManager.stackZStepSize;
-else
-    Z_stepsiz = [];
 end
 
 end

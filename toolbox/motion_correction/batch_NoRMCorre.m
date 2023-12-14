@@ -862,7 +862,7 @@ end
 
 
 function iDat = deleteflybackframe(iDat, fDat, data_obj)
-% deleteflybackframe: delete deleting z frame and related time stamps (Piezzo fly back)
+% deleteflybackframe: delete z frame and related time stamps (Piezo fly back)
 %
 % Usage:
 %   iDat = deleteflybackframe(iDat, fDat, data_obj)
