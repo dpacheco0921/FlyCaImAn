@@ -5,8 +5,9 @@ function CM = get_ref2floatcorr_overtime(templateIm, floatIm)
 %   CM = get_ref2floatcorr_overtime(templateIm, floatIm)
 %
 % Args:
-%   templateIm: reference channel to use
-%   floatIm: floating image
+%   templateIm: reference image to use
+%   floatIm: floating image, its last dimension is time.
+%       The size of the matrix is [size(templateIm), time].
 %
 % Returns:
 %   CM: pearson correlation overtime
