@@ -142,7 +142,7 @@ if memmaped
     
 else
     
-    rho = lc3Dgen(x);
+    rho = lc3Dgen(Y);
     
 end
 
