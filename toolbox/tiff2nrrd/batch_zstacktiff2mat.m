@@ -50,6 +50,8 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %           (default: [])
 %       (flybackplane: fly back plane when using a fast zstack mode with a piezo)
 %           (default: 1)
+%       (timeavg_flag: flag to load and average signal per plane directly from tiff instead of loading full matrix)
+%           (default: 0)
 %
 % Notes:
 %   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
@@ -77,6 +79,7 @@ zt2m.dimOrder = 'zt';
 zt2m.debug_flag = 0;
 zt2m.maxtiff2load = [];
 zt2m.flybackplane = 'first';
+zt2m.timeavg_flag = 0;
 
 if ~exist('FolderName', 'var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
@@ -270,8 +273,8 @@ for tif_i = 1:tif_num
     try
         
         [tempdata, ImMeta] = ...
-            tiff2mat_scanimage([tif_name, '_', tif_idx], zt2m.SpMode, 1);
-        
+            tiff2mat_scanimage([tif_name, '_', tif_idx], zt2m.SpMode, 1, zt2m.timeavg_flag);
+
         % tiff2mat_scanimage output is always 4D (X, Y, frame, pmt)
         Data = cat(3, Data, tempdata);
         clear tempdata;

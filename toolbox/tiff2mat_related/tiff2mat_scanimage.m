@@ -1,13 +1,15 @@
-function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose)
+function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose, timeavg_flag)
 % tiff2mat_scanimage: reads metadata and data from a tiff file
 %
 % Usage:
-%   [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose)
+%   [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose, timeavg_flag)
 %
 % Args:
 %   tifname: name of tiff file to load
 %   datatype: type of data
 %   verbose: verbose
+%   timeavg_flag: flag to load and average signal per plane directly from tiff instead of loading full matrix
+%           (default: 0)
 %
 % Returns:
 %   Im: image from tiff files
@@ -28,8 +30,12 @@ if ~exist('verbose', 'var') || isempty(verbose)
     verbose = 0;
 end
 
-if ~exist('datatype', 'var') || isempty(datatype)
-    datatype = 'new';
+if ~exist('verbose', 'var') || isempty(verbose)
+    verbose = 0;
+end
+
+if ~exist('timeavg_flag', 'var') || isempty(timeavg_flag)
+    timeavg_flag = 0;
 end
 
 try
@@ -46,35 +52,86 @@ try
             framerate, volumerate, sympixels, Z_stepsiz] = ...
             TiffMetadata(info);
     end
-    
+
     % getting frame offset
     StartOffset = cell2mat({info.StripOffsets}');
     StartOffset = StartOffset(:, 1);
     Frames = numel(StartOffset)/Channels;
-    
-    % prealocating data
-    Im = single(zeros(Y, X, Frames, Channels));
+    RepeatNum = Frames/Z;
 
-    for FrameIdx = 1:Frames
+    if Channels > 1
+        StartOffset_per_cha = {StartOffset(1:2:end), StartOffset(2:2:end)};
+    else
+        StartOffset_per_cha = {StartOffset};
+    end
+
+    if timeavg_flag
+
+        % load data per slice and average instead of loading full
+        %   matrix
+        
+        StartOffset_per_cha{1} = reshape(StartOffset_per_cha{1}, [Z, RepeatNum]);
         if Channels > 1
+            StartOffset_per_cha{2} = reshape(StartOffset_per_cha{2}, [Z, RepeatNum]);
+        end
+    
+        % prealocating data
+        Im = single(zeros(Y, X, Z, Channels));
+        
+        % for each plane get the average image
+        for Z_idx = 1:Z
+    
+            fprintf(['Running plane: ', num2str(Z_idx), '\n'])
+
+            for r_i = 1:RepeatNum
+    
+                % odd, Green
+                temp_im_ch1(:, :, r_i, 1) = ...
+                    frame2mat(tifname, Y, X, ...
+                    StartOffset_per_cha{1}(Z_idx, r_i), Imclass);
+    
+                if Channels > 1
+                    
+                    % even, Red        
+                    temp_im_ch2(:, :, r_i, 1) = ...
+                        frame2mat(tifname, Y, X, ...
+                        StartOffset_per_cha{2}(Z_idx, r_i), Imclass);        
+                            
+                end            
+    
+            end
+    
+            % generate the average
+            Im(:, :, Z_idx, 1) = mean(temp_im_ch1, 3);
+            if Channels > 1
+                Im(:, :, Z_idx, 2) = mean(temp_im_ch2, 3);            
+            end
+    
+        end
+
+    else
+             
+        % load full matrix and do processing after
+        
+        % prealocating data
+        Im = single(zeros(Y, X, Frames, Channels));
+    
+        for FrameIdx = 1:Frames
             
             % odd, Green
-            Im(:, :, FrameIdx, 2) = ...
-                frame2mat(tifname, Y, X, ...
-                StartOffset((FrameIdx - 1)*2 + 1), Imclass);
-            
-            % even, Red
             Im(:, :, FrameIdx, 1) = ...
                 frame2mat(tifname, Y, X, ...
-                StartOffset(FrameIdx*2), Imclass);
+            StartOffset_per_cha{1}(FrameIdx), Imclass);             
             
-        else
-            
-            % all, single channel (whatever that is)
-            Im(:, :, FrameIdx, 1) = ...
-                frame2mat(tifname, Y, X, ...
-            StartOffset(FrameIdx), Imclass); 
-        
+            if Channels > 1
+
+                % even, Red
+                Im(:, :, FrameIdx, 1) = ...
+                    frame2mat(tifname, Y, X, ...
+                    StartOffset_per_cha{2}(FrameIdx), Imclass);
+                
+            end
+
         end
     end
 
