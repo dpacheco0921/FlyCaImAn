@@ -4,7 +4,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
     link_ths, colorvect, y_gap, texton_flag, axH, ...
     textorder, idx2use4clus, colorvect_mean, ...
     idx2nan, indvidx, plottype, errortype, ...
-    add_ref_trace, text_x_pos)
+    add_ref_trace, text_x_pos, zscore_flag)
 % hc_plot_mtrace_per_clus: plot mean trace per cluster,
 %   in addition it can get and plot the mean of subclusters 
 %   (use link_ths), or plot error shades
@@ -16,7 +16,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       link_ths, colorvect, y_gap, texton_flag, axH, ...
 %       textorder, idx2use4clus, colorvect_mean, ...
 %       idx2nan, indvidx, plottype, errortype, ...
-%       add_ref_trace, text_x_pos)
+%       add_ref_trace, text_x_pos, zscore_flag)
 %
 % Args:
 %   Y: signal [n, T], where n == length(clus_label), T timepoints
@@ -51,6 +51,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       (1, line of the mean across all timepoints)
 %       (2, line of the min across all timepoints)
 %   text_x_pos: position on text on the x axis
+%   zscore_flag: flag to perform zscoring of traces
 %
 % Notes
 
@@ -111,6 +112,11 @@ if ~exist('text_x_pos', 'var') || isempty(text_x_pos)
     text_x_pos = -80;
 end
 
+if ~exist('zscore_flag', 'var') || isempty(zscore_flag)
+    zscore_flag = 1;
+end
+
+
 % get clusters (remove 0 labels)
 subclus = cell(numel(unique(clus_label)), 1);
 clus2run = unique(clus_label)';
@@ -121,7 +127,9 @@ Y_mean_trace_sc = cell(max(clus2run), 1);
 Y_mean_trace = nan([max(clus2run), size(Y, 2)]);
 
 % zscore all traces
-Y = zscorebigmem(Y);
+if zscore_flag
+    Y = zscorebigmem(Y);
+end
 sub_clus_order = [];
 
 % collect new subclusters (same indexing as in Y)
@@ -180,7 +188,7 @@ for i = clus2run
             end
             
             plot(Y_mean_trace_sc{i}(j, :) + (i-1)*y_gap, ...
-                'Color', colorvect_(3, :), 'Linewidth', 1)
+                'Color', colorvect_(3, :), 'Linewidth', 1, 'Parent', axH)
             
             if i == 1
                 hold(axH, 'on')
@@ -204,7 +212,7 @@ for i = clus2run
         
         % plot mean trace
         plot(Y_mean_trace(i, :) + (i-1)*y_gap, ...
-            'Color', colorvect_mean(i, :), 'Linewidth', 2) 
+            'Color', colorvect_mean(i, :), 'Linewidth', 2, 'Parent', axH) 
         
     else
         
@@ -266,7 +274,7 @@ for i = clus2run
         end
         
         plot([0 size(Y_mean_trace, 2)], [y_ y_], ...
-           '--k', 'Linewidth', 2)
+           '--k', 'Linewidth', 2, 'Parent', axH)
        
     end
     
@@ -274,14 +282,14 @@ for i = clus2run
     if texton_flag
         if textorder
             text(axH, text_x_pos, (i-1)*y_gap, ...
-                [num2str(i), ...
-                '(',  num2str(size(temp_Y, 1)), ')', ...
-                '(', num2str(fileidx_n(i)), ')']);
+                ['Clus-', num2str(i), ...
+                ' (',  num2str(size(temp_Y, 1)), ')', ...
+                ' (', num2str(fileidx_n(i)), ')']);
         else
             text(axH, text_x_pos, (i-1)*y_gap, ...
-                [num2str(clus2run(end - k + 1)), ...
-                '(', num2str(size(temp_Y, 1)), ')', ...
-                '(', num2str(fileidx_n(i)), ')']);
+                ['Clus-', num2str(clus2run(end - k + 1)), ...
+                ' (', num2str(size(temp_Y, 1)), ')', ...
+                ' (', num2str(fileidx_n(i)), ')']);
         end
     end
     
