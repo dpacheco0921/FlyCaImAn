@@ -1,10 +1,16 @@
 function [densitymap, x_pix, y_pix] = ...
     vect2density(x, y, width, height, ...
-    limits, sig, siz, max_norm_flag, log_norm_flag)
-% vect2density: make a density image of x,y coordinates
+    limits, sig, siz, max_norm_flag, ...
+    log_norm_flag, sum_norm_flag, ...
+    n_norm_flag, tn_norm_flag, input_n)
+% vect2density: make a density image of x, y coordinates
 %
 % Usage:
-%   vect2density(x, y, width, height, limits, sig, siz)
+%   [densitymap, x_pix, y_pix] = ...
+%       vect2density(x, y, width, height, ...
+%       limits, sig, siz, max_norm_flag, ...
+%       log_norm_flag, sum_norm_flag, ...
+%       n_norm_flag, tn_norm_flag, input_n)
 %
 % Args:
 %   x, y: two vectors of equal length giving scatterplot x, y coordinates
@@ -18,6 +24,13 @@ function [densitymap, x_pix, y_pix] = ...
 %       (default, 0)
 %   log_norm_flag: flag to perform log transformation
 %       (default, 0)
+%   sum_norm_flag: flag to perform sum normalization
+%       (default, 0)
+%   n_norm_flag: flag to perform n normalization (size of x) 
+%       (default, 0)
+%   tn_norm_flag: flag to perform normalization to inputed sizes (input_n)
+%       (default, 0)
+%   input_n: set of input sizes
 %
 % Notes:
 % Inspired by:
@@ -54,6 +67,22 @@ if ~exist('max_norm_flag', 'var')|| isempty(max_norm_flag)
     max_norm_flag = 0;
 end
 
+if ~exist('sum_norm_flag', 'var')|| isempty(sum_norm_flag)
+    sum_norm_flag = 0;
+end
+
+if ~exist('n_norm_flag', 'var')|| isempty(n_norm_flag)
+    n_norm_flag = 0;
+end
+
+if ~exist('tn_norm_flag', 'var')|| isempty(tn_norm_flag)
+    tn_norm_flag = 0;
+end
+
+if ~exist('input_n', 'var') || isempty(input_n) || isnan(input_n)
+    input_n = length(x);
+end
+
 deltax = (limits(2) - limits(1))/width;
 deltay = (limits(4) - limits(3))/height;
 
@@ -71,6 +100,21 @@ densitymap = imblur(densitymap, sig, siz, 2);
 if max_norm_flag
     densitymap = ...
         (densitymap - min(densitymap(:)))/max(densitymap(:));
+end
+
+% normalize density to sum
+if sum_norm_flag
+    densitymap = densitymap/sum(densitymap(:));
+end
+
+% normalize density to total number of samples (same as sum)
+if n_norm_flag
+    densitymap = densitymap/length(x);
+end
+
+% normalize density to n
+if tn_norm_flag
+    densitymap = densitymap/input_n;
 end
 
 % log transform
