@@ -31,8 +31,8 @@ im_mode = 1;
 
 batch_gen_fictrac_input_files(FolderName, FileName, setupID, im_mode)
 % this function generates:
-% 20200911_1_1_maskim.tiff
-% 20200911_1_1_calibration-transform.dat
+% 20200910_1_1_maskim.tiff
+% 20200910_1_1_calibration-transform.dat
 % which are used by fictrac
 
 % 1.2.2) Run fictrac on each file per current directory
@@ -44,12 +44,12 @@ fictracpars.do_search_flag = 1; % to do global search
 
 batch_fictrac_perfile(FolderName, FileName, fictracpars)
 % this function generates:
-% 20200911_1_1_fictrac.txt
-% 20200911_1_1_fictrac-debug.avi
-% 20200911_1_1_fictrac-raw_frames.avi
+% 20200910_1_1_fictrac.txt
+% 20200910_1_1_fictrac-debug.avi
+% 20200910_1_1_fictrac-raw_frames.avi
 % *.avi are for visualization and debugging
-% 20200911_1_1_vDat.mat
-% fictrac variables are saved as 'fictrac'
+% 20200910_1_1_vDat.mat
+% fictrac variables are saved as 'fictDat'
 
 %% 4) add stimuli metadata
 
@@ -66,7 +66,6 @@ batch_tiff2mat(FolderName, FileName, m2vpar)
 
 cmpar = [];
 cmpar.pgate = 1;
-cmpar.pgates = 1;
 cmpar.mode = 1;
 
 batch_collectmetada(FolderName, FileName, cmpar)

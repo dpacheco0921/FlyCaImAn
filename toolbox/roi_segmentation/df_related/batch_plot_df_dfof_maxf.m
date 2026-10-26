@@ -29,7 +29,7 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %           (1 (positive))
 %           (0 (absolute))
 %       (df_flag: flag to calculate DF (if 1), or DF/Fo otherwise)
-%           (default, [0 1 2] (get all))
+%           (default, [0 1 2 3] (get all))
 %           (0 (get DF/Fo))
 %           (1 (get DF))
 %           (2 (get Max F))
@@ -37,9 +37,9 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %       (chunk_size: size of chunks)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
 %       (serId: server id)
-%           (default, 'int')
-%       (corenum: number of cores)
-%           (default, 4)
+%           (default, 'int' on PC, 'spock' otherwise)
+%       (corenumber: number of cores)
+%           (default, 4 on PC, 6 otherwise)
 %       %%%%%%%%%%%% extra %%%%%%%%%%%%
 %       (dir_depth: depth of directory search)
 %           (default, 0)
@@ -49,6 +49,10 @@ function batch_plot_df_dfof_maxf(Filename, oDir, iparams)
 %       (slices2project: slices to use for MIP projection, this is a cell that
 %           can have different set of slices to collect)
 %           (default, 1:wDat.vSize(3))
+%
+% Returns:
+%   nothing, it saves one maximum-intensity-projection video per selected
+%   df_flag and file in oDir (default, [pwd, filesep, 'dfrel_vid'])
 %
 % Notes:
 %   See get_df_MIP
@@ -133,7 +137,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating videos for ', ...
+if isempty(filename)
+    warning('batch_plot_df_dfof_maxf: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Generating videos for ',...
     num2str(numel(filename)), ' files\n'])
 
 for i = 1:numel(filename)

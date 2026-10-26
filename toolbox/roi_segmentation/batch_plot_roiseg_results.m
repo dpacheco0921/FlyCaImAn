@@ -10,19 +10,23 @@ function batch_plot_roiseg_results(Filename, oDir, iparams)
 %   oDir: output directory.
 %   iparams: parameters to update
 %       (fsuffix: suffix of roi file - contains roi var)
-%           (default, '_rawdata.mat')
+%           (default, '_prosroi.mat')
 %       (fmetsuffix: suffix of metadata file - contains wDat var)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (roi2sel: indeces of ROIs to use)
 %           (default, [])
-%       (channel2use: define the channel to use)
+%       (cha2use: define the channel to use, as text of the expression)
 %           (default, 'wDat.GreenChaMean')
 %       (com_flag: flag to overlay ROI number using its center of mass)
 %           (default, 0)
 %       (indroi_color_flag: flag to use different color for each ROI)
 %           (default, 0)
+%
+% Returns:
+%   nothing, it saves the ROI coverage videos in oDir
+%   (default, [pwd, filesep, 'smodrel'])
 %
 % Notes:
 %   when using indroi_color_flag, be aware that for this you are generating
@@ -51,7 +55,9 @@ end
 if ~exist('iparams', 'var'); iparams = []; end
 motpar = loparam_updater(motpar, iparams);
 
-if ~isempty(oDir) && ~exist('oDir', 'var')
+% create the output folder if needed (the old test checked the variable,
+%   not the folder, so it never created it)
+if ~isempty(oDir) && ~exist(oDir, 'dir')
     mkdir(oDir)
 end
 
@@ -78,7 +84,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating plots for ', ...
+if isempty(filename)
+    warning('batch_plot_roiseg_results: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Generating plots for ',...
     num2str(numel(filename)), ' files\n'])
 
 % plot ROI segmentation results
@@ -120,8 +130,10 @@ load([filename, filesuffix], 'wDat')
 % load ROI file
 load([filename, '_prosroi'], 'roi')
 
-% plot videos
-plot_roi_coverage(filename, ...
+% plot videos (use the bare file name for the output videos, otherwise
+%   the folder part of filename ends up inside the output path)
+[~, name_only] = fileparts(filename);
+plot_roi_coverage(name_only, ...
     [1 1 1], wDat, roi, oDir, roi2sel, ...
     cha2use, com_flag, indroi_color_flag)
 % plot_roi_coverage(filename, ...

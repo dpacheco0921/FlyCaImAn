@@ -16,9 +16,9 @@ function batch_exp_int_cor(FolderName, FileName, iparams)
 %       (dir_depth: depth of directory search)
 %           (default, 1)
 %       (padval: value that is assumed to be padding)
-%           (0, default)
+%           (0, default; currently unused, zeros are always treated as padding)
 %       (oDir: output directory)
-%           (pwd, default)
+%           ('.', default, the current folder)
 %       (Lz: set the number of planes to ~ double (2.7183) CorIdx)
 %           (100, default)
 %       (z0: plane at which CorIdx == 1)
@@ -26,6 +26,11 @@ function batch_exp_int_cor(FolderName, FileName, iparams)
 %       (depth_direction: direction of exponential increase)
 %           (0, default, from 1 to end)
 %           (1, from end to 1)
+%
+% Notes:
+% No return value: saves <name>_intcor.nrrd (uint16, same voxel size).
+%   Plane z is multiplied by exp((z - z0)/Lz) to compensate for the loss
+%   of signal with depth.
 
 % Default iparams
 ipars.fisuffix = '';
@@ -78,6 +83,11 @@ if ~isempty(FolderName)
     f2run = find(contains(iDir, FolderName));
     filename = filename(f2run);
     iDir = iDir(f2run);
+end
+
+if isempty(filename)
+    warning('batch_exp_int_cor:noFiles', ...
+        'No *%s%s files matched in %s', ipars.fisuffix, ipars.im_format, pwd)
 end
 
 fprintf(['Running n-files : ', num2str(numel(filename)), '\n'])
@@ -140,6 +150,12 @@ power_per_plane = reshape(power_per_plane, ...
         [1 1 size(power_per_plane, 2)]);
 Data = bsxfun(@times, Data, power_per_plane);
 Data(isnan(Data)) = 0;
+
+% mat2uint16 saturates at 65535 without warning
+if max(Data(:)) > 2^16 - 1
+    warning('batch_exp_int_cor:saturation', ...
+        '%s: corrected intensities exceed 65535 and will be clipped', filename)
+end
 
 nrrdWriter([oDir, filesep, filename, '_intcor', ipars.im_format], ...
     mat2uint16(Data), nrrdread_res(meta), [0 0 0], 'gzip');

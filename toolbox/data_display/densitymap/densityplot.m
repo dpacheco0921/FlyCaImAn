@@ -1,7 +1,7 @@
 function [figH, axH, densitymap, x_pix, y_pix] = ...
     densityplot(x, y, width, height, limits, ...
     sig, siz, axH, log_norm_flag, max_norm_flag)
-% densityplot: collects values from fields of a given structure
+% densityplot: plot a 2D density image (smoothed 2D histogram) of x, y points
 %
 % Usage:
 %   [figH, axH, densitymap, x_pix, y_pix] = ...
@@ -21,7 +21,15 @@ function [figH, axH, densitymap, x_pix, y_pix] = ...
 %   max_norm_flag: flag to perform max normalization
 %       (default, 0)
 %
+% Returns:
+%   figH: figure handle (only assigned if a new figure was made,
+%       i.e. when axH is not provided)
+%   axH: axes handle
+%   densitymap: [height x width] smoothed 2D histogram (counts)
+%   x_pix, y_pix: bin centres of the density map (same units as x, y)
+%
 % Notes:
+%   x, y must be row vectors (see vect2density)
 % see vect2density
 
 if ~exist('width', 'var'); width = []; end
@@ -39,7 +47,7 @@ end
 % get density map
 [densitymap, x_pix, y_pix] = ...
     vect2density(x, y, width, height, ...
-    limits, sig, siz, log_norm_flag, max_norm_flag);
+    limits, sig, siz, max_norm_flag, log_norm_flag);   % order must match vect2density
 
 % plot density map
 if ~exist('axH', 'var') || isempty(axH)

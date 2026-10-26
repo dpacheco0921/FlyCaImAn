@@ -2,13 +2,19 @@ function i_coord = to_get_plane2segline_intersect(f_points2test, float_points, r
 % to_get_plane2segline_intersect: find intersection of point(s) &
 % plane(s) to segments of lines (points contained within those segments)
 % Usage:
-%   to_get_plane2segline_intersect(f_points2test, float_points, ref_point, ref_normal)
+%   i_coord = to_get_plane2segline_intersect(f_points2test, float_points, ref_point, ref_normal)
 %
 % Args:
 %   f_points2test: indeces to test
-%   ref_point: reference point ([1 by xyz])
 %   float_points: floating points ([n by xyz])
-%   ref_normal: reference normal
+%   ref_point: reference point ([1 by xyz])
+%   ref_normal: reference normal ([1 by xyz])
+%
+% Returns:
+%   i_coord: [numel(f_points2test) by 3] coordinates where the plane cuts
+%       the segment that starts at each tested point (next point, or the
+%       previous one for the last point); NaN if the plane does not cut
+%       that segment (or is parallel to it)
 %
 % Notes: see traceObj
 

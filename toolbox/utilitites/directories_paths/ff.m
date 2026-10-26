@@ -4,8 +4,12 @@ function varargout = ff(varargin)
 %   varargout = ff(varargin)
 % 
 % Args:
-%   varargin: files to run
-% 
+%   varargin: path parts to join (strings), as in fullfile
+%
+% Returns:
+%   varargout: the full file path (a single output, since fullfile
+%       returns one string)
+%
 % See also:
 
 N = max(nargout,1);

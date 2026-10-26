@@ -10,11 +10,13 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %   FileName: name of files to load
 %   iparams: parameters to update
 %       (Ygalvo_Ch: Y-axis of galvo or resonant channel)
-%           (default, 2)
+%           (default, 2; overwritten per file depending on the data
+%           type string in fDat.DataType, see runperfile)
 %       (stimcopy_Ch: channel receiving a copy of stimuli delivered in bin file)
-%           (default, 1)
+%           (default, 1; overwritten per file depending on the data
+%           type string, see runperfile)
 %       (stim_oCh: analog ouput channel use to deliver stimuli)
-%           (default, 1)
+%           (default, 1; 2 for 'prv' + 'opto' data)
 %       (buffer: time to chop from recording end 0 (ms))
 %           (default, 0)
 %       (pgate: plot raw Y trace, start and end of each frame, 
@@ -28,23 +30,31 @@ function batch_collectmetada(FolderName, FileName, iparams)
 %       (fmetsuffix: suffix of metadata file)
 %           (default, '_metadata.mat')
 %       (mode: two modes:
-%           (0, readout resuls, default)
-%           (1, generate and save)
+%           (0, readout resuls)
+%           (1, generate and save, default)
 %       (minframet: minimun frame duration in tens of miliseconds)
 %           (default, 900 (90 ms))
 %       (findstim: gate to use stimuli trace to find stimuli start and end)
 %           (default, 0)
-%       (minwidth: minimun width of stimuli (ms))
-%           (default, [])
+%       (minwidth: minimun gap between stimuli (samples), closer stimuli
+%           are merged)
+%           (default, [], 100 for prv data, 0 (no merging) otherwise)
 %       (stimths: voltage threshold to find stimuli)
-%           (default, 0)      
+%           (default, 0)
 %       (vid_time_init: initial time to use for mean substration)
-%           (default, 100 timepoints)      
-%       (vid_volt_ths: voltage threshold to find pulses)
-%           (default, [2.5 2.5])      
+%           (default, 200 timepoints)
+%       (vid_volt_ths: voltage threshold to find pulses, [shutter trigger])
+%           (default, [2 2])
 %       (vid_ttl_width: expected width of pulses)
-%           (default, 20 timepoints)      
-% 
+%           (default, 20 timepoints)
+%       (oDir: directory where to save the summary figure)
+%           (default, [pwd, filesep, 'rawtiff'])
+%
+% Returns:
+%   nothing. If mode = 1 it appends the updated iDat, lStim (and vidDat
+%   if a '_vid.mp4' exists) to each '*_metadata.mat' file; the stimulus
+%   trace and all times are in samples of the stimulus/DAQ trace.
+%
 % Notes
 % this function updates: lStim and iDat
 % lStim: stimuli related (auditory/opto) metadata structure
@@ -139,7 +149,6 @@ function runperfolder(fname, metpars)
 %
 % Args:
 %   fname: file name template string
-%   foname: figure name
 %   metpars: parameters
 
 % directory params
@@ -149,7 +158,12 @@ fi2run = str2match(fname, fi2run);
 fi2run = str2rm(metpars.fi2reject, fi2run);
 fi2run = {fi2run.name};
 fi2run = strrep(fi2run, ['.', filesep], '');
-fi2run = strrep(fi2run, '_rawdata.mat', '');
+fi2run = strrep(fi2run, metpars.fsuffix, '');
+
+if isempty(fi2run)
+    fprintf('No files with suffix %s found in this folder\n', ...
+        metpars.fsuffix)
+end
 
 for F2R_idx = 1:numel(fi2run)
     
@@ -163,20 +177,24 @@ fprintf('****** Done ******\n')
 end
 
 function runperfile(filename, metpars)
-% runperfolder: function collects timestamps and stimulus from bin file 
+% runperfile: function collects timestamps and stimulus from bin file
 % with "metpars.fsuffix" suffix and fDat info
 %
 % Usage:
-%   runperfolder(filename, ip)
+%   runperfile(filename, metpars)
 %
 % Args:
-%   filename: name of file to load
+%   filename: name of file to load (without suffix)
 %   metpars: parameters
 
 % Load main variables 'lStim', 'iDat', 'fDat'
 display(['Running file : ', filename])
 load(['.', filesep, filename, '_metadata.mat'], ...
     'lStim', 'iDat', 'fDat')
+
+% lStim.fName gets a suffix further below and is saved, so start from the
+%   original name on every run (otherwise reruns append the suffix again)
+lStim.fName = fDat.FileName;
 
 % copy datatype (2D or 4D)
 datatype = fDat.DataType;
@@ -225,7 +243,7 @@ end
 
 % collect galvo and stimuli copy channel(s)
 Ch = load_galvo_and_stim_channels(...
-    stim_file2load, filename, datatype);
+    stim_file2load, filename, datatype, lStim);
 
 % if metadata iDat variable already has framerate information, then use it
 if isfield(iDat, 'framerate') && ...
@@ -276,7 +294,7 @@ else
     lStim.fName = 'no stimulus file';
 end
 
-if ~isempty(iDat.fstEn)
+if size(iDat.fstEn, 1) > 1
     fprintf(['first frame ', num2str(iDat.fstEn(1, :)), ...
         ' second ', num2str(iDat.fstEn(2, :)), '\n'])
 end
@@ -482,18 +500,22 @@ function vidDat = extract_video_timestamps(filename, Ch, ...
 % Usage:
 %   vidDat =  extract_video_timestamps(filename, Ch, ...
 %       vid_time_init, vid_volt_ths, vid_ttl_width, ...
-%       plot_flag, axH)
-% 
+%       plot_flag, start_end, axH)
+%
 % Args:
 %   filename: file name
 %   Ch: loaded channels
-%   metpars: metadata parameters
 %   vid_time_init: initial time to use for mean substration
-%   vid_volt_ths: voltage threshold to find pulses
+%   vid_volt_ths: voltage threshold to find pulses [shutter trigger]
 %   vid_ttl_width: expected width of pulses
 %   plot_flag: flag to plot results
 %   start_end: start and end timepoint to use
 %   axH: axes handle
+%
+% Returns:
+%   vidDat: structure with the fictrac variables (if found) and
+%       vidDat.fstEn, [n-frames x 2] shutter onset/offset in samples
+%       relative to start_end(1)
 
 % load prv-related variable rDat and fictrac-related variable "fictDat"
 vidDat = [];
@@ -502,6 +524,9 @@ try
         'rDat', 'fictDat')
     vidDat = fictDat;
     clear fictDat
+catch ME
+    warning('Could not read rDat/fictDat from %s_vDat.mat: %s', ...
+        filename, ME.message)
 end
 
 % readout video frames info
@@ -568,7 +593,7 @@ if isfield(vidDat, 'var') && ~isempty(vidDat.var)
         % chop vidDat.var
         idx2use = find(vidDat.var(:, 1) <= min([...
             size(trigger_onset_offset, 1), ...
-            size(trigger_onset_offset, 1)]));
+            size(shutter_onset_offset, 1)]));
         vidDat.var = vidDat.var(idx2use, :);
         
     end
@@ -622,6 +647,10 @@ function fstEn = collect_frame_timestamps(Ch, ...
 %   minframet: minimun frame time
 %   frame_num: frames imaged (obtained from tif)
 %   stim_file2load: string with setup/data acquisition function info
+%
+% Returns:
+%   fstEn: [n-frames x 2] frame onset and offset (samples of the DAQ
+%       trace); empty if no images were collected
 
 % collect timestamps
 if ~isempty(Ch) && ~isempty(frame_num)
@@ -657,18 +686,24 @@ fstEn = [FrameInit' FrameEnd'];
 end
 
 function Ch = load_galvo_and_stim_channels(...
-    stim_file2load, filename, datatype)
+    stim_file2load, filename, datatype, lStim)
 % load_galvo_and_stim_channels: function that loads galvo and stimulus copy
 %   channel(s)
 %
 % Usage:
 %   Ch = load_galvo_and_stim_channels(...
-%       stim_file2load, filename, datatype)
+%       stim_file2load, filename, datatype, lStim)
 %
 % Args:
 %   stim_file2load: string with setup/data acquisition function info
 %   filename: name of file to load
 %   datatype: string with info on stimuli delivered
+%   lStim: stimuli metadata (only used by 'LEDcontroler' data, to find
+%       the '.bin' file and the number of channels)
+%
+% Returns:
+%   Ch: [channels x samples] matrix of recorded voltages (volts), or []
+%       if no recording file was found
 
 if contains(stim_file2load, 'prv')
     
@@ -730,7 +765,8 @@ function iDat = homogenize_frame_frametime(...
 % it edits iDat.fstEn, iDat.FrameN, iDat.StackN
 %
 % Usage:
-%   homogenize_frame_frametime(frame_n, iDat, datatype, imode, Data)
+%   iDat = homogenize_frame_frametime(filename, frame_n, iDat, ...
+%       datatype, imode)
 %
 % Args:
 %   filename: name of file to load
@@ -815,13 +851,18 @@ function [Frame_Init, Frame_End] = ...
 %
 % Usage:
 %   [Frame_Init, Frame_End] = ...
-%       colecttimestampNew(mirror_y_trace, frame_num, min_frame_time)
+%       colecttimestamp(mirror_y_trace, frame_num, min_frame_time, ...
+%       stim_file2load)
 %
 % Args:
-%   mirror_y_trace: mirror y trace from 2PM
+%   mirror_y_trace: mirror y trace from 2PM (volts, one value per sample)
 %   frame_num: number of frames (from Data)
-%   min_frame_time: minimun time between frames
+%   min_frame_time: minimun time between frames (samples)
 %   stim_file2load: stimuli delivery setup
+%
+% Returns:
+%   Frame_Init: row vector, sample index of each frame onset
+%   Frame_End: row vector, sample index of each frame offset
 %
 % Notes:
 % regular vs resonant galvo
@@ -862,6 +903,11 @@ max_pred = prctile(-tracet, 99.8)*0.5;
     'MinPeakDistance', min_frame_time*0.8);
 Frame_Init = Frame_Init';
 
+if isempty(Frame_End) || isempty(Frame_Init)
+    error('colecttimestamp:noframes', ...
+        'No frame onsets/offsets found in the galvo trace')
+end
+
 % correct for artifact peak at the beginning
 if Frame_End(1) > min_frame_time*0.8
     % frame end is as expected
@@ -874,9 +920,11 @@ end
 
 % manual shift of onset/offset
 if ~contains(stim_file2load, 'fict')
-    % why?
+    % empirical offset (samples) between the galvo-derived frame onset
+    %   and the real frame start (origin not documented, kept as is)
     Frame_Init = Frame_Init + 15;
 else
+    % empirical offsets (samples) for the resonant galvo setup
     Frame_End = Frame_End - 2;
     Frame_Init = Frame_Init + 4;
 end
@@ -884,8 +932,16 @@ end
 % if first time onset is missed, add one
 if Frame_Init(1) > min_frame_time*0.8
     fprintf(['missing first frame start time: ', num2str(Frame_Init(1)), ' '])
-	Frame_Init = [Frame_Init(1) - round(mean(Frame_Init(2:2:10^2) ...
-        - Frame_Init(1:2:10^2))), Frame_Init];
+    % (frame period = mean gap between consecutive onsets, estimated from
+    %   up to the first 100 onsets)
+    n_est = min(numel(Frame_Init), 10^2);
+    n_est = n_est - mod(n_est, 2);
+    if n_est < 2
+        error('colecttimestamp:fewframes', ...
+            'Too few frame onsets to estimate the missing first frame')
+    end
+    Frame_Init = [Frame_Init(1) - round(mean(Frame_Init(2:2:n_est) ...
+        - Frame_Init(1:2:(n_est - 1)))), Frame_Init];
 end
 
 if Frame_Init(1) <= 0
@@ -940,11 +996,15 @@ function stimuli_onset_offset = ...
 % get_ttl_start_end: get start and end of ttl pulses
 %
 % Usage:
-%   [Frame_Init, Frame_End] = ...
-%       colecttimestampNew(mirror_y_trace, frame_num, min_frame_time)
+%   stimuli_onset_offset = get_ttl_start_end(volt_trace, ...
+%       volt_thrs, time_init, minwidth, sampling_rate)
+%
+% Returns:
+%   stimuli_onset_offset: [n-pulses x 2] sample index of the start and
+%       end of each ttl pulse (see find_stim_int)
 %
 % Args:
-%   volt_trace: input voltage trace
+%   volt_trace: input voltage trace (volts)
 %   volt_thrs: voltage threshold
 %       (4, default)
 %   time_init: time to ignore
@@ -1007,6 +1067,11 @@ function Y = local_binread(stimrel_var, cNum)
 %   Y: vector or matrix contained in bin file
 
 fID = fopen([strrep(stimrel_var.fName, '.mat', '') '.bin'], 'r');
+
+if fID < 0
+    error('local_binread:nofile', 'Could not open %s.bin', ...
+        strrep(stimrel_var.fName, '.mat', ''))
+end
 
 if ~exist('cNum', 'var')
     

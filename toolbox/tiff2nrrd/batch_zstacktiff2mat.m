@@ -44,14 +44,23 @@ function batch_zstacktiff2mat(FolderName, FileName, iparams)
 %           (default, [pwd, filesep, 'rawtiff'])
 %       (dimOrder: order of dimensions time (t) then slice (z))
 %           (default: 'zt', alternative 'tz')
-%       (debug_flag: flag to evaluate results prior to saving)
-%           (default: 1)
+%       (debug_flag: flag to evaluate results prior to saving, if 1 it
+%           plots the histograms and stops with an error so shift_f /
+%           hbins can be adjusted)
+%           (default: 0)
 %       (maxtiff2load: maximun tiffs to load per session)
 %           (default: [])
-%       (flybackplane: fly back plane when using a fast zstack mode with a piezo)
-%           (default: 1)
+%       (flybackplane: fly back plane to remove when using a fast zstack
+%           mode with a piezo: 'first', 'last', or anything else to keep all)
+%           (default: 'first')
 %       (timeavg_flag: flag to load and average signal per plane directly from tiff instead of loading full matrix)
 %           (default: 0)
+%
+% Returns:
+%   nothing. For each Zstack it saves the average stack as
+%   '<name>_<animal>_Zstack_<trial>' + im_format in the folder, the
+%   metadata '<name>_<animal>_Zstack_metadata.mat' (fDat, iDat) and
+%   intensity histograms in oDir.
 %
 % Notes:
 %   FieldOfView needs to be define for each setup (see batch_tiff2mat.m)
@@ -101,8 +110,6 @@ fo2run = {fo2run.name};
 
 fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
 
-fprintf(['Running n-folders : ', num2str(numel(fo2run)), '\n'])
-
 for folder_i = 1:numel(fo2run)
     
     fprintf(['Running folder : ', fo2run{folder_i}, '\n']);
@@ -118,10 +125,10 @@ fprintf('... Done\n')
 end
 
 function runperfolder(fname, foname, zt2m)
-% runperfolder: function 
+% runperfolder: converts all the Zstack tiffs of one folder
 %
 % Usage:
-%   runperfolder(fname, foname, tifpars)
+%   runperfolder(fname, foname, zt2m)
 %
 % Args:
 %   fname: file name
@@ -203,6 +210,12 @@ for basename_i = 1:numel(BaseFName)
 
         end
 
+        % close the intensity figure of this animal (one is opened per
+        %   animal), unless debugging
+        if ~zt2m.debug_flag && isgraphics(zt2m.figH)
+            close(zt2m.figH)
+        end
+
     end
 
     clear AnimalNum TrialNum str_length
@@ -231,6 +244,10 @@ function collalltrials(tif_name, zt2m)
 %       (format: nrrd format raw vs gzip ('gzip'))
 %       (zres: resolution in z axis (1))
 %
+% Returns:
+%   nothing. It saves the averaged stack (nrrd or nifti) and its
+%   metadata in the current folder.
+%
 % Notes:
 
 % generate mat file names (remove zero padding
@@ -238,6 +255,12 @@ function collalltrials(tif_name, zt2m)
 [Basename, AnimalNum, TrialNum, str_length] = ...
         rdir_namesplit(tif_name, ...
         zt2m.suffix, [], [], [], 3);
+
+if isempty(Basename)
+    error('batch_zstacktiff2mat:notiffs', 'No tiff files found for %s', ...
+        tif_name)
+end
+
 mat_name = [Basename{1}, '_', ...
     num2str(AnimalNum(1)), '_Zstack_', ...
     num2str(TrialNum(1))];
@@ -278,9 +301,14 @@ for tif_i = 1:tif_num
         % tiff2mat_scanimage output is always 4D (X, Y, frame, pmt)
         Data = cat(3, Data, tempdata);
         clear tempdata;
-        
+
+    catch ME
+
+        % keep going with the other tiffs but say which one failed
+        warning('Could not load %s_%s.tif: %s', tif_name, tif_idx, ME.message)
+
     end
-    
+
     fprintf('*');
     
     if mod(tif_i, 60) == 0 || ...
@@ -291,6 +319,12 @@ for tif_i = 1:tif_num
 end
 
 clear rep_i t_num
+
+if isempty(Data)
+    error('batch_zstacktiff2mat:nodata', ...
+        'None of the tiffs of %s could be loaded', tif_name)
+end
+
 fprintf(['Channels imported: ',num2str(ImMeta.ChNum), '\n'])
 
 % update ImMeta, prune Data (ch)
@@ -322,10 +356,14 @@ if zt2m.debug_flag
     
     % plot histograms with current settings (zt2m.hbins)
     plot_histogram(zt2m.hbins, hist_pre, hist_pre, zt2m.oDir, 'test')
-    
-    keyboard
-    % pause to decide if manually update 'zt2m.shift_f' and/or 'zt2m.hbins'
-    
+
+    % stop here to decide if manually update 'zt2m.shift_f' and/or
+    %   'zt2m.hbins', then rerun
+    error('batch_zstacktiff2mat:debugstop', ...
+        ['debug_flag = 1: histograms of %s saved in %s, adjust ', ...
+        'shift_f / hbins and rerun with debug_flag = 0'], ...
+        tif_name, zt2m.oDir)
+
 end
 
 % shift distribution by 5 values to the right and make negative values 0
@@ -458,8 +496,8 @@ function [fDat, iDat] = generatemetadata(t_fname, ImMeta, zt2m)
 %   [fDat, iDat] = generatemetadata(t_fname, ImMeta, zt2m)
 %
 % Args:
-%   t_fname: folders to use (name)
-%   ImMeta: image intensity threshold
+%   t_fname: name of the stack (<name>_<animal>_Zstack_<trial>)
+%   ImMeta: image metadata returned by tiff2mat_scanimage
 %   zt2m: input params
 %       (FieldOfView: 768 um, hard coded constant (microscope dependent variable)
 %       (Folder2Run: current folder)
@@ -468,9 +506,16 @@ function [fDat, iDat] = generatemetadata(t_fname, ImMeta, zt2m)
 %       (unitres: number of decimals to keep (10^4))
 %       (zres: resolution in z axis (1))
 %
+% Returns:
+%   fDat: file metadata (FileName keeps only the first 3 name parts)
+%   iDat: image metadata; voxel size in um is iDat.MetaData{3}
+%       ('x y z' order)
+%
 % Notes:
 
-try
+% reuse existing metadata if there is a '<t_fname>.mat' file
+if exist([zt2m.cDir, filesep, zt2m.Folder2Run, ...
+        filesep, t_fname, '.mat'], 'file')
     load([zt2m.cDir, filesep, zt2m.Folder2Run, ...
         filesep, t_fname, '.mat'], 'fDat', 'iDat');
 end
@@ -539,18 +584,25 @@ function avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, debug_flag, f
 % avbrain: get the average image of green and red channel
 %
 % Usage:
-%   avgim = avbrain(im, im_ths, isiz, shift_f, axH, debug_flag)
+%   avgim = avbrain(im, im_ths, isiz, shift_f, dimOrder, axH, ...
+%       debug_flag, flybackplane)
 %
 % Args:
-%   im: folders to use (name)
-%   im_ths: image intensity threshold
-%   isiz: image size
-%   shift_f: shift in F added.
+%   im: image data, [Y, X, frames, channel]
+%   im_ths: image intensity threshold, a plane at a given timepoint is
+%       used only if its maximum is above this value (F units)
+%   isiz: image size [Y, X, Z, T, channel] (after reshaping)
+%   shift_f: shift in F added ([red green]).
 %   dimOrder: order of dimensions time (t) then slice (z)
 %   	(default: 'zt', alternative 'tz')
-%   axH: axis handle
+%   axH: axes handles to plot the maximum per frame
 %   debug_flag: debug flag
-%   flybackplane: fly back plane when using a fast zstack mode with a piezo
+%   flybackplane: fly back plane to remove ('first', 'last')
+%
+% Returns:
+%   avgim: average over time of the timepoints above threshold,
+%       [Y, X, Z, channel]. Planes with too few timepoints above
+%       threshold are Inf (an error is raised for them).
 %
 % Notes:
 
@@ -579,16 +631,16 @@ end
 if contains(flybackplane, 'first')
     im(:, :, 1, :, :) = [];
     maxpertime_r(1, :) = [];
-    try maxpertime_g(1, :) = []; end
+    if exist('maxpertime_g', 'var'); maxpertime_g(1, :) = []; end
 elseif contains(flybackplane, 'last')
     im(:, :, end, :, :) = [];
     maxpertime_r(end, :) = [];
-    try maxpertime_g(end, :) = []; end
+    if exist('maxpertime_g', 'var'); maxpertime_g(end, :) = []; end
 end
 
 % plot max's
 plot(maxpertime_r(:), 'r', 'Parent', axH(2));
-try plot(maxpertime_g(:), 'g', 'Parent', axH(1)); end
+if exist('maxpertime_g', 'var'); plot(maxpertime_g(:), 'g', 'Parent', axH(1)); end
 hold(axH(1), 'on'); hold(axH(2), 'on')
 
 % generate average brain
@@ -624,11 +676,15 @@ if sum(isinf(M(:))) ~= 0 || ...
         (sum(M(:) > 2048 + min(shift_f)) ~= 0) ...
         || debug_flag
     
-    % for dealing with this exceptions use:
-    
-    edit zstacktiff2mat_maninput.m
-    keyboard
-    
+    % planes without enough bright timepoints are left as Inf, and values
+    %   above ~2048 + shift suggest saturation. Stop instead of saving
+    %   them silently; to deal with these exceptions use
+    %   zstacktiff2mat_maninput.m (run it in debug mode inside this function)
+    error('batch_zstacktiff2mat:badplanes', ...
+        ['Inf planes (below threshold %g) or saturated planes found; ', ...
+        'Inf planes: %s. See zstacktiff2mat_maninput.m'], ...
+        im_ths, mat2str(find(any(isinf(M), 2))'))
+
 end
 
 end

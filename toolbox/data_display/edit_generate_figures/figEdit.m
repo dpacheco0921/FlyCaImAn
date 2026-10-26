@@ -23,6 +23,9 @@ function figEdit(axhandle, fighandle, axcolor, ...
 %   fontsizrel: fontsize multiplier
 %       (default, 1.5)
 %
+% Returns:
+%   nothing; edits the given axes and figures in place
+%
 % Notes:
 %
 % ToDo: edit also size features
@@ -81,7 +84,10 @@ for i = 1:numel(axhandle)
         set(axhandle(i), 'FontSize', fontsiz, ...
             'LabelFontSizeMultiplier', fontsizrel);
         set(axhandle(i), 'FontName', 'Arial');
-        
+
+    catch ME
+        % keep going with the next axes, but do not hide the failure
+        warning('figEdit: could not edit axes %d: %s', i, ME.message)
     end
 end
 

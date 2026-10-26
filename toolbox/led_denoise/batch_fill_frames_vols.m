@@ -3,7 +3,7 @@ function batch_fill_frames_vols(FolderName, FileName, iparams)
 %   frames or volumes of specific files using framegapfill
 %
 % Usage:
-%   Y = batch_fill_frames_vols(FolderName, FileName, iparams)
+%   batch_fill_frames_vols(FolderName, FileName, iparams)
 %
 % Args:
 %   FolderName: folders to use
@@ -13,7 +13,9 @@ function batch_fill_frames_vols(FolderName, FileName, iparams)
 %       (fside: side to use (right or left to the timepoint to replace))
 %
 % Notes
-% see framegapfill
+% see framegapfill. It asks (command window) which frames | volumes to
+%   fill per file, overwrites Data in *_rawdata.mat and stores the chosen
+%   indexes in iDat.DelFrames of *_metadata.mat. No return value.
 
 ipars = [];
 ipars.ftype = 'mean';
@@ -91,7 +93,11 @@ end
 
 f2fill = str2match(fname, f2fill);
 f2fill = {f2fill.name};
-fprintf(['Filling n-flies : ', ...
+if isempty(f2fill)
+    warning('batch_fill_frames_vols:noFiles', ...
+        'No *_rawdata.mat files matched in %s', pwd)
+end
+fprintf(['Filling n-flies : ',...
     num2str(numel(f2fill)), '\n'])
 
 for fly_i = 1:numel(f2fill)

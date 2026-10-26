@@ -13,10 +13,18 @@ function batch_populate_lStim(FolderName, FileName, iparams)
 %       (fi2reject: files to reject)
 %       (fsuffix: suffix of files with Data variable)
 %           (default, '_rawdata.mat')
-%       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat') 
-% 
+%       (fmetsuffix: suffix of metadata file, currently the code always
+%           uses '_metadata.mat')
+%           (default, '_metadata.mat')
+%
+% Returns:
+%   nothing. It appends the updated lStim (sampling rate, trial number,
+%   strain, channels, stimulus onset/offset in samples and stimulus
+%   parameters) to each '*_metadata.mat' file.
+%
 % Notes
+% Opto-only: stimulus parameters are read from the stimulus file
+%   '<name>.mat' (variable sDat), written by LEDcontroler.
 
 % default params
 metpars.cDir = pwd;
@@ -53,11 +61,11 @@ fprintf('... Done\n')
 end
 
 function runperfolder(fname, metpars)
-% runperfolder: function collects timestamps and stimulus from bin file 
-%   with "metpars.fsuffix" suffix and fDat info
+% runperfolder: runs runperfile on every file of the current folder
+%   with "metpars.fsuffix" suffix
 %
 % Usage:
-%   runperfolder(fname, foname, metpars)
+%   runperfolder(fname, metpars)
 %
 % Args:
 %   fname: file name template string
@@ -70,7 +78,12 @@ fi2run = str2match(fname, fi2run);
 fi2run = str2rm(metpars.fi2reject, fi2run);
 fi2run = {fi2run.name};
 fi2run = strrep(fi2run, ['.', filesep], '');
-fi2run = strrep(fi2run, '_rawdata.mat', '');
+fi2run = strrep(fi2run, metpars.fsuffix, '');
+
+if isempty(fi2run)
+    fprintf('No files with suffix %s found in this folder\n', ...
+        metpars.fsuffix)
+end
 
 for F2R_idx = 1:numel(fi2run)
     
@@ -84,11 +97,11 @@ fprintf('****** Done ******\n')
 end
 
 function runperfile(filename, metpars)
-% runperfolder: function that compiles 
-%   missing fields of lStim
+% runperfile: function that compiles
+%   missing fields of lStim for one file
 %
 % Usage:
-%   runperfolder(filename, ip)
+%   runperfile(filename, metpars)
 %
 % Args:
 %   filename: name of file to load

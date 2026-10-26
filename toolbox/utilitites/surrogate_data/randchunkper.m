@@ -15,14 +15,20 @@ function [Yo, idx_out] = randchunkper(...
 %   stim: vector with stimuli information
 %
 % Output:
-%   Yo: Yi sorted with idx_out
-%   idx_out: matrix with all chunk-permuted indeces
+%   Yo: repn x numel(Yi) matrix, one chunk-permuted copy of Yi per row
+%   idx_out: repn x numel(Yi) matrix with the chunk-permuted indeces (Yo = Yi(idx_out))
 %
 % Notes:
 %   Also, during the permutation of the chunks it excludes consecutive chunks
 
 if ~exist('stim', 'var')
     stim = [];
+end
+
+% fail early: the chunks cannot all be at least chunk_min_size long
+if numel(Yi) < (n_points + 1)*chunk_min_size
+    error('randchunkper: Yi is too short for %d chunks of min size %d', ...
+        n_points + 1, chunk_min_size);
 end
 
 rng('shuffle'); % seems to be an issue with matlab 2018
@@ -54,18 +60,13 @@ for i = 1:repn
         % permute chunks and stitch
         idx_out(i, :) = cell2mat(chunks_cell(neworder));
         
-        % exclude cases where it matches the initial index order
-        if ~ismember(idx_out(i, :), idx_vect, 'rows')
-            i_gate = 1;
-        end
+        % accept only if it differs from the initial index order
+        i_gate = ~ismember(idx_out(i, :), idx_vect, 'rows');
         
-        % exclude cases where an input stimuli vector is the same under
-        % permutation
-        
-        if ~isempty(stim)
-            if ~ismember(stim(idx_out(i, :)), stim, 'rows')
-                i_gate = 1; 
-            end 
+        % and also reject permutations that leave the stimuli vector unchanged
+        % (previously this check could only accept, never reject)
+        if i_gate && ~isempty(stim)
+            i_gate = ~ismember(stim(idx_out(i, :)), stim, 'rows');
         end
         
     end

@@ -3,13 +3,17 @@ function crispnessidx = get_crispnessidx(Y)
 %   (http://dx.doi.org/10.1016/j.jneumeth.2017.07.031)
 %
 % Usage:
-%   crisp_idx = get_crispnessidx(Y)
+%   crispnessidx = get_crispnessidx(Y)
 %
 % Args:
-%   Y: input 3D or 2D matrix
+%   Y: input image over time, last dimension is time
+%       ([height width time] or [height width depth time]), no NaNs
 %
 % Returns:
-%   crispnessidx: crispness index
+%   crispnessidx: scalar (arbitrary fluorescence units), the norm of
+%       the time-averaged image; larger = sharper mean image.
+%       Note: it is the norm of the mean image itself, not of its gradient
+%       (kept as is so values stay comparable with earlier runs).
 
 crispnessidx = [];
 

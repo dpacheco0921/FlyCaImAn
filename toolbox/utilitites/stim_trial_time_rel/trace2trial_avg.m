@@ -2,7 +2,7 @@ function [wDat, CaRaw_zs_tl, CaPred_zs_tl, CaRef_zs_tl, ...
     stim_idx, stim_vect, time_tl, time_tl_rel] = ...
     trace2trial_avg(tRmode, stim2use, time_range, ...
     CaRaw, CaPred, CaRef, wDat)
-% st_pros_roi: split trace into trials relative to stimuli type
+% trace2trial_avg: split traces into trials relative to stimuli type (z-scored)
 %
 % Usage:
 %   [wDat, CaRaw_zs_tl, CaPred_zs_tl, CaRef_zs_tl, ...
@@ -18,7 +18,19 @@ function [wDat, CaRaw_zs_tl, CaPred_zs_tl, CaRef_zs_tl, ...
 %       (for example [-5 10] will load chunks from -5 seconds to 
 %       plus 10 seconds relative to stimumus onset)
 %   CaRaw, CaPred, CaRef: raw data, predicted data, and reference data
-%   wDat
+%   CaRaw: ROIs x T raw signal (z-scored here); CaPred: ROIs x T predicted signal
+%       (used as given, NOT z-scored here); CaRef: ROIs x T reference channel (z-scored here)
+%   wDat: main metadata structure (needs sTime, fTime, sPars)
+%
+% Returns:
+%   wDat: input wDat with sName (unique stimulus names) and sIdx (stimulus index
+%       per trial) added
+%   CaRaw_zs_tl, CaPred_zs_tl, CaRef_zs_tl: ROIs x time, trial-averaged traces with
+%       the stimuli concatenated along time
+%   stim_idx: stimulus type of each column; stim_vect: stimulus-on marker per column
+%   time_tl: time of each column (seconds, relative to stimulus onset)
+%   time_tl_rel: time within each stimulus block (seconds)
+%   (an error is raised if time_range is empty)
 % 
 % Notes: 
 % 1) Chop trace into trials [init end] defined by "time_range" (in seconds)
@@ -40,8 +52,7 @@ if ~exist('time_range', 'var')
 end
 
 if isempty(time_range)
-    fprintf('Error needs: time_range');
-    return;
+    error('trace2trial_avg: time_range is required'); % was a silent print + return with unassigned outputs
 end
 
 % collect stimuli info

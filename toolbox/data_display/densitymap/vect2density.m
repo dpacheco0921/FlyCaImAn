@@ -18,8 +18,8 @@ function [densitymap, x_centers, y_centers] = ...
 %       (default, [64 64])
 %   limits: [xmin xmax ymin ymax] defaults to data max/min
 %       (default, x, & y max/min)
-%   sig, siz: size and sd of 2D smoothing kernel
-%       (default, [1 1])
+%   sig, siz: sd and size of the 2D smoothing kernel (see imblur)
+%       (default, sig = 1, siz = [1 1])
 %   max_norm_flag: flag to perform max normalization
 %       (default, 0)
 %   log_norm_flag: flag to perform log transformation
@@ -32,9 +32,17 @@ function [densitymap, x_centers, y_centers] = ...
 %       (default, 0)
 %   input_n: set of input sizes
 %
+% Returns:
+%   densitymap: smoothed 2D histogram, rows = y bins, columns = x bins
+%       (counts, unless a normalization flag is set)
+%   x_centers, y_centers: bin centres along x and y (same units as x, y)
+%
 % Notes:
 % Inspired by:
 %   https://www.mathworks.com/matlabcentral/fileexchange/31726-data-density-plot?focused=3853911&tab=function
+
+% x and y are paired coordinates, a length mismatch would silently misalign them
+assert(numel(x) == numel(y), 'vect2density: x and y must have the same length')
 
 if ~exist('limits', 'var') || isempty(limits)
     limits(1) = min(x);

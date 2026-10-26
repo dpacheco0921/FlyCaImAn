@@ -5,16 +5,21 @@ function save_wDat(filename, datatype, ...
 %   wDat (for compatibility with postprocessing steps like ROIseg)
 %
 % Usage:
-%   save_wDat(ffilename, datatype, ...
+%   save_wDat(filename, datatype, ...
 %       imdirection, bkgate, fshift, blowcap)
 %
 % Args:
-%   filename: file name
+%   filename: metadata file name, including '.mat' (*_metadata.mat)
 %   datatype: data type (2DxT, or 3DxT)
-%   imdirection: Z axis direction
+%   imdirection: Z axis direction ('invert' flips the mean images in Z)
 %   bkgate: gate to do custom background substraction
-%   fshift: value to shift distribution
+%   fshift: value added to shift the fluorescence distribution to the
+%       positive side, [red green] (fluorescence units)
 %   blowcap: minimun pixel value (it replaces values less than this)
+%
+% Returns:
+%   nothing. It appends the structure variable wDat to 'filename'
+%   (mean images, mask, volume size, stimulus, motion and video info).
 %
 % Notes:
 % It assumes that either Greenchannel or Redchannel exist and is not empty
@@ -118,8 +123,10 @@ else
 end
 
 % get stimuli info
+% (the base name is needed by getStimInfo to find '*_vDat.mat', so drop
+%   the whole '_metadata.mat' suffix)
 wDat = getStimInfo(wDat, iDat, fDat, lStim, cDat, ...
-    mcDat, vidDat, strrep(filename, '_metadata', ''), ...
+    mcDat, vidDat, regexprep(filename, '_metadata(\.mat)?$', ''), ...
     1, 1, [], iDat.FrameN);
 
 if isempty(wDat.GreenChaMean) ...
@@ -135,12 +142,14 @@ else
     % find nan-slices
     if iDat.FrameN > 1
 
-        try
+        % use the green mean image if it exists, otherwise the red one
+        %   (an empty array does not throw, so test for empty)
+        if ~isempty(wDat.GreenChaMean)
             siz = size(wDat.GreenChaMean);
             nan_pix = isnan(wDat.GreenChaMean);
-        catch
+        else
             siz = size(wDat.RedChaMean);
-            nan_pix = isnan(wDat.RedChaMean);        
+            nan_pix = isnan(wDat.RedChaMean);
         end
 
         plane2keep = sum(reshape(nan_pix, ...
@@ -167,7 +176,11 @@ else
 
     % bmask, use all pixels (2D data only)
     if iDat.FrameN == 1
-        wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
+        if ~isempty(wDat.GreenChaMean)
+            wDat.bMask = ones(size(wDat.GreenChaMean(:, :, 1)));
+        else
+            wDat.bMask = ones(size(wDat.RedChaMean(:, :, 1)));
+        end
     end
 
     % update size

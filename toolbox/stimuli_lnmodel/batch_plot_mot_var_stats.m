@@ -12,15 +12,13 @@ function batch_plot_mot_var_stats(FolderName, FileName, iparams)
 %       (cDir: current directory)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
-%       (fsuffix: suffix of files with roi varaiable)
-%           (default, '_prosroi')
 %       (metsuffix: suffix of files with wDat variable)
-%           (default, '_prosmetadata')
+%           (default, '_metadata')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
 %       (mot2use: motor variables to use)
 %           (default, {'speed', 'fV', 'lV', 'yaw', 'pitch', 'roll'})
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -36,6 +34,9 @@ function batch_plot_mot_var_stats(FolderName, FileName, iparams)
 %           (default, [pwd, filesep, 'motvar_stats'])
 %
 % Notes:
+%   The plotting code assumes the default mot2use order
+%   {speed, fV, lV, yaw, pitch, roll} (6 fictrac rows, then SVD rows), and
+%   a video frame rate of 100 Hz for the autocorrelation lag axis.
 
 % Default params
 pSLM = []; 
@@ -106,6 +107,11 @@ f2run = rdir(['.', filesep, '*', pSLM.metsuffix, '*.mat']);
 f2run = str2match(filename, f2run); 
 f2run = {f2run.name};
 
+if isempty(f2run)
+    warning('batch_plot_mot_var_stats:noFiles', ...
+        'No files matching *%s*.mat found in %s', pSLM.metsuffix, pwd);
+end
+
 fprintf('Plotting motor variables\n')
 fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
 
@@ -114,9 +120,11 @@ for i = 1:numel(f2run)
     fprintf(['Running file : ', strrep(f2run{i}, filesep, ' '), '\n']);
     try
         plotperfile(f2run{i}, pSLM);
-    catch error
+    catch ME
+        % keep going with the remaining files, but say which one failed and why
         fprintf(['Failed : ', strrep(f2run{i}, filesep, ' '), '\n'])
-        error
+        warning('batch_plot_mot_var_stats:failedFile', ...
+            'Failed file %s: %s', f2run{i}, ME.message);
     end
     
 end

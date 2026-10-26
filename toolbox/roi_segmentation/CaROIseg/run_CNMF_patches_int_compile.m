@@ -24,6 +24,17 @@ function [A, b, C, f, S, P, RESULTS, YrA] = ...
 %   options: struct for algorithm parameters
 %   filename: file name to use for saving results
 %
+% Returns:
+%   A: spatial components of the ROIs (voxels x ROIs, sparse, unitless)
+%   b: spatial background components (voxels x options.gnb)
+%   C: temporal components of the ROIs (ROIs x time, fluorescence a.u.)
+%   f: temporal background components (options.gnb x time)
+%   S: spike estimates (ROIs x time)
+%   P: parameter structure (P.mC and P.mCi store the traces of merged
+%       components and the index of the ROI each one generated)
+%   RESULTS: cleared (returned empty to free memory)
+%   YrA: residual per ROI (ROIs x time, fluorescence a.u.)
+%
 % Notes:
 % data file usually has a 3DxT volume as Y and a flattened Y variable Yr
 
@@ -153,6 +164,18 @@ for ii = 1:numel(f2load)
     repnum(1, ii) = str2double(TempS{2});
 end
 repnum = sort(repnum);
+
+% an empty list means no patch was segmented (wrong folder or filename),
+%   missing patches would leave holes in the final ROI map
+if isempty(repnum)
+    error('run_CNMF_patches_int_compile: no %s_t_*.mat files found in %s', ...
+        filename, cDir)
+end
+if numel(repnum) < numel(patches)
+    warning(['run_CNMF_patches_int_compile: only %d of %d patches have ', ...
+        '*_t_* files (missing: %s)'], numel(repnum), numel(patches), ...
+        num2str(setdiff(1:numel(patches), repnum)))
+end
 
 fprintf(['Loading patches (*_t_* files): ', num2str(repnum), '\n'])
 

@@ -96,6 +96,15 @@ fprintf('... Done\n')
 end
 
 function runperfolder(FileName, motpar)
+% runperfolder: plot the motion-correction shifts of every fly in the
+%   current folder
+%
+% Usage:
+%   runperfolder(FileName, motpar)
+%
+% Args:
+%   FileName: file name pattern to select files
+%   motpar: parameter structure of batch_plotShiftPerStack
 
 % Plot all flies per folder
 [f2plot, ~] = suffixgen(FileName, ...
@@ -213,12 +222,19 @@ for f2r = 1:numel(f2run)
             
         end
         
-        if ~isempty(mcDat.rigids)
-            
+        % 2DxT shifts only have 2 rows (Y, X): add a zero Z row so the
+        %   indexing below works (the figure still only has 2 axes)
+        if size(mcDat.rigid, 1) == 2; mcDat.rigid(3, :) = 0; end
+
+        has_rigids = isfield(mcDat, 'rigids') && ~isempty(mcDat.rigids);
+
+        if has_rigids
+
             if iscell(mcDat.rigids)
                 mcDat.rigids = mcDat.rigids{1};
             end
-            
+            if size(mcDat.rigids, 1) == 2; mcDat.rigids(3, :) = 0; end
+
             lineH(1) = ploteachtrace_mc(mcDat.rigids(1, :)*iDat.MetaData{3}(1), ...
                 mcDat.rigids(2, :)*iDat.MetaData{3}(2), ...
                 mcDat.rigids(3, :)*iDat.MetaData{3}(3), ...
@@ -230,8 +246,12 @@ for f2r = 1:numel(f2run)
             mcDat.rigid(3, :)*iDat.MetaData{3}(3), ...
             motpar.colorm(1, :), motpar.AxH);
         
-        legend(motpar.AxH(1), lineH, {'Raw Motion', 'Motion Corrected'})
-    
+        if has_rigids
+            legend(motpar.AxH(1), lineH, {'Raw Motion', 'Motion Corrected'})
+        else
+            legend(motpar.AxH(1), lineH(2), {'Motion Corrected'})
+        end
+
     elseif ~isempty(strfind(motpar.fsuffix, 'prosdata'))
         
         load(strrep(f2run{f2r}, motpar.fsuffix, motpar.metsuffix), 'wDat')
@@ -326,18 +346,21 @@ end
 function lineH = ploteachtrace_mc(...
     shifts_x, shifts_y, shifts_z, ...
     intCorvect, axH)
-% ploteachtrace_st: plots timeseries 
+% ploteachtrace_mc: plots timeseries
 %   shifts_x, shifts_y, shifts_z on axes axH
-% 
+%
 % Usage:
-%   ploteachtrace_mc(...
+%   lineH = ploteachtrace_mc(...
 %      shifts_x, shifts_y, shifts_z, ...
 %      intCorvect, axH)
 %
 % Args:
-%   shifts_*: shifts on X, Y or Z axis
+%   shifts_*: shifts on X, Y or Z axis (micrometers, one value per stack)
 %   intCorvect: color vector
-%   axH: axes handle
+%   axH: axes handles (one per plotted axis)
+%
+% Returns:
+%   lineH: handle of the last line plotted (used for the legend)
 
 ivect = {'shifts_x', 'shifts_y', 'shifts_z'};
 axS = {'X', 'Y', 'Z'};
@@ -358,7 +381,7 @@ end
 end
 
 function runperfly_st(FolderName, FileName, motpar)
-% runperfly_mc: plot stitching motion per inputfile
+% runperfly_st: plot stitching motion per inputfile
 % 
 % Usage:
 %   runperfly_st(FolderName, FileName, motpar)
@@ -396,7 +419,7 @@ for i = 1:numel(f2run)
         if ~motpar.stype
             
             motpar.figH = figure('position', genfigpos(1, 'center', [578 700]), ...
-                'Name', strrep(strrep(f2run{f2r}, '_rawdata', ''), ['.', filesep], ''));
+                'Name', strrep(strrep(f2run{i}, '_rawdata', ''), ['.', filesep], ''));
             motpar.AxH(1) = subplot(311);
             motpar.AxH(2) = subplot(312);
             motpar.AxH(3) = subplot(313);
@@ -422,16 +445,19 @@ function lineH = ploteachtrace_st(...
     intCorvect, axH)
 % ploteachtrace_st: plots stitching
 %   shifts_x, shifts_y, shifts_z on axes axH
-% 
+%
 % Usage:
-%   ploteachtrace_st(...
+%   lineH = ploteachtrace_st(...
 %      shifts_x, shifts_y, shifts_z, ...
 %      intCorvect, axH)
 %
 % Args:
-%   shifts_*: shifts on X, Y or Z axis
+%   shifts_*: shifts on X, Y or Z axis (micrometers, one value per stack)
 %   intCorvect: color vector
-%   axH: axes handle
+%   axH: axes handles (one per plotted axis)
+%
+% Returns:
+%   lineH: handle of the last line plotted
 
 ivect = {'shifts_x', 'shifts_y', 'shifts_z'};
 axS = {'X', 'Y', 'Z'};

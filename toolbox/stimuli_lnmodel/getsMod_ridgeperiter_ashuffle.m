@@ -30,10 +30,12 @@ function [LN_pcor, LN_filter_mean, ...
 %       (get filter for shuffle data, only collects mean, median and sd)
 %
 % Outputs:
-%   LN_pcor: pearson correlation predicted vs raw for test indecex
-%   LN_filter_mean: mean estimated filter
-%   LN_filter_med: median estimated filter
-%   LN_filter_sd: std of estimated filters
+%   LN_pcor: pearson correlation (unitless) predicted vs raw for test
+%       indeces, one per permutation [perm_n, 1]
+%   LN_filter_mean: mean estimated filter [stimSiz, 1] (zeros unless
+%       filterebound is set, because filters are not fitted otherwise)
+%   LN_filter_med: median estimated filter (same shape and note)
+%   LN_filter_sd: std of estimated filters (same shape and note)
 
 if ~exist('filterebound', 'var') || ...
         isempty(filterebound)

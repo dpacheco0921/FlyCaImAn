@@ -2,6 +2,15 @@ classdef ImRatioSeg < handle
     % radiometric intensity based segmentation:
     %   based on deviations from linear relationship between 2 fluorofore channels
     %   (from 2PM images) where I label tdtom and GCaMP6s or CsChrimson
+    %
+    % Usage:
+    %   obj = ImRatioSeg(fsuffix, oDir); % finds nrrd files in current folder
+    %   obj.im2seg(selIdx);              % segments files, fills medMask and sdIdx
+    %   obj.saveresults();               % saves masked images as nrrd
+    %
+    % Properties (per file i): medMask{i} = binary mask, sdIdx{i} = residuals
+    %   in units of residual std; thrs_f, thrs_std, minpixsiz, bgate, siz, sig,
+    %   sd_sig, med_siz are segmentation parameters (see ImRatioSegment).
     % Issues:
     %   1) significant tdtom signal is pickup in the green channel
     %   2) Assumes bleedthrough from the red to the green to be linear 
@@ -80,8 +89,14 @@ classdef ImRatioSeg < handle
                 
                 fprintf(['Running file #', num2str(i), '\n'])
                 
+                % copy the object's properties into a parameter structure
                 try
                     iparams = struct(obj);
+                catch ME
+                    warning('ImRatioSeg:struct', ...
+                        'Could not convert object to struct for %s: %s', ...
+                        obj.fname{i}, ME.message);
+                    iparams = [];
                 end
                 
                 if contains(obj.fname{i}, '_Zstack')
@@ -124,8 +139,9 @@ classdef ImRatioSeg < handle
                 Data = double(Data).*double(obj.medMask{i});
                 if contains(obj.fname{i}, '_Zstack')
                     [filename, floatFol] = split_path(obj.fname{i});
-                    filename = [floatFol, strrep(filename, ...
-                        '_Zstack.nrrd', '_Zstack_m.nrrd')];
+                    % split_path returns the folder without a trailing separator
+                    filename = fullfile(floatFol, strrep(filename, ...
+                        '_Zstack.nrrd', '_Zstack_m.nrrd'));
                 else
                     filename = strrep(strrep(obj.fname{i}, ...
                         '_02.nrrd', '_03.nrrd'), 'images_ch2', 'images_ch3');
@@ -346,8 +362,9 @@ classdef ImRatioSeg < handle
 
             if contains(obj.fname{selidx}, '_Zstack')
                 [filename, floatFol] = split_path(obj.fname{selidx});
-                filename = [floatFol, strrep(filename, ...
-                    '_Zstack.nrrd', '_Zstack_m.nrrd')];
+                % split_path returns the folder without a trailing separator
+                filename = fullfile(floatFol, strrep(filename, ...
+                    '_Zstack.nrrd', '_Zstack_m.nrrd'));
             else
                 filename = strrep(strrep(obj.fname{selidx}, ...
                     '_02.nrrd', '_04.nrrd'), 'images_ch2', 'images_ch4');

@@ -20,6 +20,10 @@ function savefig_int(figH, tDir, ...
 %   resolution_: resolution, in dots per pixel
 %       (default -r300)
 % 
+% Returns:
+%   nothing; writes one file per selected format into tDir
+%   (which must already exist)
+%
 % Notes:
 
 if strcmp(filesep, tDir(end))
@@ -39,7 +43,11 @@ if ~exist('resolution_', 'var') || isempty(resolution_)
 end
 
 if sum(figformat)
-    
+
+    % saveas/print give unhelpful errors for a missing folder
+    assert(exist(tDir, 'dir') == 7, ...
+        'savefig_int: target directory does not exist: %s', tDir)
+
     if figformat(1)
         saveas(figH, [tDir, filesep, figname, '.fig']);
     end

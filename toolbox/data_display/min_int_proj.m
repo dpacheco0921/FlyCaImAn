@@ -7,7 +7,15 @@ function [figH, axH] = min_int_proj(Y, iparams)
 % Args:
 %   Y: 3D matrix or a cell array of 3D matrices
 %   iparams: basic figure and axis parameters
-% 
+%       (figH: figure handle to reuse)
+%           (default, [], a new figure is made)
+%       (axH: 3 axes handles to reuse)
+%           (default, [], 3 subplots are made)
+%       (figpos: figure position)
+%           (default, [], centered 1306 x 443)
+%       (irange: [min max] intensity range for all 3 projections)
+%           (default, [], range of the first volume in Y)
+%
 % Returns:
 %   figH: figure handle
 %   axH: axes handle

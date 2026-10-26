@@ -14,6 +14,12 @@ function plot_stitch_results(wDat, ...
 %       (range: range of intensity to display)
 %       (refcha: reference channel (red channel == 1, green channel == 2))
 %       (axisratio: flag to use equal axis or not)
+%
+% Notes:
+% No return value: saves a figure (overlap of consecutive stacks, red =
+%   last plane of one stack, green = first plane of the next) and videos of
+%   the red and green mean volumes in oDir. Images are rescaled to the 1st
+%   to 99th percentile before plotting.
 
 % default params
 ip.range = [0 1];
@@ -49,9 +55,12 @@ end
 figH.Name = strrep(fname, '_', '-');
 
 for i = unique(stack_idx)'
-   
+
+    % the last stack has no following stack to compare with
+    if ~any(stack_idx == i + 1); continue; end
+
     try
-        
+
         % start and end of stacks to stitch
         if strcmp(wDat.vOrient, 'invert')
             idx_i = find(stack_idx == i, 1, 'first');
@@ -71,8 +80,9 @@ for i = unique(stack_idx)'
         imshow(C, 'Parent', axH(i))
         axH(i).Title.String = ['stack ', num2str(i)];
         
-    catch error
-        error
+    catch ME
+        warning('plot_stitch_results:plotFailed', ...
+            'Could not plot the overlap of stack %d in %s: %s', i, fname, ME.message)
     end
     
 end

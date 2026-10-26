@@ -25,6 +25,11 @@ function batch_LEDdenoise(FolderName, FileName, iparams)
 % 
 % Notes:
 % it generates iDat.LED and iDat.PMT_fscore
+% No return value: corrected Data is written back to *_rawdata.mat, and
+%   iDat, lStim, cDat (correction results) and hDat (red channel
+%   threshold fit) are appended to *_metadata.mat.
+% iparams.baseline (timepoints without light stimulation) is used for every
+%   file when given; otherwise it is estimated per file from sDat.silencePre.
 
 % Default params
 ledpars = [];
@@ -103,6 +108,10 @@ end
 
 File2Run = str2match(FileName, File2Run);
 File2Run = {File2Run.name};
+if isempty(File2Run)
+    warning('batch_LEDdenoise:noFiles', ...
+        'No *_rawdata.mat files matched in %s', pwd)
+end
 fprintf('Correcting LED bleed to green channel\n')
 qgate = 0;
 
@@ -142,10 +151,12 @@ for F2R_idx = 1:numel(File2Run)
             ChannelSplitter(dDim)
             
             % Identifying baseline stacks / frames
-            if isempty(ledpars.baseline) 
-                ledpars.baseline = baselinegenerator(iDat, sDat);
+            %   (kept in a per-file variable: storing it back in ledpars
+            %   would reuse the first file's baseline for all later files)
+            if isempty(ledpars.baseline)
+                baseline_i = baselinegenerator(iDat, sDat);
             else
-                ledpars.baseline
+                baseline_i = ledpars.baseline;
             end
             
             % Correcting green channel
@@ -161,24 +172,23 @@ for F2R_idx = 1:numel(File2Run)
                 
                 cDat.Iter = iter_i;
                 
-                if ledpars.iter == 1
-                    AxIDx = iter_i:ledpars.iter:ledpars.iter*3;
-                else
-                    AxIDx = iter_i:3:ledpars.iter*3;
-                end
-                
+                % axes of iteration iter_i: figuregenerator makes an
+                %   [iter x 3] grid, so the 3 axes of one iteration are
+                %   spaced 'iter' apart in linear (column-major) indexing
+                AxIDx = iter_i:ledpars.iter:ledpars.iter*3;
+
                 % it prunes pixels (reduces the heigth by 2 pixels)
-                [GreenCha, cDat, lStim] = LEDdenoiser(GreenCha, ledpars.baseline, ...
+                [GreenCha, cDat, lStim] = LEDdenoiser(GreenCha, baseline_i, ...
                     iDat, lStim, axH(AxIDx), cDat, ledpars.pgate);
                 
             end
             
             % Delete lStim.lStim2D field
-            lStim = rmfield(lStim, 'lStim2D');
-            
+            if isfield(lStim, 'lStim2D'); lStim = rmfield(lStim, 'lStim2D'); end
+
             % Do the same for RedCha (reduces the heigth by 2 pixels)
             RedCha = RedCha(1:end-2, :, :, :);
-            lStim = rmfield(lStim, 'pstEn');
+            if isfield(lStim, 'pstEn'); lStim = rmfield(lStim, 'pstEn'); end
             
             % Calculate mean image of green and red channel
             [iDat, cDat.redchaths, hDat, qgate] = ...
@@ -233,6 +243,10 @@ function iDat = deleteflybackframe(iDat, fDat)
 % Args:
 %   iDat: image related field
 %   fDat: file related field
+%
+% Returns:
+%   iDat: updated image metadata (FrameN, fstEn, mean images without the
+%       flyback plane); the global Data loses the flyback plane
 
 global Data
 
@@ -243,14 +257,14 @@ if ~isempty(strfind(fDat.DataType, '3DxT'))
         
         % old, Chop Data and update iDat
         z2del = size(Data, 3);
-        iDat = rmfield(iDat, 'sstEn');
-        
+        if isfield(iDat, 'sstEn'); iDat = rmfield(iDat, 'sstEn'); end
+
     else
-        
+
         % new, Chop Data and update iDat
         z2del = 1;
-        iDat = rmfield(iDat, 'sstEn');
-        
+        if isfield(iDat, 'sstEn'); iDat = rmfield(iDat, 'sstEn'); end
+
     end
     
     % update frame time / Data / RedChaMean
@@ -295,7 +309,14 @@ function [iDat, redchaths, hDat, qgate] = ...
 %   iDat: image related field
 %   sDat: stimuli related field
 %   fDat: file related field
-%   ledpars: stimuli related field
+%   ledpars: parameter structure of batch_LEDdenoise
+%
+% Returns:
+%   iDat: updated image metadata (PMT_fscore, RedChaMean, GreenChaMean)
+%   redchaths: red channel intensity threshold (fluorescence units) that
+%       separates volumes / frames with the PMT on from the ones with it off
+%   hDat: Gaussian fit of the distribution of max red fluorescence
+%   qgate: 1 if the file needs manual editing (nothing is saved), else 0
 %
 % Notes:
 % For the red channel, it estimates a intensity threshold based on
@@ -353,11 +374,14 @@ if ~isempty(strfind(sDat.stimFileName, 'Light'))
             else
                 
                 if ledpars.debug == 1
-                    
+
+                    % debug mode: show the fit and the debug script, then
+                    %   stop with an error (rerun with minput or edit manually)
                     edit LEDDebug;
                     fitgaussPlotter(hDat);
-                    keyboard;
-                    
+                    error('batch_LEDdenoise:redChaThreshold', ...
+                        'Red channel threshold needs manual editing (see LEDDebug.m)')
+
                 else
                     
                     fprintf('File needs manual editing');
@@ -472,8 +496,14 @@ function Baseline = baselinegenerator(iDat, sDat)
 % Args:
 %   iDat: image related field
 %   sDat: stimuli related field
+%
+% Returns:
+%   Baseline: row vector of timepoint indexes (stacks for volumes, frames
+%       for single planes) that precede the first light stimulus; the
+%       margins (4 and 2 stacks, or 10 frames at each end) keep away from
+%       the start of the recording and from the stimulus onset
 
-baselineTime = (sDat.silencePre/10^3)*sDat.fs; % from ms to timepoints
+baselineTime =(sDat.silencePre/10^3)*sDat.fs; % from ms to timepoints
 
 if iDat.FrameN > 1
     % if this is a volume & low temporal resolution (0.5-1 Hz)
@@ -497,7 +527,11 @@ function axH = figuregenerator(Iterations)
 %   axH = figuregenerator(Iterations)
 %
 % Args:
-%   Iterations: number of iteration for LED denoising
+%   Iterations: number of iteration for LED denoising (1 to 3)
+%
+% Returns:
+%   axH: [Iterations x 3] axes handles (one row per iteration: light
+%       triggered average, raw movie projection, corrected projection)
 
 if Iterations == 1
     figure('position', [248 752 1440 331])

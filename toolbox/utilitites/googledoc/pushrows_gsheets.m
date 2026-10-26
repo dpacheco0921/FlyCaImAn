@@ -13,9 +13,15 @@ function status = pushrows_gsheets(DOCID, GID, ...
 %   GID: value after 'gid=' in url - optional
 %   sheet_template: a nxm cell with a template
 %   sheet_edits: a nxm cell with edits to make to template
-%   columns2update: columnns to update
-%   row_idx: indeces of rows in DOCID to update
+%   columns2update: 2xK matrix; row 1 = columns of sheet_edits to copy,
+%       row 2 = columns of sheet_template to overwrite
+%   row_idx: indeces of rows in DOCID to update (one per row of
+%       sheet_template, same order)
 %   header_str: optional header update
+%
+% Returns:
+%   status: one row per updated sheet row, status from mat2sheets
+%       (0 = failed, 1 = success)
 
 % download sheets and assign them to variables
 

@@ -12,7 +12,7 @@ function figpos = genfigpos(monitor_id, ...
 %       (1, main screen, default)
 %       (2, secondary screen)
 %   screen_position: position of figure
-%       (center, NW, NE, SW, SE, [] (whole screen))
+%       ('center', 'nw', 'ne', 'sw', 'se' (lowercase), or other/[] for the whole screen)
 %       (default, 'center')
 %   figure_siz: figure size [width height]
 %       (default, [300 300])
@@ -35,6 +35,8 @@ end
 % get monitor position
 mon_pos = get(0, 'MonitorPositions');
 
+% on Windows, shrink the usable area (pixels) to leave room for the task bar
+%   and window borders, so figures are not placed partly off screen
 if ispc
    mon_pos(:, 1:2) = mon_pos(:, 1:2) + 60;
    mon_pos(:, 3) = mon_pos(:, 3) - 130;

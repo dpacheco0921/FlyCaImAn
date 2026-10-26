@@ -1,4 +1,4 @@
-%% demo for analysis of ball video only
+%% demo for analysis of ball video only (fictrac)
 %% 1) add paths
 % it assumes you have already add the repository folders to your path
 addpath(genpath(pwd))
@@ -49,4 +49,4 @@ batch_fictrac_perfile(FolderName, FileName, fictracpars)
 % 20200911_1_1_fictrac-raw_frames.avi
 % *.avi are for visualization and debugging
 % 20200911_1_1_vDat.mat
-% fictrac variables are saved as 'fictrac'
+% fictrac variables are saved as 'fictDat'

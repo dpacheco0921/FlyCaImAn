@@ -11,7 +11,6 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %   FileName: name of files to load
 %   iparams: parameters to update
 %       (cDir: current directory)
-%       (debug: debug flag)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
 %       (fsuffix: suffix of files to load)
@@ -21,10 +20,10 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, 0)
 %       (blowcap: fluorescence below which it is zerored)
 %           (default, 0)
-%       (fshift: shift distribution of F to the positive side)
-%           (default, 6)
+%       (fshift: shift distribution of F to the positive side, [red green])
+%           (default, [6 6])
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -41,7 +40,7 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %       (direction: used for iverting order of planes in the z axis, see notes)
 %           (default, 'invert')
 %       (phaseflag: flag for using phase correlation, use this when SNR is high)
-%           (default, 1)
+%           (default, 0)
 %       (planeshift: how to interpret the plane with highest correlation
 %           when stitching serially imaged stacks, this dependes on the
 %           resolution in z and the overlap between stacks)
@@ -61,9 +60,9 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, 0)
 %       %%%%%%%%%%%% plot stitching results %%%%%%%%%%%%
 %       (plot_stitch_flag: flag to plot results)
-%           (default, 0)
+%           (default, 1)
 %       (range: range of intensity to display)
-%           (default, [0 100])
+%           (default, [0 1])
 %       (refcha: reference channel (red channel == 1, green channel == 2))
 %           (default, 1)
 %       (oDir: target directory to save figures)
@@ -72,7 +71,12 @@ function batch_stitch_format_stacks_a(FolderName, FileName, iparams)
 %           (default, [])
 %
 % Notes:
-% How to orient consecutive planes and stacks 
+% No return value: per fly it saves *_prosmetadata.mat (wDat with the
+%   stitching shifts in pixels, shifts_pr, stack2rem) and, if
+%   plot_stitch_flag, figures / videos in oDir. Parameters not listed above
+%   are silently ignored (see loparam_updater). debug_flag lists stack
+%   numbers at which the code stops in the debugger (keyboard).
+% How to orient consecutive planes and stacks
 %   (particularly to match brain atlas orientation: 
 %       anterior-posterior (central brain) or ventral-dorsal (VNC))
 %   Imaging from the central brain posterior
@@ -158,8 +162,12 @@ function runperfolder(fname, cspfa)
     rdir_namesplit(fname, '.mat', ...
     cspfa.fsuffix, cspfa.fi2reject, [], 1);
 f2plot = unique(f2plot);
+if isempty(f2plot)
+    warning('batch_stitch_format_stacks_a:noFiles', ...
+        'No *%s.mat files matched in %s', cspfa.fsuffix, pwd)
+end
 
-fprintf(['Compiling stacks from ', ...
+fprintf(['Compiling stacks from ',...
     num2str(numel(f2plot)), ' flies\n'])
 
 for file_i = 1:numel(f2plot)
@@ -188,7 +196,9 @@ for file_i = 1:numel(f2plot)
     if numel(filename) == 1
         fcompiler(filename{1}, repnum, cspfa);
     else
-        fprintf('error')
+        warning('batch_stitch_format_stacks_a:nameMatch', ...
+            'Expected one file name for %s but found %d, skipping', ...
+            f2plot{file_i}, numel(filename))
     end
     
     fprintf('\n')
@@ -238,13 +248,14 @@ for rep_i = 1:numel(reps)
         local(rep_i).GreenChaMean = iDat.GreenChaMean;        
     end
     
-    % remove edges
+    % remove edges (10 pixels each side: edges are often NaN after motion
+    %   correction and would bias the stack-to-stack similarity)
     pix2rm = 10;
     local(rep_i).RedChaMean = ...
         local(rep_i).RedChaMean(pix2rm:end-pix2rm, ...
         pix2rm:end-pix2rm, :);
     local(rep_i).GreenChaMean = ...
-        local(rep_i).RedChaMean(pix2rm:end-pix2rm, ...
+        local(rep_i).GreenChaMean(pix2rm:end-pix2rm, ...
         pix2rm:end-pix2rm, :);
     
     frame_siz = size(local(rep_i).RedChaMean);
@@ -289,7 +300,8 @@ for rep_i = 1:numel(reps)
         fPlane(rep_i) = fPlane(rep_i) - 1;
         
         if fPlane(rep_i) == 0
-            keyboard;
+            error('batch_stitch_format_stacks_a:emptyStack', ...
+                'Stack %s_%d has only NaN planes', fname, reps(rep_i))
         end
         
     end
@@ -320,7 +332,8 @@ for rep_i = 1:numel(reps)
         while sum(sum(isnan(local(rep_i).RedChaMean(:, :, zshift)), 2), 1) == frame_siz
             zshift = zshift + 1;
             if zshift == (size(local(rep_i).RedChaMean, 3) + 1)
-                keyboard;
+                error('batch_stitch_format_stacks_a:emptyStack', ...
+                    'Stack %s_%d has only NaN planes', fname, reps(rep_i))
             end
         end
         
@@ -538,8 +551,10 @@ for rep_i = 1:numel(reps)
             lStim, cDat, mcDat, vidDat, [fname, '_', ...
             num2str(reps(rep_i))], ...
             rep_i, reps, shifts_align, zlength);
-    catch
-        keyboard
+    catch ME
+        % add the file name to the error and stop
+        error('batch_stitch_format_stacks_a:getStimInfo', ...
+            'getStimInfo failed for %s_%d: %s', fname, reps(rep_i), ME.message)
     end
     
     clear shifts_align zlength
@@ -560,19 +575,20 @@ wDat.fSize = [size(wDat.RedChaMean, 1), size(wDat.RedChaMean, 2)];
 wDat.vSize = [wDat.fSize, size(wDat.RedChaMean, 3)];
 wDat.vOrient = cspfa.direction;
 
-if cspfa.plot_flag
-    
+% a single stack has nothing to stitch, so there are no shifts
+if ~exist('shifts_pr', 'var')
+    shifts_pr = [];
+end
+
+if cspfa.plot_flag && ~isempty(shifts_pr)
+
     fHandle = plot_NoRMCorr_shitfs(3, [], [], [], shifts_pr);
     fHandle.Name = [strrep(fname, '_', ' '), ' shifts'];
-    
+
 end
 
 % save stack to be removed per folder
 stack2rem = cspfa.stack2rem;
-
-if ~exist('shifts_pr', 'var')
-    shifts_pr = [];
-end
 
 save([fname, '_prosmetadata.mat'], 'wDat', 'shifts_pr', 'stack2rem');
 

@@ -38,22 +38,26 @@ pruneNaNs(obj) % prune trees with consecutive Nans
 
 f2use = 1; norm_step = 5; imatrix = 1; max_dist = 40; verbose = 0; i_buffer = 5; neigh_dist = 3;
 
+% (these steps now use the to_* functions, which do not depend on obj;
+%  pick the XYZ field with to_pick_xyz_object(obj, idx, imatrix))
 % i) get intersecting planes to selected tree
-[ref_point, ref_normal] = get_point_normal(obj, f2use, norm_step, imatrix);
+iObj_ref = to_pick_xyz_object(obj, f2use, imatrix);
+iObj_float = to_pick_xyz_object(obj, [], imatrix);
+[ref_point, ref_normal] = to_get_point_normal(iObj_ref, norm_step);
 
-% get_point_normal(obj, f2use, norm_step, imatrix)
+% to_get_point_normal(iObject, norm_step)
 % ii) get coordinates and idx of points where planes intersect each treeS
-[i_idx, i_coord] = get_intersects(obj, ref_point, ref_normal, max_dist, imatrix, verbose);
+[i_idx, i_coord] = to_get_planeintersects(iObj_float, ref_point, ref_normal, max_dist, verbose);
 
-%get_intersects(obj, i_point, i_normal, max_dist, imatrix, verbose)
+% to_get_planeintersects(iObject, ref_point, ref_normal, max_dist, verbose)
 % compute avg norm and recalculate intersections
-[sel_idx, sel_coord, sel_point, sel_norm] = get_avg_norm(obj, ref_point, ref_normal, i_idx, i_coord, max_dist, i_buffer, neigh_dist, imatrix);
+[sel_idx, sel_coord, sel_point, sel_norm] = to_get_avg_norm(iObj_float, ref_point, ref_normal, i_idx, i_coord, max_dist, i_buffer, neigh_dist);
 
-% get_avg_norm(obj, ref_point, ref_normal, intersect_idx, intersect_coord, max_dist, i_buffer, neigh_dist, imatrix) 
+% to_get_avg_norm(float_trees, ref_point, ref_normal, intersect_idx, intersect_coord, max_dist, i_buffer, neigh_dist)
 % compute jitter
-[axis_jitter, distance_jitter] = get_xyz_jitter(obj, sel_coord);
+[axis_jitter, distance_jitter] = to_get_xyz_jitter(sel_coord);
 
-% get_xyz_jitter(obj, i_coord)
+% to_get_xyz_jitter(i_coord, i_centroid)
 % batch 
 [axis_jitter, distance_jitter] = ...
                 get_jitter_from_treegroup(obj, f2use, norm_step, max_dist, neigh_dist, i_buffer, imatrix, verbose);
@@ -81,7 +85,7 @@ xy_range = [-r_ r_ -r_ r_];
 
 % plotorthoplanes_3D(obj, f2use, i_point, i_normal, xy_range, i_delta, imatrix, i_sel, p_colorvect, t_colorvect)
 % ** iv) plot tree points closest to intersection
-i_xyz = plotintersect_3D(obj, i_idx(i_sel, :), 1);
+i_xyz = to_plot_point_3D(obj, i_idx(i_sel, :), 1);
 
 % ** v) plot tree-plane intersections
 i_coord2plot = squeeze(i_coord(i_sel, :, :))';
@@ -103,5 +107,5 @@ end
 axHandle.XTickMode = 'manual';
 axHandle.XTick = [-25:5:25];
 xlim(axHandle, [-25 25]);
-figEdit(axHandle, figHandle, 0)
+figEdit(axHandle, figHandle, 'w')
 set(axHandle, 'FontSize', 15);

@@ -3,6 +3,10 @@ function S = h5att2struct(filename, location)
 % Usage:
 %   S = h5att2struct(filename, location)
 %
+% Args:
+%   filename: path to the HDF5 file
+%   location: group or dataset path holding the attributes (default, '/')
+%
 % Returns:
 %   S: structure with fields corresponding to the attribute names, or empty
 %      if no attributes are found

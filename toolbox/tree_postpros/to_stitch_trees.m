@@ -6,7 +6,12 @@ function tree = to_stitch_trees(tree)
 %   tree = to_stitch_trees(tree)
 %
 % Args:
-%   tree: tree
+%   tree: structure array (or cell) of disconnected trees
+%
+% Returns:
+%   tree: one tree made of all pieces, joined at the shortest distance
+%       between each piece's root and the other pieces (also draws the
+%       stitching steps in a new figure)
 %
 % Notes: see cat_tree
 

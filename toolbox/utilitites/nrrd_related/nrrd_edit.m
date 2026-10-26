@@ -5,8 +5,8 @@ function nrrd_edit(FolderName, FileName, iparams)
 %   nrrd_edit(FolderName, FileName, iparams)
 %
 % Args:
-%   FolderName: nrrd metadata as output from nrrdread.m
-%   FolderName: nrrd metadata as output from nrrdread.m
+%   FolderName: only files whose folder path contains this text (default, all)
+%   FileName: only files whose name contains this text (default, all)
 %   iparams: parameters to update
 %       (XYZres: pixel resolution ('x y z', 'width height depth'))
 %           (default, [])
@@ -18,8 +18,8 @@ function nrrd_edit(FolderName, FileName, iparams)
 %           (default, [])
 %       (cuboid2erode: creates a 3-D cuboidal structuring element of size [m n p])
 %           (default, [])
-%       (medfilt: median filter)
-%           (default, [3 3 1])
+%       (medfilt: median filter size, e.g. [3 3 1])
+%           (default, [], no filtering)
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (flip_axis: axis to flip)
@@ -27,7 +27,11 @@ function nrrd_edit(FolderName, FileName, iparams)
 %       (save_mirror: save also mirror image on selected axis)
 %           (default, [0 0 0], 'height witdh depth')
 %       (save_mirror_str: string to replace for naming mirror image)
-%           (default, {'w', 'mw'}, 'height witdh depth')
+%           (default, {'w', 'ymw'; 'w', 'xmw'; 'w', 'zmw'}, one row per axis;
+%           the first text is replaced by the second in the FILE NAME)
+%
+% Note: files are OVERWRITTEN in place (a mirror image, if requested, is saved
+%   under the replaced name); there is no output argument.
 
 if ~exist('FileName','var')
     FileName = [];
@@ -115,7 +119,7 @@ function editnrrd(filename, ipars)
 %       (cuboid2erode:  creates a 3-D cuboidal structuring element of size [m n p])
 %           (default, [])
 %       (medfilt: median filter)
-%           (default, [3 3 1])
+%           (default, [], no filtering)
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (flip_axis: axis to flip)
@@ -123,7 +127,7 @@ function editnrrd(filename, ipars)
 %       (save_mirror: save also mirror image on selected axis)
 %           (default, [0 0 0], 'height witdh depth')
 %       (save_mirror_str: string to replace for naming mirror image)
-%           (default, {'w', 'mw'}, 'height witdh depth')
+%           (default, {'w', 'ymw'; 'w', 'xmw'; 'w', 'zmw'})
 
 % load image
 [Data, meta] = nrrdread(filename);
@@ -166,10 +170,12 @@ switch numtype
 
     case 'uint16'
 
+        % note: scale flag 1 only rescales data already in a 0-1 range; other data is cast as is (values above 65535 saturate)
         Data = mat2uint16(Data, 1);
 
     case 'uint8'
 
+        % note: scale flag 1 only rescales data already in a 0-1 range; other data is cast as is (values above 255 saturate)
         Data = mat2uint8(Data, 1);
 
 end
@@ -225,7 +231,17 @@ for i = 1:3
     if ipars.save_mirror(i)
         
         Data_m = flip(Data, i);
-        nrrdWriter(strrep(filename, ipars.save_mirror_str{i, 1}, ipars.save_mirror_str{i, 2}), ...
+        
+        % rename only the file name (not folders), and refuse to overwrite the
+        % original if the replacement text is not found in the name
+        [fdir_, fname_, fext_] = fileparts(filename);
+        fname_m_ = strrep(fname_, ipars.save_mirror_str{i, 1}, ipars.save_mirror_str{i, 2});
+        if strcmp(fname_m_, fname_)
+            error('nrrd_edit: "%s" not found in file name %s, mirror would overwrite it', ...
+                ipars.save_mirror_str{i, 1}, fname_);
+        end
+        
+        nrrdWriter(fullfile(fdir_, [fname_m_, fext_]), ...
             Data_m, ipars.XYZres, [0 0 0], compressiontype);
         
     end

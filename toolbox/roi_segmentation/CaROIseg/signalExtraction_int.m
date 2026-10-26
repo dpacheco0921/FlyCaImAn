@@ -3,8 +3,8 @@ function [inferred, filtered, raw, filtered_, raw_] = ...
 % signalExtraction_int: extract the signal after CNMF is ran 
 %
 % Usage:
-% 	[inferred, filtered, raw] = ...
-%   	signalExtraction(Y, Y_, A, C, b, f, d1, d2, extractControl)
+% 	[inferred, filtered, raw, filtered_, raw_] = ...
+%   	signalExtraction_int(Y, Y_, A, C, b, f, d1, d2, d3, iparams)
 %
 % inputs: 
 %         Y raw data (d X T matrix, d # number of pixels, T # of timesteps)
@@ -16,10 +16,12 @@ function [inferred, filtered, raw, filtered_, raw_] = ...
 %         d1 dimension 1 
 %         d2 dimension 2 
 %         d3 dimension 3 
-%         extractControl.baselineRatio: residue baseline of signals from CNMF (default:0.25)
-%               set to 0 to ignore this residue baseline 
-%         extractControl.thr: energy fraction included in the raw signal contour (default:0.99)
-% 
+%         iparams: structure that overrides the defaults set below
+%               (dtype, sr (Hz), lfreq (Hz), d_prct, d_window, d_shift
+%               (time points), medw, nrgthr (energy fraction included in
+%               the raw signal contour, default 0.99), clos_op,
+%               df_window, df_prctile, se_parallel)
+%
 % outputs:
 %   inferred: spatial weighting on the ROI pixels, unmixing, background substraction, and denoising
 %   filtered: spatial weighting on the ROI pixels, unmixing, background substraction
@@ -31,10 +33,11 @@ function [inferred, filtered, raw, filtered_, raw_] = ...
 %       background substraction for additional channel (Y_)
 %   
 %   Each variable has these fields:
-%       df: df signal
-%       F: baseline
-%       dfof: dfof
+%       df: df signal (ROIs x time, fluorescence a.u.)
+%       F: baseline (ROIs x time, fluorescence a.u.)
+%       dfof: df relative to the baseline (ROIs x time, unitless)
 %       CR: information of the cell contour used in raw signal calculation
+%       (filtered_ and raw_ are empty when Y_ is empty)
 %
 % Notes:
 %   edited from signalExtraction (Author: Eftychios A. Pnevmatikakis, and Weijian Yang)

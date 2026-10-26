@@ -18,19 +18,20 @@ function batch_stitch_format_stacks_b(FolderName, FileName, iparams)
 %       (cDir: current directory)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
-%       (fsuffix: suffix of files to load)
+%       (fisuffix: suffix of files to load)
 %           (default, '_rawdata')
-%       (oDir: temporary folder to copy data to)
-%           (default, [])
+%       (oDir: folder where *_prosdata.mat, *_prosref.mat and a copy of
+%           the metadata are saved)
+%           (default, [], which means the local folder '.')
 %       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
 %       (bkgate: flag for background substraction)
 %           (default, 0)
 %       (blowcap: fluorescence below which it is zerored)
 %           (default, 0)
-%       (fshift: shift distribution of F to the positive side)
-%           (default, 6)
+%       (fshift: shift distribution of F to the positive side, [red green])
+%           (default, [6 6])
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -41,6 +42,11 @@ function batch_stitch_format_stacks_b(FolderName, FileName, iparams)
 %           (default, 'invert')
 %       (stack2rem: entire stacks to ignore)
 %           (default, [])
+%
+% Notes:
+% No return value: writes *_prosdata.mat (green, variables Y and Yr),
+%   *_prosref.mat (red, Yr) and updates wDat in *_prosmetadata.mat.
+%   Parameters not listed above are silently ignored (see loparam_updater).
 
 cspfb = [];
 cspfb.cDir = pwd;
@@ -145,7 +151,9 @@ for file_i = 1:numel(f2plot)
     if numel(filename) == 1
         fcompiler(filename{1}, repnum, cspfb);
     else
-        fprintf('error')
+        warning('batch_stitch_format_stacks_b:nameMatch', ...
+            'Expected one file name for %s but found %d, skipping', ...
+            f2plot{file_i}, numel(filename))
     end
     
 end
@@ -161,7 +169,7 @@ function fcompiler(fname, reps, cspfb)
 % Args:
 %   fname: file name
 %   reps: all repetitions to use
-%   cspfa: parameter variable
+%   cspfb: parameter variable
 
 % write a memmap variable
 % green channel
@@ -212,6 +220,7 @@ end
 
 % Compile stacks
 z_i = 0; p_i = 0; k_i = 1;
+lmin = [];  % minimum fluorescence per stack
 
 for rep_i = 1:numel(reps)
     
@@ -383,6 +392,10 @@ if ~isempty(strfind(wDat.bSide, 'R'))
 end
 
 % final editing of variables
+if isempty(lmin)
+    error('batch_stitch_format_stacks_b:noData', ...
+        'No data was compiled for %s (all stacks empty?)', fname)
+end
 dataObj.nY = min(lmin);
 dataObj.sizY = [wDat.vSize, wDat.Tn];
 
@@ -400,13 +413,24 @@ wDat.cspf = 1;
 save([fname, '_prosmetadata.mat'], 'wDat', '-append');
 
 % copying metadata in target folder
-if ~strcmpi(pwd, cspfb.oDir)
+%   (skipped when the target is the local folder, '.' by default: saving
+%   here without '-append' would erase shifts_pr and stack2rem from the file)
+if ~strcmp(cspfb.oDir, '.') && ~strcmpi(pwd, cspfb.oDir)
     save([cspfb.oDir, filesep, fname, '_prosmetadata.mat'], 'wDat');
 end
 
 end
 
 function shift_out = resize_shifts(shift_in, tDim)
+% resize_shifts: repeat one shifts structure for every timepoint, so the
+%   same stitching shift is applied to each volume of the recording
+%
+% Args:
+%   shift_in: NoRMCorre shifts structure (one frame)
+%   tDim: number of timepoints
+%
+% Returns:
+%   shift_out: structure array [1 x tDim] with copies of shift_in
 
 shift_out(1:tDim) = shift_in;
 
@@ -419,8 +443,11 @@ function fmed = stacktrend(Y, mask)
 %   stacktrend(fname)
 %
 % Args:
-%   Y: 3DxT image
-%   mask: 3D mask
+%   Y: 3DxT image [height width planes time]
+%   mask: 3D mask (same height, width, planes as Y)
+%
+% Returns:
+%   fmed: median fluorescence over masked pixels, [1 x time]
 
 dDim = size(Y);
 mask = mask(:);

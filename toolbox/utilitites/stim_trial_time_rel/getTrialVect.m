@@ -1,10 +1,11 @@
 function [trialvect, trial_init, trial_end] = ...
     getTrialVect(wDat, stim2merge, customtrial_init, ...
     customtrial_end, trials2use)
-% getTrialVect: generates a binary vector of the stimuli
+% getTrialVect: generates a trial-index vector (in imaging time resolution)
+%   numbering the trials (1, 2, 3...) of the selected stimuli, 0 elsewhere
 %
 % Usage:
-%   [trialvect, trial_init] = ...
+%   [trialvect, trial_init, trial_end] = ...
 %       getTrialVect(wDat, stim2merge, customtrial_init, ...
 %      customtrial_end, trials2use)
 %
@@ -15,7 +16,13 @@ function [trialvect, trial_init, trial_end] = ...
 %       start to count trial start (seconds) abs number
 %   customtrial_end: number of seconds after stimuli
 %       end to count trial end (seconds) abs number
-%   trials2use: which trials to use
+%   trials2use: which trial numbers to keep (default, all)
+%   (customtrial_init, customtrial_end and trials2use are optional)
+%
+% Returns:
+%   trialvect: 1 x numel(wDat.fTime), trial number during the trials of the
+%       stimuli in stim2merge (stim indices as in sPars unique name+intensity), 0 elsewhere
+%   trial_init, trial_end: n x 1 frame indices of trial start and end (all trials)
 %
 % Notes:
 % Use wDat.sTime, wDat.fTime, wDat.sPars.basPre, 

@@ -5,12 +5,11 @@ function wDat = getStimInfo(wDat, iDat, ...
 %   parameters into wDat structure
 %
 % Usage:
-%   Dat = getStimInfo(wDat, iDat, ...
+%   wDat = getStimInfo(wDat, iDat, ...
 %    fDat, lStim, cDat, mcDat, vidDat, fname, ...
 %    rep_i, reps, shifts_align, zlength)
 %
 % Args:
-%   filename: file name
 %   wDat: main metadata structure
 %   iDat: image metadata structure
 %   fDat: file name metadata structure
@@ -18,14 +17,21 @@ function wDat = getStimInfo(wDat, iDat, ...
 %   cDat: LED correction metadata structure
 %   mcDat: motion correction metadata structure
 %   vidDat: video metadata structure
-%   fname: file name
+%   fname: file name without suffix or extension (used to find
+%       '<fname>_vDat.mat' when lStim lacks stimulus parameters)
 %   rep_i: rep index
-%   reps: total number of reps
+%   reps: vector with the rep numbers (its length is the number of reps)
 %   shifts_align: stitch shifts
-%   zlength: index of planes
+%   zlength: number of planes of this rep
+%
+% Returns:
+%   wDat: input wDat with the fields of rep 'rep_i' filled in (stimulus
+%       trace and parameters, motion correction shifts, video
+%       timestamps, stitching info, background and laser power).
+%       Stimulus pre/post silence is returned in seconds.
 %
 % Notes:
-% Input lStim.basPre and lStim.basPro are in ms, 
+% Input lStim.basPre and lStim.basPost are in ms,
 %   so it applies the right scaling (unit_cor_factor)
 
 % initial unit is ms, final unit is seconds
@@ -198,6 +204,12 @@ if isfield(iDat, 'PMT_fscore')
     wDat.PMT_fscore(rep_i, :) = iDat.PMT_fscore;
 end
 
-wDat.power(rep_i, 1) = iDat.Power;
+% laser power can be empty (old scanimage tiffs) or have one value per
+%   beam, keep a single number so the assignment does not fail
+if isempty(iDat.Power)
+    wDat.power(rep_i, 1) = NaN;
+else
+    wDat.power(rep_i, 1) = iDat.Power(1);
+end
 
 end

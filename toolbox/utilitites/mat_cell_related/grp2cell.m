@@ -15,7 +15,11 @@ function [C, grps, G] = grp2cell(X, G, dim)
 % Returns:
 %   C: cell array with as many cells as unique elements in G
 %   grps: values in G that correspond to the grouping in C
+%   G: grouping vector actually used (differs from the input only when the
+%       input is a scalar group size)
 %
+% Note: a scalar G is a group SIZE (like chunk2cell); it overrides dim with the
+%   first non-singleton dimension of X.%
 % Example:
 %   >> C = grp2cell(X,G,dim);
 %   >> isequal(cellcat(C, dim), X)

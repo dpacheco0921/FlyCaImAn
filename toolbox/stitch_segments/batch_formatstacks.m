@@ -36,8 +36,8 @@ function batch_formatstacks(FolderName, FileName, iparams)
 %           (default, 0)
 %       (blowcap: fluorescence below which it is zerored)
 %           (default, 0)
-%       (fshift: shift distribution of F to the positive side)
-%           (default, 6)
+%       (fshift: shift distribution of F to the positive side, [red green])
+%           (default, [6 6])
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
 %       (serId: server id)
 %           (default, 'int')
@@ -45,6 +45,10 @@ function batch_formatstacks(FolderName, FileName, iparams)
 %           (default, 4)
 %
 % Notes:
+% No return value: *_rawdata.mat (green) and *_refdata.mat (red) are
+%   rewritten with variables Y (4D/3D) and/or Yr (2D pixels x time), and
+%   wDat in *_metadata.mat is updated. Parameters not listed above are
+%   silently ignored (see loparam_updater).
 
 % default params
 cspf = [];
@@ -127,6 +131,10 @@ function runperfolder(fname, cspf)
 [f2plot, ~, rep2plot] = rdir_namesplit(...
     fname, '.mat', cspf.fisuffix, ...
     cspf.fi2reject, [], 1);
+if isempty(f2plot)
+    warning('batch_formatstacks:noFiles', ...
+        'No *%s.mat files matched in %s', cspf.fisuffix, pwd)
+end
 fprintf('Reformatting stacks from');
 
 if cspf.idp_run_flag == 1
@@ -169,7 +177,9 @@ for file_i = 1:numel(f2plot)
             fcompiler([filename{1}, '_', num2str(repnum(rep_i))], cspf);
             
         else
-            fprintf('error')
+            warning('batch_formatstacks:nameMatch', ...
+                'Expected one file name for %s but found %d, skipping', ...
+                f2plot{file_i}, numel(filename))
         end
         
     end
@@ -234,6 +244,7 @@ if ~contains([vList.name], 'Y')
         cspf.patch_overlap);
     
     % saves Y and Yr
+    %   (the red channel is optional, so a failure only gives a warning)
     try
         wDat_red = savedata_per_cha(fname, 'red', wDat_red, ...
             cspf.red_field2save, ...
@@ -241,6 +252,9 @@ if ~contains([vList.name], 'Y')
             cspf.blowcap, cspf.patch_z_size, ...
             cspf.patch_overlap);
        wDat.RedTrend = wDat_red.RedTrend;
+    catch ME
+        warning('batch_formatstacks:redChannel', ...
+            'Red channel of %s was not formatted: %s', fname, ME.message)
     end
     
 end
@@ -290,11 +304,15 @@ if ~isempty(cspf.oDir)
         [cspf.oDir, filesep, fname, '_rawdata.mat']);
     fprintf([num2str(toc(tinit_i)), ' seconds\n'])
     
+    % the red channel file is optional
     try
         tinit_i = tic;
         copyfile([fname, '_refdata.mat'], ...
             [cspf.oDir, filesep, fname, '_refdata.mat']);
         fprintf([num2str(toc(tinit_i)), ' seconds\n'])
+    catch ME
+        warning('batch_formatstacks:copyRefdata', ...
+            'Could not copy %s_refdata.mat: %s', fname, ME.message)
     end
     
 end
@@ -329,6 +347,11 @@ function wDat = savedata_per_cha(fname, ...
 %       (default, [10])
 %   patch_overlap: overlap across patches
 %       (default, [0 0 0])
+%
+% Returns:
+%   wDat: updated metadata (plane2keep, pruned mean images, fSize, vSize
+%       in pixels, and GreenTrend / RedTrend: median fluorescence over
+%       time per patch)
 
 % generate patches
 if wDat.vSize(3) > 1
@@ -428,12 +451,11 @@ z_i = 0;
 p_i = 0;
 minval = zeros(numel(patches_), 1);
 
-if wDat.vSize(3) > 1
-    if strcmp(wDat.vOrient, 'invert')
-        patches_i = sort(1:numel(patches_), 'descend');
-    else
-        patches_i = sort(1:numel(patches_), 'ascend');
-    end
+% order in which patches are read (reversed Z order for inverted stacks);
+%   2D data has a single patch
+patches_i = 1:numel(patches_);
+if wDat.vSize(3) > 1 && strcmp(wDat.vOrient, 'invert')
+    patches_i = sort(1:numel(patches_), 'descend');
 end
 
 for i = 1:numel(patches_)
@@ -550,6 +572,12 @@ function [Y, trend_over_time, minval] = ...
 %   blowcap: fluorescence below which it is zerored
 %   	(default, 0)
 %   cha2use: channel to use (green = *_rawdata or red = *_refdata)
+%
+% Returns:
+%   Y: formatted patch [height width planes time]
+%   trend_over_time: median fluorescence over time inside the brain mask
+%       [1 x time], before the shift / blowcap edits
+%   minval: minimum fluorescence of Y after the edits
 
 z_idx = patches_(5):patches_(6);
 
@@ -608,8 +636,10 @@ end
 
 % background substract F
 if bkgate_
-    if cha2use == 1
-        Y = Y - wDat.bs(end); 
+    % bs holds the background of [red ... green]: red = first, green = last
+    %   (cha2use is a string, so it cannot be compared with 1)
+    if contains(cha2use, 'green')
+        Y = Y - wDat.bs(end);
     else
         Y = Y - wDat.bs(1);
     end
@@ -632,6 +662,9 @@ function fmed = stacktrend(Y, mask)
 % Args:
 %   Y: 3D or 2D stack
 %   mask: mask that defines pixels to use
+%
+% Returns:
+%   fmed: median fluorescence over pixels in the mask, [1 x time]
 
 dDim = size(Y);
 mask = mask(:);

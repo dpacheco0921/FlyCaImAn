@@ -2,12 +2,17 @@ function iObject = to_mirror_axis(iObject, axis2flip, boundingbox)
 % to_mirror_axis: mirror iObject (xyz coordinates within it)
 %
 % Usage:
-%   to_mirror_axis(iObject, flip_axis, boundingbox)
+%   iObject = to_mirror_axis(iObject, axis2flip, boundingbox)
 %
 % Args:
-%   iObject: tree obj
-%   axis2flip: axis to flip
-%   boundingbox: bounding box
+%   iObject: tree obj, cell/struct array of trees, or xyz matrix
+%   axis2flip: axis (or cell of axes) to flip: 'X', 'Y' and/or 'Z'
+%   boundingbox: [2 by 3] atlas bounding box [min; max] in um (see
+%       to_collect_atlas_info)
+%
+% Returns:
+%   iObject: same type as the input, with the selected axes mirrored
+%       within the bounding box
 
 if ~iscell(axis2flip)
     axis2flip = {axis2flip};
@@ -71,8 +76,11 @@ function iObject = mirror_funct(...
 %
 % Args:
 %   iObject: tree obj
-%   axis2flip: axis to flip
-%   boundingbox: bounding box
+%   axis2flip: [1 by 3] multiplier per axis (-1 flips, 1 keeps)
+%   boundingbox: [2 by 3] bounding box (zeros for axes that are not flipped)
+%
+% Returns:
+%   iObject: input with mirrored XYZ
 
 % make it compatible with any input type (need to update tree)
 xyz = getObj_xyz(iObject);

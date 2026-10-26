@@ -7,9 +7,15 @@ function Out = shifts_editor(shifts_i, edit2use, ishifts, idiff)
 % Args:
 %   shifts_i: input shifts structure
 %   edit2use: command to read or write
-%   ishifts: input shifts as vector to replace structure
-%   idiff: 
-% 
+%   ishifts: input shifts as matrix [time x axes] (pixels) to replace the
+%       rigid shifts in the structure (only used by 'write_r')
+%   idiff: optional new 'diff' values, one per timepoint (only 'write_r')
+%
+% Returns:
+%   Out: for 'read', shifts in pixels as [time x axes] (rigid, rows = Y, X, Z)
+%       or a cell with one [time x patches] matrix per axis (non-rigid);
+%       for 'write_r', the input structure with the shifts replaced.
+%
 % Notes:
 %   beware shifts is a struct with fields: 'shifts', 'shifts_up' and 'diff'
 %       for a linear or cubic interpolation (using apply_shifts) you only need 'shifts'

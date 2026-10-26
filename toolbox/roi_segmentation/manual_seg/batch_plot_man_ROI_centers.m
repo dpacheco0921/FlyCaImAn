@@ -1,13 +1,23 @@
 function batch_plot_man_ROI_centers(Filename)
-% batch_plot_man_ROI_centers: tool to display 3D matrices, 
-%   Y could be a 3D matrix or a flatten arragement of a 3D matrix
+% batch_plot_man_ROI_centers: make videos (one frame per z plane) of the
+%   mean image with the manually picked ROI centers and numbers
+%   (wDat.manROI) overlaid, and a second video with the centers read back
+%   from wDat.ROI_center_matrix, to check both match
 %
 % Usage:
-%   slice3Dmatrix(Y, iparams)
+%   batch_plot_man_ROI_centers(Filename)
 %
 % Args:
-%   Filename: files to load
-%   iparams: parameters to update
+%   Filename: name pattern of the files to load
+%       (default, [], all *_prosmetadata.mat files in the current folder)
+%
+% Returns:
+%   nothing, it saves <name>_0.avi (picked centers) and <name>_1.avi
+%   (centers from ROI_center_matrix) in [pwd, filesep, 'man_roi']
+%
+% Notes:
+%   other settings are in the local structure 'pi' (note: it shadows the
+%   constant pi inside this function)
 
 
 % default params
@@ -94,8 +104,11 @@ for z = 1:size(im2use, 3)
     try
         plot_plane(im2use(:, :, z), wDat.manROI, figH, axH, z, pi)
         writeVideo(vHandle, getframe(axH));
-    catch
-        keyboard
+    catch ME
+        % do not stop in the debugger (hangs unattended runs), report where
+        warning('batch_plot_man_ROI_centers: plane %d of %s failed (%s)', ...
+            z, filename, ME.message)
+        rethrow(ME)
     end
 end
 
@@ -119,8 +132,11 @@ for z = 1:size(im2use, 3)
     try
         plot_plane(im2use(:, :, z), wDat.manROI, figH, axH, z, pi)
         writeVideo(vHandle, getframe(axH));
-    catch
-        keyboard
+    catch ME
+        % do not stop in the debugger (hangs unattended runs), report where
+        warning('batch_plot_man_ROI_centers: plane %d of %s failed (%s)', ...
+            z, filename, ME.message)
+        rethrow(ME)
     end
 end
 

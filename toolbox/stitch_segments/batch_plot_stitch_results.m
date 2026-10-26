@@ -7,10 +7,10 @@ function batch_plot_stitch_results(Filename, oDir, iparams)
 % Args:
 %   Filename: name pattern of files to use
 %       (default, [])
-%   oDir: output directory.
+%   oDir: output directory (default, a folder 'stitch' in the current folder)
 %   iparams: parameters to update
 %       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
 %       (range: range for plotting)
 %           (default, [0 1])
 %       (refcha: reference channel to use for plotting overlay)
@@ -33,7 +33,7 @@ if ~exist('Filename', 'var')
     Filename = [];
 end
 
-if isempty(oDir)
+if ~exist('oDir', 'var') || isempty(oDir)
     oDir = [pwd, filesep, 'stitch'];
 end
 
@@ -68,7 +68,12 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating plots for ', ...
+if isempty(filename)
+    warning('batch_plot_stitch_results:noFiles', ...
+        'No *%s files matched in %s', metpars.fmetsuffix, pwd)
+end
+
+fprintf(['Generating plots for ',...
     num2str(numel(filename)), ' files\n'])
 
 % plot stitch results

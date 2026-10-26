@@ -7,6 +7,17 @@ function [frames, numFrames] = h5readframes(filepath, dataset, idx)
 %   frames = h5readframes(filepath, dataset, idx)
 %   [frames, numFrames] = h5readframes(_)
 %
+% Args:
+%   filepath: path to the HDF5 file
+%   dataset: path to the dataset (default, '/video/data'; '/fg' or '/box'
+%       if filepath contains 'fg.h5' or 'box')
+%   idx: frame numbers to read (1-based, last dimension; default, all).
+%       Should be in ascending order
+%
+% Returns:
+%   frames: array of frames, frames along the last dimension
+%   numFrames: number of frames read
+%
 % See also: h5att2struct, h5struct2att, h5size
 
 if nargin < 2; dataset = []; end

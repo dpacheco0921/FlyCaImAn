@@ -5,18 +5,23 @@ function [DataNew] = interp3DxTixTj(Data, ...
 % planes per volume
 %
 % Usage:
-%   Data3DxT = interp3DxT(Data, ...
-%       XYZinit, XYZfinal, LastDim, method)
+%   DataNew = interp3DxTixTj(Data, ...
+%       initXY, endXY, iniT, endT, intmethod)
 %
 % Args:
 %   Data: 2DxT or 3DxT matrix
-%   initXY: resolution of input data
-%   endXY: target resolution of data
-%   iniT: input time per frame [z, n]
+%   initXY: [1, 2] pixel size of input data (X, Y; microns)
+%   endXY: [1, 2] target pixel size (X, Y; microns). Keep equal to
+%       initXY: the output is preallocated at the input XY size
+%   iniT: input time per frame [z, n] (or [1, n] if all planes share time)
 %   endT: output time per frame [z, n]
 %   intmethod: interpolation method
 %       ('linear', 'nearest', 'cubic', 'spline')
 %       (default, 'linear')
+%
+% Returns:
+%   DataNew: data resampled in time, [X, Y, Z, numel(endT)] (double);
+%       times outside the range of iniT are NaN
 %
 % Notes:
 % assumes Dim 3 is Z, and Dim 4 is time

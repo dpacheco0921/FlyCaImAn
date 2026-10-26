@@ -5,6 +5,9 @@ function formatted = printf(str, varargin)
 %   printf(str, ...)
 %   formatted = printf(str, ...)
 %
+% Returns (only if requested):
+%   formatted: the formatted string (nothing is printed in that case)
+%
 % Formatting:
 %   - Surround text with '*' for bold or '_' for underlining
 %   - Set flags by adding '#[flagname]' to the END of the string

@@ -1,7 +1,7 @@
 function [clus] = hierarchicalClus(...
     Y, clus_n, pmethod, lmethod, ...
     clus_type, pdist_i, linkg_i)
-% st_plot_rc_hist: Performs hierarchical clustering on Y
+% hierarchicalClus: Performs hierarchical clustering on Y
 %
 % Usage:
 %   [clus] = hierarchicalClus(...
@@ -9,7 +9,6 @@ function [clus] = hierarchicalClus(...
 %       clus_type, pdist_i, linkg_i)
 %
 % Args:
-%   obj: SpaTemp object
 %   Y: data [n, T], n = number of rois, T, time.
 %   clus_n: number of clusters (when clus_type == 0, 1, 2) 
 %       or distance (when clus_type == 3 or 4)
@@ -23,7 +22,7 @@ function [clus] = hierarchicalClus(...
 %       ('average', 'centroid', 'complete', 
 %       'median', 'single', 'ward', 'weighted'
 %       'centroid' and 'median' methods are non-monotonic)
-%       (default, 'ward')
+%       (default, 'complete')
 %   clus_type: how to cluster depending on data size
 %       for big matrices (matlab has issues loading so many leaves) use
 %       clus_type = 2 or 4.
@@ -154,7 +153,12 @@ elseif clus_type == 4
     % order traces within cluster
     clus.lorder = order_within_cluster(Y, ...
         clus.label, pmethod, lmethod);
-    
+
+else
+
+    error('hierarchicalClus:clus_type', ...
+        'clus_type must be 0, 1, 2, 3 or 4 (got %s)', num2str(clus_type));
+
 end
 
 clear Y

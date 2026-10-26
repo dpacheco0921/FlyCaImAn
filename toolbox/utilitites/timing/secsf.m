@@ -9,6 +9,11 @@ function str = secsf(format, numSecs)
 %       No leading zero: %h, %m, %s
 %       Leading zero: %H, %M, %S
 %       Fractional seconds: %s.ms or %S.ms
+%   numSecs: number of seconds (scalar)
+%
+% Returns:
+%   str: format with the tokens replaced by the hours, minutes and seconds of numSecs
+%       (default format, "%hh %mm %ss", when called as secsf(numSecs))
 %
 % See also: secs2str, secs2hms, secstr
 
@@ -28,7 +33,7 @@ str = regexprep(str, '%M', num2str(round(m),'%02d'));
 
 str = regexprep(str, '%s\.ms', num2str(s,'%f'));
 ms = num2str(s-round(s),'%f'); ms = ms(2:end); % '.#####'
-str = regexprep(str, '%S\.ms', [num2str(s,'%02d') ms]);
+str = regexprep(str, '%S\.ms', [num2str(floor(s),'%02d') ms]);
 
 str = regexprep(str, '%s', num2str(round(s),'%d'));
 str = regexprep(str, '%S', num2str(round(s),'%02d'));

@@ -69,8 +69,10 @@ for file2run = 1:numel(f2run)
             resultplotter(cDat, axH([Iter:cDat.Iter:cDat.Iter*3]), Iter)
         end
         
-    catch
-        display(f2run{file2run})
+    catch ME
+        % keep going with the other files, but say which one failed and why
+        warning('plotLEDcDat:plotFailed', 'Could not plot %s: %s', ...
+            f2run{file2run}, ME.message)
     end
     
     clear cDat Axeshandle
@@ -82,6 +84,14 @@ fprintf('Done\n')
 end
 
 function axH = figuregenerator(iternum, fname)
+% figuregenerator: make a figure with an [iternum x 3] grid of axes
+%
+% Args:
+%   iternum: number of LED denoising iterations (1 to 3)
+%   fname: figure name
+%
+% Returns:
+%   axH: [iternum x 3] axes handles (row = iteration)
 
 if iternum == 1
     figure('position', [220 633 1440 331], 'Name', fname)
@@ -104,6 +114,9 @@ end
 end
 
 function resultplotter(cDat, axH, Iter)
+% resultplotter: plot the results of LED denoising iteration 'Iter'
+%   (light triggered traces in axH(1), raw / corrected YX projections in
+%   axH(2:3)); no return value
 
 % LTA (light triggered avegare)
 cDat.Iter = Iter;

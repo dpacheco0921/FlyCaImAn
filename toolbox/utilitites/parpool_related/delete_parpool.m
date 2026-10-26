@@ -2,10 +2,12 @@ function delete_parpool(ppobj)
 % delete_parpool: shutting down parpool
 %
 % Usage:
-%   pphandle = setup_parpool(deviceID, corenum)
+%   delete_parpool
+%   delete_parpool(ppobj)
 % 
 % Args:
-%   ppobj: parpool obj
+%   ppobj: parpool object returned by setup_parpool (optional; default, the
+%       current pool). Nothing is returned.
 % 
 % See also: parcluster parpool
 
@@ -13,7 +15,8 @@ if ~exist('ppobj', 'var') || isempty(ppobj)
     ppobj = [];
 end
 
-if ~exist('ppobj', 'var') || isempty(ppobj)
+% with no pool object given, shut down whatever pool is running (if any)
+if isempty(ppobj)
     delete(gcp('nocreate'));
 else
     delete(ppobj);

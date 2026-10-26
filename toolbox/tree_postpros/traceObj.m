@@ -37,8 +37,23 @@ classdef traceObj < handle
         % **************************** build objects ****************************
         
         function loadtrees(obj, iDir, iSuffix, FileName, catgate, verbose)
-            % loadtrees(obj, iDir, iSuffix) load trees from swc files
-            
+            % loadtrees: load trees from swc files into obj.traces
+            % Usage:
+            %   loadtrees(obj, iDir, iSuffix, FileName, catgate, verbose)
+            %
+            % Args:
+            %   obj: traceObj obj
+            %   iDir: folder with the *.swc files ([] keeps obj.iDir)
+            %   iSuffix: file name suffix to look for (e.g. 'P1_nsybIVAi')
+            %   FileName: name pattern to keep ([] keeps all)
+            %   catgate: 1 appends to the trees already loaded, 0 replaces them
+            %       (default, 0)
+            %   verbose: 1 plots each loaded tree (default, 0)
+            %
+            % Returns:
+            %   nothing; fills obj.traces (one tree structure per file).
+            %   Files that fail to load are skipped with a message.
+
             if exist('iDir', 'var') && ~isempty(iDir)
                 obj.iDir = iDir;
             end
@@ -63,7 +78,7 @@ classdef traceObj < handle
                 catgate = 0;
             end
                         
-            if ~exist('verbose', 'var') || isempty(catgate)
+            if ~exist('verbose', 'var') || isempty(verbose)
                 verbose = 0;
             end
             
@@ -89,7 +104,8 @@ classdef traceObj < handle
                     
                     % if tree is composed of multiple                    
                     if numel(pretraces) > 1
-                        keyboard
+                        % error is caught below and reported with the file name
+                        error('tree has %d disconnected pieces', numel(pretraces))
                     end
                     
                     % only perform this repairs
@@ -98,10 +114,16 @@ classdef traceObj < handle
                     % eliminate 0-length compartments:
                     pretraces = elim0_tree (pretraces); 
                     
-                    if i == 1 && ~catgate
+                    % first tree defines the fields of the struct array
+                    %   (also covers the case where the first file failed)
+                    % every later tree is appended after the ones already
+                    %   loaded (with catgate, indexing by k alone would
+                    %   overwrite the first trees)
+                    if isempty(obj.traces)
                         obj.traces = struct(pretraces);
+                    else
+                        obj.traces(end + 1, 1) = pretraces;
                     end
-                    obj.traces(k, 1) = pretraces;
                     k = k + 1;
                     
                     % plot loaded tree
@@ -110,10 +132,11 @@ classdef traceObj < handle
                             idpar_tree(pretraces), [], 1, [0 1 1])
                     end
                     
-                catch
-                    
-                    fprintf(['skeleton ', f2load{idx == i}, ' failed'])
-                    
+                catch ME
+
+                    fprintf(['skeleton ', f2load{idx == i}, ' failed: ', ...
+                        ME.message, '\n'])
+
                 end
                 
             end
@@ -156,7 +179,24 @@ classdef traceObj < handle
             %    norm_step, max_dist, neigh_dist, i_buffer, ...
             %   imatrix, verbose, floattrees_idx)
             % function performs batch jobs (many functions in one) to get XYZ jitter
-            
+            %
+            % Args:
+            %   reftree: index of the reference tree (default, 1)
+            %   norm_step: points ahead used to estimate the normal
+            %   max_dist: max distance (um) of points tested per plane
+            %   neigh_dist: distance (um) of neighbours used for the avg normal
+            %   i_buffer: points skipped at the tree ends
+            %   imatrix: XYZ field to use (0 xyz, 1 xyz_s, 2 xyz_pix, 3 traces)
+            %   floattrees_idx: trees to compare (default, all)
+            %
+            % Returns:
+            %   axis_jitter: [points x 3 x trees] signed X, Y, Z distance of
+            %       each tree to the centroid across trees (um)
+            %   distance_jitter: [points x trees] euclidean distance to the
+            %       centroid (um)
+            %   avg_point: [points x 3] centroid per reference point
+            %   agv_norm: [points x 3] average normal per reference point
+
             if ~exist('imatrix', 'var') || isempty(imatrix); imatrix = 0; end
             if ~exist('floattrees_idx', 'var') || isempty(floattrees_idx)
                 floattrees_idx = 1:numel(obj.xyz);
@@ -298,7 +338,7 @@ classdef traceObj < handle
                 xDir = '.';
             end
 
-            for i = 1:numel(obj.trace)
+            for i = 1:numel(obj.traces)
                 [obj.traces(i), ~] = ...
                     to_atlas2atlas_xform(obj.traces(i), refi, refo, xDir, esuffix);
             end
@@ -344,15 +384,25 @@ classdef traceObj < handle
             % find traces with nan and fix the ones with single cases
             % it updates obj.xyz
             [trace2keep_idx, obj.xyz] = to_get_trace_with_nans(obj, imatrix);
-           
+
             fprintf(['Trees deleted ', num2str(sum(~trace2keep_idx)), ...
-                'out of ', num2str(length(trace2keep_idx))])
-            
+                ' out of ', num2str(length(trace2keep_idx)), '\n'])
+
             display([{obj.traces.name}', num2cell(~trace2keep_idx)])
-            
+
             obj.traces = obj.traces(trace2keep_idx);
             obj.xyz = obj.xyz(trace2keep_idx);
-            
+
+            % keep the other XYZ versions aligned with the remaining trees
+            %   (only possible if they were built for all trees)
+            if numel(obj.xyz_s) == numel(trace2keep_idx)
+                obj.xyz_s = obj.xyz_s(trace2keep_idx);
+            end
+
+            if numel(obj.xyz_pix) == numel(trace2keep_idx)
+                obj.xyz_pix = obj.xyz_pix(trace2keep_idx);
+            end
+
         end
         
         function path2root(obj, f2use)
@@ -518,14 +568,19 @@ classdef traceObj < handle
             % define xzy values to use
             iObject = to_pick_xyz_object(obj, [], imatrix);
             
-            % plot projections
+            % plot projections (color2use has one row per selected tree,
+            %   so it is indexed by position k, not by tree index i)
+            k = 1;
+
             for i = f2use
-                
+
                 idpar = idpar_tree(obj.traces(i));
-                
+
                 to_plottree_2d(getObj_xyz(iObject(i)), idpar, ...
-                    axis2proj, axH, verbose, color2use(i, :), tstyle, ...
+                    axis2proj, axH, verbose, color2use(k, :), tstyle, ...
                     psoma)
+
+                k = k + 1;
 
             end
             

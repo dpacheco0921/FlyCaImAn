@@ -4,7 +4,7 @@ function batch_plot_compare_locomotor_vs_stim(...
 %   triggered changes in locomotion
 %
 % Usage:
-%   batch_compare_fictrac_results(...
+%   batch_plot_compare_locomotor_vs_stim(...
 %       ifiles_1, ifiles_2, figname, iparams)
 %
 % Args:
@@ -19,8 +19,8 @@ function batch_plot_compare_locomotor_vs_stim(...
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (oDir: target directory to save figures)
-%           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
+%           (default, [pwd, filesep, 'fictrac_compare'])
+%       (ball_radious: radius of the ball, mm)
 %           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %           (default, 3)
@@ -29,8 +29,16 @@ function batch_plot_compare_locomotor_vs_stim(...
 %       (framerate: frame rate)
 %           (default, 100)
 %       (time_buffer: time before and after stimulus)
-%           (default, [-5 +5])
+%           (default, [-10 +10])
+%
+% Returns:
+%   nothing; saves '<figname>_a_locomotion_vs_stim' (ifiles_1) and
+%   '<figname>_b_locomotion_vs_stim' (ifiles_2) in metpars.oDir. Speeds are
+%   z-scored to the pre-stimulus baseline (SD units), time is in s
+%   relative to stimulus onset.
+%
 % Notes
+%   each name pattern must match exactly one '*_metadata.mat' file
 
 % default params
 metpars = [];
@@ -45,13 +53,15 @@ metpars.siz = 10;
 metpars.framerate = 100;
 metpars.time_buffer = [-10 +10];
 
-if ~exist(metpars.oDir, 'dir')
-   mkdir(metpars.oDir)
-end
-
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 metpars = loparam_updater(metpars, iparams);
+
+% create the output folder after the update, so a user-supplied oDir is
+%   the one that gets created
+if ~exist(metpars.oDir, 'dir')
+   mkdir(metpars.oDir)
+end
 
 if length(ifiles_1) ~= length(ifiles_2)
    fprintf('Input files differ in number\n') 
@@ -108,6 +118,10 @@ end
 color_1 = colorGradient(rgb('Purple'), [1 1 1], 4);
 colorvect = colorGradient([0.2 0.2 0.2], [1 1 1], numel(wDat) + 3);
 
+% one line handle per file; stays empty (not graphics) for files that
+%   have no trials of the stimulus, so the legend can skip them
+lineH = gobjects(1, numel(wDat));
+
 for i = 1:numel(stimuli_name)
 
     k = 1;
@@ -129,10 +143,13 @@ for i = 1:numel(stimuli_name)
                     
     end
     
-    plot(wDat{1}.time_per_stim, ...
-        median(x_, 1), 'Color', color_1(1, :), ...
-        'Linewidth', 2, 'Parent', axH(i))
-    
+    % median across files (skipped if no file has this stimulus)
+    if k > 1
+        plot(wDat{1}.time_per_stim, ...
+            median(x_, 1), 'Color', color_1(1, :), ...
+            'Linewidth', 2, 'Parent', axH(i))
+    end
+
     clear x_
     
 end
@@ -144,7 +161,9 @@ for i = 1:numel(stimuli_name)
     axH(i).YLabel.String = 'speed (SD)';
 end
 
-legend(axH(1), lineH, strrep(filenames, '_', '-'), ...
+% only label files that were actually plotted
+has_line = isgraphics(lineH);
+legend(axH(1), lineH(has_line), strrep(filenames(has_line), '_', '-'), ...
     'Location', 'northeast')
 
 savefig_int(figH, metpars.oDir, ...
@@ -196,7 +215,7 @@ function wDat = run_each(ifile, metpars)
 % run_each: function that runs each pair
 %
 % Usage:
-%   wDat = run_per_pair(ifile, metpars)
+%   wDat = run_each(ifile, metpars)
 %
 % Args:
 %   ifile: file name
@@ -227,7 +246,9 @@ if numel(filename_1) == 1
     wDat = load_gen_vars2plot([iDir_1{1}, ...
         filesep, filename_1{1}, metpars.fmetsuffix], metpars);
 else
-    fprintf('more than one possible file\n')
+    % without exactly one file wDat would be returned unassigned
+    error('%d files match pattern ''%s'', expected exactly 1', ...
+        numel(filename_1), ifile)
 end
 
 end
@@ -269,8 +290,9 @@ stim_all_idx = stim_all_idx(1:size(wDat.sTime, 1), 1);
 wDat.sIdx = stim_all_idx;
 wDat.sName = sName;
 
-% time to resample
-time_ = wDat.vid.fstEn{1}(:, 1);   
+% time to resample: put all files on the same 0.1 s grid (rounded inwards,
+%   so no value is extrapolated) to be able to average across trials/files
+time_ = wDat.vid.fstEn{1}(:, 1);
 time_res = ceil(time_(1)*10)/10:0.1:floor(time_(end)*10)/10;   
 time_res = round(time_res*100)/100;
 intmethod = 'linear';

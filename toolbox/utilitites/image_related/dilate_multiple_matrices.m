@@ -9,12 +9,17 @@ function Y = dilate_multiple_matrices(iY, siz_iY, se)
 %   iY: flatten 2D or 3D image, where columns are different images
 %       it assumes each column is binary
 %   siz_iY: original 2D or 3D dimensions
-%   Im: input image
-%   Structuring element:structuring element object
+%   se: structuring element object
 %       or array of structuring element objects (see imdilate)
+%
+% Returns:
+%   Y: sparse binary matrix, same size as iY, with each column dilated
 %
 % Notes:
 %   see imdilate
+
+assert(size(iY, 1) == prod(siz_iY), ...
+    'dilate_multiple_matrices: rows of iY do not match prod(siz_iY)')
 
 Y = sparse(size(iY, 1), size(iY, 2));
 

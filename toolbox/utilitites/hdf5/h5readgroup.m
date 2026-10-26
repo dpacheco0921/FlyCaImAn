@@ -5,10 +5,12 @@ function data = h5readgroup(filepath, group)
 % 
 % Args:
 %   filepath: path to the HDF5 file
-%   group: name or path to the group
+%   group: name or path to the group (default, '/')
 %
-% 
-% 
+% Returns:
+%   data: structure with one field per subgroup (recursive) and dataset
+%       (names made MATLAB-valid), plus data.Attributes if the group has any
+%
 % See also: h5read, h5save, h5att2struct
 
 if nargin < 2; group = '/'; end

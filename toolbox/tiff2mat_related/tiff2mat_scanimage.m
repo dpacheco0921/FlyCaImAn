@@ -5,14 +5,18 @@ function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose, timeavg_f
 %   [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose, timeavg_flag)
 %
 % Args:
-%   tifname: name of tiff file to load
-%   datatype: type of data
-%   verbose: verbose
+%   tifname: name of tiff file to load (without '.tif')
+%   datatype: type of data, if it contains '2DxT_single' or 'old' the
+%       old scanimage header format is read
+%   verbose: if 1, print the name of the file that could not be read
+%       before the error is rethrown
+%           (default: 0)
 %   timeavg_flag: flag to load and average signal per plane directly from tiff instead of loading full matrix
 %           (default: 0)
 %
 % Returns:
-%   Im: image from tiff files
+%   Im: image from tiff files, single, [Y, X, frames, channels]
+%       (or [Y, X, planes, channels] if timeavg_flag = 1)
 %   ImMeta: metadata
 %       (Y: Lines per frame or height)
 %       (X: Pixels per line or Width)
@@ -25,10 +29,6 @@ function [Im, ImMeta] = tiff2mat_scanimage(tifname, datatype, verbose, timeavg_f
 %       (sympixels: flag for symetric pixels)
 %       (Imclass: class of encoding)
 %       (Z_stepsiz: step size in Z)
-
-if ~exist('verbose', 'var') || isempty(verbose)
-    verbose = 0;
-end
 
 if ~exist('verbose', 'var') || isempty(verbose)
     verbose = 0;
@@ -125,8 +125,8 @@ try
             
             if Channels > 1
 
-                % even, Red
-                Im(:, :, FrameIdx, 1) = ...
+                % even, Red (second channel)
+                Im(:, :, FrameIdx, 2) = ...
                     frame2mat(tifname, Y, X, ...
                     StartOffset_per_cha{2}(FrameIdx), Imclass);
                 
@@ -151,14 +151,15 @@ try
         ImMeta.Z_stepsiz = Z_stepsiz;
     end
     
-catch error
-    
+catch ME
+
+    % do not swallow the error (the caller would only see "output
+    %   argument not assigned"), name the file and rethrow
     if verbose == 1
-        fprintf(['could not run file ', strrep(tifname, '\', ''), '\n']);
-        keyboard
-        display(error);
+        fprintf('could not run file %s\n', tifname);
     end
-    
+    rethrow(ME);
+
 end
 
 end
@@ -185,6 +186,11 @@ function Im = frame2mat(tifname, Y, X, StartOffset, Imclass)
 % however it does not matter if X and Y are the same value
 
 fid = fopen(fullfile([tifname, '.tif']));
+
+if fid < 0
+    error('tiff2mat_scanimage:nofile', 'Could not open %s.tif', tifname)
+end
+
 fseek(fid, StartOffset, 'bof');
 
 % We knew this from BitsPerSample
@@ -213,6 +219,10 @@ if ~contains(microscopetxt, 'DataType = ')
     microscopetxt = info(1).Software;
 end
 
+% WARNING: 'int16' is a substring of 'uint16' (and 'int8' of 'uint8'), so
+%   unsigned data would be read as signed. The order is kept as is because
+%   the 2016+ header text (info.Software) is long and may mention several
+%   types, reordering could change how existing data are read.
 if contains(microscopetxt, 'int16')
     Imclass = 'int16';
 elseif contains(microscopetxt, 'uint16')
@@ -221,6 +231,9 @@ elseif contains(microscopetxt, 'int8')
     Imclass = 'int8';
 elseif contains(microscopetxt, 'uint8')
     Imclass = 'uint8';
+else
+    error('tiff2mat_scanimage:class', ...
+        'Could not find the data type (int16, uint16, ...) in the tiff header')
 end
 
 end
@@ -339,8 +352,12 @@ X = scanimage.SI.hRoiManager.pixelsPerLine;
 % determine which mode of zstack was used
 stackmode = [];
 Z = 1;
-try 
+try
     stackmode = scanimage.SI.hStackManager.stackMode;
+catch
+    % header without stack manager info (older scanimage), keep Z = 1
+    % unless hFastZ gives the number of planes (see below)
+    stackmode = [];
 end
 
 if ~isempty(stackmode)

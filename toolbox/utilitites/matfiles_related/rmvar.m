@@ -34,7 +34,8 @@ removeThese = {};
 
 for i = 1:numel(varargin)
     
-    if sum(contains({WHOS.name}, varargin{i})) == 0
+    % exact name match (a substring match would "find" e.g. a in data)
+    if ~ismember(varargin{i}, {WHOS.name})
         disp([ varargin{i} ' isn''t saved in ' filename ]); 
     else 
         removeThese = [removeThese, varargin{i}]; 

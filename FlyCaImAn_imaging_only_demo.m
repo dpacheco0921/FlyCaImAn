@@ -37,7 +37,6 @@ batch_tiff2mat(FolderName, FileName, m2vpar)
 FolderName = {'20161129'}; FileName = [];
 cmpar = [];
 cmpar.pgate = 1;
-cmpar.pgates = 1;
 cmpar.mode = 1;
 
 batch_collectmetada(FolderName, FileName, cmpar)

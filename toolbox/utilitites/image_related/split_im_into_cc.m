@@ -8,8 +8,14 @@ function [Im] = split_im_into_cc(Im, siz_ths, bin_flag)
 %
 % Args:
 %   Im: input image
-%   siz_ths: size threshold to prune connected components
+%   siz_ths: size threshold (in pixels); components with fewer pixels
+%       are removed (default, 0: keep all)
 %   bin_flag: homogenize connected component index (to a single label)
+%       (default, 1; 0 keeps a different integer label per component)
+%
+% Returns:
+%   Im: pruned image, same size as input; logical if bin_flag, otherwise
+%       double with labels 1..n_components
 
 if ~exist('siz_ths', 'var') || ...
         isempty(siz_ths)

@@ -7,10 +7,14 @@ function Y = zscorebigmem(Y, chunk_siz)
 %
 % Args:
 %   Y: 1DxT or 2DxT or 3DxT matrix
-%   chunk_siz: chunk size to run at a time in dimension 1
+%   chunk_siz: chunk size to run at a time in dimension 1 (default, 5e3)
+%
+% Returns:
+%   Y: double array, z-scored along the last dimension (a vertical vector input
+%       is returned as a horizontal vector)
 %
 % Notes:
-% for std normalozation I used a equivalent to std(A, 1)
+%   the std normalization is equivalent to std(A, 1) (divides by N, not N-1)
 
 if ~exist('chunk_siz', 'var') || isempty(chunk_siz)
     chunk_siz = 5e3;

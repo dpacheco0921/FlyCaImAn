@@ -1,19 +1,18 @@
 function idx = minperrow(imatrix)
-% minperrow: get the indeces of the maximun 
-%   value across columns per row
+% minperrow: get the column index of the minimum value in each row
+%   (if several columns tie, the first one is returned)
 % 
 % Usage:
-%   idx = maxperrow(imatrix)
+%   idx = minperrow(imatrix)
 %
 % Args:
-%   Y: input matrix
+%   imatrix: input matrix, N rows x M columns
+%
+% Returns:
+%   idx: N x 1 column vector, column index of the min of each row
+%       (NaNs are ignored; an all-NaN row returns 1)
 
-idx = zeros(size(imatrix, 1), 1);
-
-for i = 1:size(imatrix, 1)
-    
-    idx(i, 1) = find(imatrix(i, :) == min(imatrix(i, :)));
-    
-end 
+% min along dimension 2 returns one index per row even when values tie
+[~, idx] = min(imatrix, [], 2);
 
 end

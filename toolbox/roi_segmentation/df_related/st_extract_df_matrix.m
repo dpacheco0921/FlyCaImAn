@@ -2,8 +2,9 @@ function st_extract_df_matrix(obj, f2use, bs_range, ...
     sti_range, updgate, redo, stim2use)
 % st_extract_df_matrix: generates a GreenChaDf and GreenChaDfof signal
 % relative to baseline prior to selected stimuli
+%
 % Usage:
-%   st_clus_perfile(obj, f2use, bs_range, ...
+%   st_extract_df_matrix(obj, f2use, bs_range, ...
 %       sti_range, updgate, redo, stim2use)
 %
 % Args:
@@ -15,6 +16,13 @@ function st_extract_df_matrix(obj, f2use, bs_range, ...
 %   updgate: gate to update prosmetadata file
 %   redo: flag to redo
 %   stim2use: stimuli to use
+%
+% Returns:
+%   nothing, it fills obj.wDat.GreenChaDf (change in fluorescence, a.u.)
+%   and obj.wDat.GreenChaDfof (unitless dF/F), cells indexed by (file,
+%   stimulus range, stimulus), each holding the mean across trials of the
+%   80th and 20th percentile volumes (x, y, z, 2). With updgate = 1 they
+%   are also appended to each *_prosmetadata.mat
 %
 % Notes:
 % this function requires obj fields:

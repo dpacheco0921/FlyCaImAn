@@ -5,7 +5,7 @@ function [animalname, animalnum, repnum, str_length] = ...
 %   within directory and split the name into parts
 %
 % Usage:
-%   [animalname, animalnum, repnum] = ...
+%   [animalname, animalnum, repnum, str_length] = ...
 %      rdir_namesplit(basename, suffixend, ...
 %      fisuffix, fi2reject, fi2match, nametype)
 %
@@ -15,13 +15,19 @@ function [animalname, animalnum, repnum, str_length] = ...
 %   fisuffix: extra pattern to attach to suffixend
 %   fi2reject: pattern to reject files
 %   fi2match: pattern to accept files
-%   nametype: type of animalname to output
+%   nametype: how to split the file name (default, 0)
+%       (0: animalname = part 1, animalnum = part 2, repnum = part 3)
+%       (1: animalname = part 1 + '_' + part 2, repnum = part 3)
+%       (2: animalname = parts 1-3 joined, no animalnum/repnum)
+%       (3: animalname = part 1, animalnum = part 2, repnum = part 4)
+%   Optional args can be [] (basename, fi2reject, fi2match, fisuffix too)
 %
 % Returns:
 %   animalname: animal name
 %   animalnum: animal number
 %   repnum: repetition number
-%   str_length: string length for first file
+%   str_length: [nfiles, nparts] number of characters of each name part
+%       (rows = files, last part excludes the file suffix)
 %
 % Notes:
 % Assumes files names have the following struture:
@@ -42,6 +48,8 @@ end
 str_length = [];
 
 f2run = rdir(['.', filesep, '*', suffixend]);
+% no files to reject if fi2reject was not provided
+if ~exist('fi2reject', 'var'); fi2reject = []; end
 f2run = str2rm(fi2reject, f2run);
 
 if exist('fi2match', 'var')  && ~isempty(fi2match)

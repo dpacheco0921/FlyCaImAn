@@ -48,7 +48,7 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (-1 (negative))
 %           (0 (absolute))
 %       (df_flag: flag to calculate DF (if 1), or DF/Fo otherwise)
-%           (default, [0 1 2] (get all))
+%           (default, [0 2] (DF/Fo and Max F))
 %           (0 (get DF/Fo))
 %           (1 (get DF))
 %           (2 (get Max F))
@@ -58,13 +58,18 @@ function batch_tiff2mat(FolderName, FileName, iparams)
 %           (2, green)
 %       (chunk_size: size of chunks)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
-%       (corenum: number of cores)
+%       (corenumber: number of cores)
 %           (default, 4)
 %       %%%%%%%%%%%% histogram related %%%%%%%%%%%%
 %       (hbins: range to generate histogram plot)
 %       (oDir: directory where to save histogram plot)
+%
+% Returns:
+%   nothing. For each experiment it writes '*_rawdata.mat' and
+%   '*_metadata.mat' in the folder it was run on (see Notes), plus a
+%   histogram / mean fluorescence figure in oDir.
 %
 % Notes:
 % this function assumes tiff files have the following structure:
@@ -156,8 +161,7 @@ if ~exist('iparams', 'var'); iparams = []; end
 tifpars = loparam_updater(tifpars, iparams);
 
 if isempty(tifpars.SpMode)
-    fprintf('Error, need to specify SpMode');
-    return;
+    error('batch_tiff2mat:noSpMode', 'Need to specify iparams.SpMode');
 end
 
 fprintf('Running Tiff2Mat\n');
@@ -347,11 +351,15 @@ function collect_tiffs_per_exp_trial(tif_name, tifpars)
 %   Data(Y, X, Z, T, Ch) or (Y, X, T, Ch)
 %
 % Usage:
-%   collect_tiffs_per_exp_trial(repname)
+%   collect_tiffs_per_exp_trial(tif_name, tifpars)
 %
 % Args:
-%   repname: name pattern
+%   tif_name: name pattern of the tiffs of one experiment, ending in '_'
 %   tifpars: parameters
+%
+% Returns:
+%   nothing. It saves '<name>_rawdata.mat' (Data, single) and
+%   '<name>_metadata.mat' in the current folder.
 
 % compiling files with the same animal and trial number to one mat file
 
@@ -359,6 +367,11 @@ function collect_tiffs_per_exp_trial(tif_name, tifpars)
 [Basename, AnimalNum, TrialNum, str_length] = ...
         rdir_namesplit(tif_name, ...
         tifpars.fileformat, [], tifpars.fi2reject);
+
+if isempty(Basename)
+    error('batch_tiff2mat:notiffs', 'No tiff files found for %s', tif_name)
+end
+
 mat_name = [Basename{1}, '_', ...
     num2str(AnimalNum(1)), '_', ...
     num2str(TrialNum(1))];
@@ -394,6 +407,8 @@ if exist([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
     try
         delete([tifpars.cDir, filesep, tifpars.Folder2Run, filesep, ...
         mat_name, '_refdata.mat'])
+    catch ME
+        warning('Could not delete %s_refdata.mat: %s', mat_name, ME.message)
     end
 
 end
@@ -470,10 +485,10 @@ for tif_i = 1:tif_num
         end
        
         % add pre from last tiff
+        % (frames left over from the previous tiff, because a volume was
+        %   split between two files)
         if ~isempty(tempdata_pre)
-            [size(tempdata_pre); size(tempdata)]
             tempdata = cat(3, tempdata_pre, tempdata);
-            size(tempdata)
         end
         
         % chop & reshape
@@ -541,10 +556,12 @@ for tif_i = 1:tif_num
         
         clear tempdata;
         
-    catch error
-        
-        keyboard
-        
+    catch ME
+
+        % name the file that failed and stop (do not hang in the debugger)
+        fprintf('Error while importing %s\n', tifpars.fName{1, tif_i});
+        rethrow(ME);
+
     end
     
     if tif_i == 1
@@ -555,10 +572,14 @@ for tif_i = 1:tif_num
         try
             fprintf(['Frame rate: ', ...
                 num2str(ImMeta.framerate), '\n']);
+        catch
+            warning('Frame rate not available for %s', mat_name)
         end
         try
             fprintf(['Volume rate: ', ...
                 num2str(ImMeta.volumerate), '\n']);
+        catch
+            warning('Volume rate not available for %s', mat_name)
         end
         
     end
@@ -627,6 +648,22 @@ clear Data iDat fDat ImMeta
 end
 
 function singleacqcollapser(NameRoot, tifpars)
+% singleacqcollapser: saves each tiff matching NameRoot as its own
+%   '_rawdata.mat' / '_metadata.mat' pair
+%
+% Usage:
+%   singleacqcollapser(NameRoot, tifpars)
+%
+% Args:
+%   NameRoot: name pattern of the tiffs, ending in '_'
+%   tifpars: parameters
+%
+% Returns:
+%   nothing (files are saved in the current folder)
+%
+% Notes:
+% the 'switch' below only matches tifpars.SpMode exactly ('3D' or
+%   '2DxT_single'), other SpMode strings are not cast to uint16.
 
 % collapsing files with the same fly and trial number to one mat files
 fprintf(['Running File ', NameRoot])
@@ -690,7 +727,7 @@ for acqIdx = 1:numel(TemplateFile)
     
     SavingDataNew(Data, fDat, iDat, 1, ...
         tifpars.cDir, tifpars.Folder2Run, ...
-        tifpars.fStrain)
+        tifpars.fStrain, tifpars.fs_stim)
     
     clear Data iDat fDat ImMeta
     
@@ -701,6 +738,18 @@ end
 end
 
 function collect_tiffs_per_exp_trial_old(NameRoot, tifpars)
+% collect_tiffs_per_exp_trial_old: old-format version of
+%   collect_tiffs_per_exp_trial (files numbered '001', '002', ...)
+%
+% Usage:
+%   collect_tiffs_per_exp_trial_old(NameRoot, tifpars)
+%
+% Args:
+%   NameRoot: name pattern of the tiffs, ending in '_'
+%   tifpars: parameters
+%
+% Returns:
+%   nothing (Data and metadata are saved in the current folder)
 
 % collapsing files with the same fly and trial number to one mat files
 TemplateFile = rdir([NameRoot, '001.tif']);
@@ -785,6 +834,10 @@ function [Data, Idx] = zeroframedetect(Data)
 %
 % Args:
 %   Data: 3D or 4D matrix
+%
+% Returns:
+%   Data: input with the green channel volumes that were empty refilled
+%   Idx: indices of the frames (in a 3D arrangement) that were empty
 
 siz = size(Data);
 greenFThs = 50;
@@ -833,6 +886,11 @@ function [fDat, iDat] = ...
 %       (default, 10^4)
 %   FieldOfView: default 768um, set for this setup
 %   fName: name of all tiff files contributing to this matfile
+%
+% Returns:
+%   fDat: file/directory metadata (see batch_tiff2mat)
+%   iDat: image metadata; voxel size in um is iDat.MetaData{3}
+%       ('y x z' order), FOV / (zoom * pixels) rounded to 1/sres
 
 if isempty(ImMeta)
     
@@ -854,7 +912,9 @@ if isempty(ImMeta)
 end
 
 % Loading existing metadata, Load matfile asociated with this tiff file
-try
+% (only if a previous metadata file exists, otherwise start from scratch)
+if exist([cDir, filesep, Folder2Run, ...
+        filesep, ifilename, '_metadata.mat'], 'file')
     load([cDir, filesep, Folder2Run, ...
         filesep, ifilename, '_metadata.mat'], 'fDat', 'iDat');
 end
@@ -922,7 +982,9 @@ f2rem = {'lstEn', 'fstEn', 'GreenChaMean', ...
     'sSmoothpar', 'PMT_fscore', 'timepointsdel'};
 
 for i = 1:numel(f2rem)
-    try iDat = rmfield(iDat, f2rem{i}); end
+    if isfield(iDat, f2rem{i})
+        iDat = rmfield(iDat, f2rem{i});
+    end
 end
 
 end
@@ -955,18 +1017,23 @@ if ~isempty(Data)
 end
 
 % load extra metadata
+% (the stimulus files are optional, e.g. imaging without stimulation)
 if saveType == 1
-    
-    try load([o_file_name_preffix, '.mat'], 'sDat'); end
-    
+
+    if exist([o_file_name_preffix, '.mat'], 'file')
+        load([o_file_name_preffix, '.mat'], 'sDat');
+    end
+
 elseif saveType == 2
-    
+
     load([o_file_name_preffix, '_001.mat'], 'sDat');
-            
+
 elseif saveType == 3
-    
-    try load([o_file_name_preffix, '_vDat.mat'], 'rDat', 'logs'); end
-    
+
+    if exist([o_file_name_preffix, '_vDat.mat'], 'file')
+        load([o_file_name_preffix, '_vDat.mat'], 'rDat', 'logs');
+    end
+
 end
 
 lStim.fName = fDat.FileName;

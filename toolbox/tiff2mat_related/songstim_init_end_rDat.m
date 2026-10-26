@@ -6,22 +6,30 @@ function [stimuli_onset_offset, stimuli_cat_trace] = ...
 %
 % Usage:
 %   [stimuli_onset_offset, stimuli_cat_trace] = ...
-%       songstim_init_end_rDat(rDat, init_end, stimCha)
+%       songstim_init_end_rDat(rDat, start_end, stimCha, ...
+%       findStim, minwidth, stimths)
 %
 % Args:
 %   rDat: prv metadata structure variable
-%   start_end: start and end of trace
+%   start_end: [start end] sample of the trace to keep
 %   stimCha: analog output channel
+%       (default, 1)
 %   findStim: gate to use stimuli trace to find stimuli start and end
-%   minwidth: minimun width of stimuli timepoints
+%       (default, 0, use the planned stimulus times in rDat)
+%   minwidth: minimun gap between stimuli (samples), closer ones merged
+%       (default, 100)
 %   stimths: voltage threshold to find stimuli
+%       (default, 0)
 %
 % Returns:
-%   stimuli_onset_offset: stimuli onset and offset [onset, offset]
-%   stimuli_cat_trace: vector of stimuli delivered througout experiment
+%   stimuli_onset_offset: [n-stimuli x 2] stimuli onset and offset
+%       (samples, relative to start_end(1)) [onset, offset]
+%   stimuli_cat_trace: row vector of stimuli delivered througout
+%       experiment, chopped to start_end (volts)
 %
 % Note:
-% rDat.log.silencePre and rDat.log.silencePost are in ms
+% rDat.log.silencePre and rDat.log.silencePost are in ms; they are
+%   converted to samples assuming a 10 kHz sampling rate (x10)
 
 if ~exist('stimCha', 'var') || ...
         isempty(stimCha)
@@ -36,6 +44,10 @@ end
 if ~exist('minwidth', 'var') || ...
         isempty(minwidth)
     minwidth = 100;
+end
+
+if ~exist('stimths', 'var') || isempty(stimths)
+    stimths = 0;
 end
 
 % Raw input auditory stim
@@ -68,9 +80,11 @@ end
 
 l2chop = find(stimuli_onset_offset(:, 1) > start_end(2));
 
+% drop stimuli starting after the end of the trace (l2chop(1) is the
+%   first one, all later ones are also beyond the end)
 if ~isempty(l2chop)
     stimuli_onset_offset = ...
-        stimuli_onset_offset(1:(l2chop - 1), :);
+        stimuli_onset_offset(1:(l2chop(1) - 1), :);
 end
 
 if ~findStim

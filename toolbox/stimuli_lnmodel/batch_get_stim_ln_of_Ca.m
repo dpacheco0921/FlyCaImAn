@@ -42,8 +42,6 @@ function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %           (default, 0.8)
 %       (btn: number of permutations)
 %           (default, 10^4)
-%       (btn: number of permutations)
-%           (default, 10^4)
 %       (pst_time: peri stimulus time to use to extract trial structure from whole trace (seconds))
 %           (default, [-10 10])
 %       %%%%%%%%%%%% significance related %%%%%%%%%%%%
@@ -52,7 +50,7 @@ function batch_get_stim_ln_of_Ca(FolderName, FileName, iparams)
 %       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -123,6 +121,10 @@ pSM = loparam_updater(pSM, iparams);
 pSM_plot.fsuffix = [pSM.fsuffix, '.mat'];
 pSM_plot.fmetsuffix = [pSM.metsuffix, '.mat'];
 
+% plots must use the same significance settings as the model
+pSM_plot.fdr = pSM.fdr;
+pSM_plot.mccor_method = pSM.pval_cor_method;
+
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSM.serverid, pSM.corenum);
 
@@ -170,6 +172,11 @@ function runperfolder(FileName, pSM)
 f2run = rdir(['.', filesep, '*', pSM.fsuffix, '*.mat']);
 f2run = str2match(FileName, f2run); 
 f2run = {f2run.name};
+
+if isempty(f2run)
+    warning('batch_get_stim_ln_of_Ca:noFiles', ...
+        'No files matching *%s*.mat found in %s', pSM.fsuffix, pwd);
+end
 
 fprintf('Estimating stimuli modulation for all ROIs\n')
 fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
@@ -353,8 +360,10 @@ sti_ln_ca.stimM = sti_ln_ca.stimM(sti_ln_ca.tidx2use, :);
 %   build matrix with indexes of timepoints used
 %   as training data (testing data is ~train_idx)
 trialidx_u = unique(stim_trial_idx);
+% randperm gives positions in trialidx_u, so map them to trial labels
+%   before removing them (labels are not always 1..n, e.g. with trials2use)
 test_comb = chunk2cell(randperm (numel(trialidx_u)), numel(trialidx_u) - ntrial_train)';
-trial_comb = cf(@(x) setdiff(trialidx_u, x), test_comb);
+trial_comb = cf(@(x) setdiff(trialidx_u, trialidx_u(x)), test_comb);
 train_idx = zeros(size(trial_comb, 1), size(stim_trial_idx, 2), 'logical');
 
 for iter_i = 1:size(trial_comb)
@@ -423,7 +432,10 @@ if tgate
     lgate = ~sum(contains({vList.name}, 'pcor_cs'));
 end
 
+% lags (in timepoints) around each stimulus that circular shifts must avoid,
+%   so shuffled traces never realign a response with its stimulus
 add_stim_lag = [-ceil(4/dt) ceil(stim_width/dt)];
+% 2 = circular shuffling only (see get_explained_variance_shuffle)
 shuffle2use = 2;
 fprintf(['adding stimuli lag of: ', num2str(add_stim_lag), ' (timestamps) \n'])
 

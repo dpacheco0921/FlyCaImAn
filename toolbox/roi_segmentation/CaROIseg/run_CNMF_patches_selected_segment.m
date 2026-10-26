@@ -1,6 +1,35 @@
 function run_CNMF_patches_selected_segment(data, ...
     K, patches, tau, p, options, pacthIdx, filename, ...
     reffilesuffix)
+% run_CNMF_patches_selected_segment: run CNMF on one patch (like
+%   run_CNMF_patches_int_runperseg) and also extract the ROI signals of
+%   that patch, saving everything directly (used by jobpart 3)
+%
+% Usage:
+%   run_CNMF_patches_selected_segment(data, ...
+%       K, patches, tau, p, options, pacthIdx, filename, reffilesuffix)
+%
+% Args:
+%   data: memory-mapped mat file with Y, Yr, sizY (see
+%       run_CNMF_patches_int_runperseg)
+%   K: number of components to be found in the patch
+%   patches: cell array with the start and end points of each patch
+%   tau: half-size of each cell for initializing the components
+%   p: order of autoregressive process
+%   options: struct for algorithm parameters
+%   pacthIdx: index of the patch to run (in patches)
+%   filename: file name to use for saving results
+%   reffilesuffix: suffix of the reference (red) channel file, so its
+%       signals are extracted too (empty to skip)
+%
+% Returns:
+%   nothing, it saves the variable 'roi' (A, C, b, f, P, extracted
+%   signals, center, size and patch coordinates) in
+%   [filename, '_t_', patch number, '.mat'] in the current folder
+%
+% Notes:
+%   the reference channel planes are found assuming the patch spans the
+%   full XY frame (true for patches made by construct_patches_seg)
 
 % run each segment and save RESULTS
 defoptions = CNMFSetParms;

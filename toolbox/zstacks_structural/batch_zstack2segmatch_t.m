@@ -7,16 +7,18 @@ function batch_zstack2segmatch_t(FolderName, FileName, iparams)
 % Usage:
 %   batch_zstack2segmatch_t(FolderName, FileName, iparams)
 %
+% Args:
 %   FolderName: Folder name to load
 %   FileName: File name to load
-%   ip: parameters to update
+%   iparams: parameters to update
 %       (cDir: current directory)
 %       (fisuffix: file suffix)
+%           ('_Zstack.nrrd', default)
 %       (fo2reject: folder to reject)
 %       (redo: redo)
 %           (0, default)
-%       (refcha: channel to save as nrrd, for wholebrain)
-%           (1 = red channel, default)
+%       (refcha: channels to save as nrrd, for wholebrain)
+%           ([1 2], default: red and green, saved as _01 and _02)
 %       (nchannels: number of channels)
 %           (2, default)
 %       %%% smoothing settings %%%
@@ -28,7 +30,7 @@ function batch_zstack2segmatch_t(FolderName, FileName, iparams)
 %       (oXYZres: output spatial resolution (width, height, depth))
 %           ([1.2 1.2 1] um, default)
 %       (fres: number to use for rounding spatial resolution)
-%           (10^4, default)
+%           (10^4, default; currently unused in this function)
 %       %%% padding settings %%%
 %       (padgate: gate to pad)
 %           (0, default)
@@ -36,9 +38,11 @@ function batch_zstack2segmatch_t(FolderName, FileName, iparams)
 %           (10, default)
 %       (zflipgate: gate to flip orientation in Z)
 %           (1, default)
-%       (mirror_flag: flag to also save mirror image (_mw))
+%       (mirror_flag: flag to also save mirror image (_wm), mirrored in x)
 %           (1, default)
-%       (oDir: output directory)
+%       (subfolder: sub-folder of oDir where images are saved)
+%           ([], default)
+%       (oDir: output directory (evaluated when the function starts))
 %           (pwd, default)
 %
 % Notes:

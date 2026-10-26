@@ -3,6 +3,14 @@ function h5struct2att(filepath, location, S)
 % Usage:
 %   h5struct2att(filepath, location, S)
 %
+% Args:
+%   filepath: path to the HDF5 file
+%   location: group or dataset path that receives the attributes
+%   S: scalar structure; each field becomes one attribute (logicals are
+%       saved as uint8, cellstr as one string joined by newlines)
+%   (if called as h5struct2att(filepath, S), the variable name of S is
+%   used as location)
+%
 % See also: h5att2struct
 
 if nargin == 2 && isstruct(location); S = location; location = inputname(2); end

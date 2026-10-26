@@ -6,8 +6,16 @@ function fictrac_txt2mat(txt_filename)
 %   fictrac_txt2mat(txt_filename)
 %
 % Args:
-%   txt_filename: name of txt file to load
-% 
+%   txt_filename: name of txt file to load (the FicTrac output
+%       '<name>_fictrac.txt', 23 comma separated columns, one row per
+%       video frame)
+%
+% Returns:
+%   nothing; saves 'fictDat' (fictDat.varNames: 23 column names,
+%   fictDat.var: [frames x 23] numeric matrix) to '<name>_vDat.mat'
+%   (appended if that file already exists). Rotations are in radians,
+%   positions in radians of ball rotation (multiply by ball radius for mm).
+%
 % Notes
 %   it generates the structure 'fictDat' and saves it to '_vDat.mat'
 %   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
@@ -21,7 +29,7 @@ fictDat.varNames = {'frame_cnt', ...
     'del_rot_error', ...
     'del_rot_lab_x', 'del_rot_lab_y', 'del_rot_lab_z', ...
     'abs_ori_cam_x', 'abs_ori_cam_y', 'abs_ori_cam_z', ...
-    'abs_ori_lab_x', 'abs_ori_lab_x', 'abs_ori_lab_z', ...
+    'abs_ori_lab_x', 'abs_ori_lab_y', 'abs_ori_lab_z', ...
     'pos_x', 'pos_y', ...
     'heading', 'direction', 'speed', ...
     'int_x', 'int_y', ...
@@ -51,7 +59,13 @@ fictDat.varNames = {'frame_cnt', ...
 % timestamp(22): time stamps
 % seq_num(23): sequence number
 
+% FicTrac writes 23 columns per frame; fail loudly if the file is missing or short
+assert(exist(txt_filename, 'file') == 2, ...
+    'fictrac_txt2mat: file not found: %s', txt_filename)
+
 dat = readtable(txt_filename, 'ReadVariableNames', false);
+assert(size(dat, 2) >= 23 && size(dat, 1) > 0, ...
+    'fictrac_txt2mat: %s has fewer than 23 columns or no rows', txt_filename)
 fictDat.var = dat{:, 1:23};
 clear dat
 

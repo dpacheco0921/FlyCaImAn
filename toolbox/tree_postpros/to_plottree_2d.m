@@ -17,6 +17,9 @@ function to_plottree_2d(...
 %   colormatrix: matrix with colors to use
 %   tstyle: line style
 %   psoma: plot soma
+%
+% Returns:
+%   nothing; draws the tree in axH (a new figure if axH is not given)
 
 % deafult params
 
@@ -78,7 +81,12 @@ switch axis2proj
     case 'XZ'
         
         c_idx = [1 3];
-        
+
+    otherwise
+
+        error('to_plottree_2d: axis2proj must be ''XY'', ''YZ'' or ''XZ'', got ''%s''', ...
+            axis2proj)
+
 end
 
 if ~isempty(idpar)
@@ -93,10 +101,13 @@ if ~isempty(idpar)
 
     end
 
-    plot(t_xyz(:, c_idx(1)), t_xyz(:, c_idx(2)), ...
+    % t_xyz is [3 by points] (rows = X, Y, Z), so pick rows, not columns
+    plot(t_xyz(c_idx(1), :), t_xyz(c_idx(2), :), ...
         tstyle, 'Color', colormatrix, 'Linewidth', 3, ...
         'Parent', axH);
-        
+
+    hold(axH, 'on')
+
 else
     
     plot(xyz(:, c_idx(1)), xyz(:, c_idx(2)), ...
@@ -108,7 +119,7 @@ else
 end
 
 if psoma % assumes that first point is soma
-    plot(xyz(1, 1), xyz(1, 2), ....
+    plot(xyz(1, c_idx(1)), xyz(1, c_idx(2)), ....
         'Color', colormatrix, 'Marker', 'o', ...
         'MarkerSize', 10, 'MarkerEdgeColor', [1 1 1], ...
         'MarkerFaceColor',  colormatrix, 'Parent', axH)

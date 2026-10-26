@@ -3,19 +3,35 @@ function hDat = fitgauss1D(Data1D, ...
 % fitgauss1D: fit gauss distributions to 1D data
 %
 % Usage:
-%   fitgauss_to_fluohist(wDat, ...
-%       lnbis, gaussnumber, sigmaRed, ...
-%       gauss2use, image2replace, figH, ...
-%       axH, plot_flag)
+%   hDat = fitgauss1D(Data1D, ...
+%       fittype, fSigma, Idx, bin, xif, yif)
 %
 % Args:
 %   Data1D: vector to fit
-%   fittype: number of gaussian to fit (gauss1, gauss2, etc) 
-%   fSigma: sigma
+%   fittype: number of gaussian to fit (gauss1, gauss2, etc)
+%       (default, 'gauss2')
+%   fSigma: number of standard-deviation-like widths (coef c of the fit)
+%       around the center of gaussian Idx used to set the thresholds.
+%       One value is used on both sides, two values are [left right]
+%       (default, 5)
 %   Idx: gaussian number to retrieve
-%   bin: bining interval
+%       (default, 1)
+%   bin: bining interval, in the units of Data1D
+%       (default, 1)
 %   xif: input x-variable of histogram
 %   yif: input y-variable of histogram
+%       (xif and yif are computed from Data1D if either is empty)
+%
+% Returns:
+%   hDat: structure with fields
+%       xif, yif: histogram x values (units of Data1D) and counts
+%       coef: fitted coefficients [a1 b1 c1 a2 b2 c2 ...] (a: height,
+%           b: center, c: width)
+%       yfit1, yfit2, ...: fitted curve of each gaussian over xif
+%       yths: y values (1:max count) used to draw the threshold lines
+%       Idx: gaussian number used for the thresholds
+%       xths: [left right] threshold (units of Data1D) repeated for each
+%           row of yths
 
 if ~exist('fittype','var')
     fittype = 'gauss2';
@@ -86,8 +102,8 @@ for ng = 1:ngauss
             
         else
             
-            fprintf('Error fSigma has more than 2 values\n');
-            return
+            % stop here, otherwise hDat.xths would be missing for the caller
+            error('fitgauss1D: fSigma has more than 2 values')
             
         end
         

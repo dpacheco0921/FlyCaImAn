@@ -4,16 +4,22 @@ function wDat_F_hist_per_stack(wDat, ...
 %   per constituting stacks
 %
 % Usage:
-%   wDatFluoHistPerSegment(wDat, ...
+%   wDat_F_hist_per_stack(wDat, ...
 %    histnorm_flag, nbins, image2replace, figH, axH)
 %
 % Args:
 %   wDat: main metadata structure
-%   histnorm_flag: flag to normalize histograms
-%   nbins: number of planes to use for bining
+%   histnorm_flag: flag to normalize histograms (1) or not (0)
+%   nbins: number of planes to use for bining (scalar), or a vector of
+%       plane edges. If empty, wDat.Zstitch.Zidx defines the stacks.
 %   image2replace: input image to use instead of wDat.GreenChaMean
+%       (default, [], use wDat.GreenChaMean)
 %   figH: figure handle
 %   axH: axes handle
+%
+% Returns:
+%   nothing, it only draws one histogram line per stack in axH
+%   (x axis: fluorescence in a.u., y axis: voxel counts)
 
 if ~exist('figH', 'var') || isempty(figH)
     figH = figure();
@@ -23,7 +29,9 @@ if ~exist('axH', 'var') || isempty(axH)
     axH = subplot(1, 1, 1);
 end
 
-if exist('image2replace', 'var') || ~isempty(image2replace)
+% only replace the image if one was actually provided (an empty input would
+%   otherwise wipe wDat.GreenChaMean)
+if exist('image2replace', 'var') && ~isempty(image2replace)
     wDat.GreenChaMean = image2replace;
 end
 
@@ -48,7 +56,7 @@ if exist('nbins', 'var') && ~isempty(nbins)
     for i = 1:numel(intrange)-1
         
         subv = wDat.GreenChaMean(:, :, intrange(i)+1: intrange(i+1));
-        [lhist, ~] = histogram(subv(:), hbins);
+        [lhist, ~] = hist(subv(:), hbins);
         
         if histnorm_flag
             lhist = lhist/max(lhist);

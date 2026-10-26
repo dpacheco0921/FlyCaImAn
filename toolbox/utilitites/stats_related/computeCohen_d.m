@@ -25,6 +25,10 @@ function d = computeCohen_d(x1, x2, varargin)
 % Cellular & System Neurobiology, CRG
 % -------------------------------------------------------------------------------------------
 %
+% Returns:
+%   d: Cohen's d (unitless). NaNs are ignored in the means/variances, but n1 and n2
+%   count them (numel), so NaN-containing inputs give a slightly biased d (left unchanged).
+%
 % Code History:
 %
 % 25 Jan 2017, RGB: Function is created
@@ -47,6 +51,10 @@ meanDiff = (mean_x1 - mean_x2);
 % select type of test:
 isIndependent = strcmp(testType, 'independent');
 isPaired = strcmp(testType, 'paired');
+
+if ~isIndependent && ~isPaired
+    error('computeCohen_d: testType must be "independent" or "paired"');
+end
 
 % compute 'd' accordingly:
 if isIndependent

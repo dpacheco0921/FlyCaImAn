@@ -10,6 +10,9 @@ function dataObj = gentempmat(filename, isuffix)
 %   isuffix: suffix that defines the file 
 %       [filename, suffix] where all the fields exist.
 %
+% Returns:
+%   dataObj: matfile object (writable) of [filename, isuffix]
+%
 % Notes:
 %   Need to add a function to reformat files in case the formating is not
 %       ready
@@ -31,7 +34,7 @@ end
 % check if file with Data or Y variable exist
 if ~exist([filename, isuffix], 'file')
     % generate the memmap mat file
-    fprintf('Error data file needs to be formatted')
+    error('gentempmat: data file needs to be formatted: %s', [filename, isuffix])
 else
     % memmap *.mat file
     dataObj = matfile([filename, isuffix], 'Writable', true);

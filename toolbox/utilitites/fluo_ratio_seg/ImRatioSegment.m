@@ -1,7 +1,28 @@
 function [med_mask, expr] = ...
     ImRatioSegment(x_, y_, iparams)
-
-% matlab version of ben's python code: make_mask
+% ImRatioSegment: radiometric segmentation of a tdTomato-labelled
+%   structure, using deviations from the linear relationship between
+%   two fluorophore channels (matlab version of ben's python code: make_mask)
+%
+% Usage:
+%   [med_mask, expr] = ImRatioSegment(x_, y_, iparams)
+%
+% Args:
+%   x_: image/volume of the channel used as the independent variable
+%       (c1, e.g. red channel), 2D or 3D, intensity in a.u.
+%   y_: image/volume of the dependent channel (c2, e.g. green channel),
+%       same size as x_
+%   iparams: (optional) structure; any field whose name matches a field
+%       of the default parameters (pmm, defined below) overrides it
+%
+% Returns:
+%   med_mask: binary mask (same size as x_) of pixels whose y_ signal is
+%       significantly above the fitted x_-to-y_ line, after median
+%       filtering and removal of small objects
+%   expr: residuals of the fit in units of the residual standard
+%       deviation (same size as x_)
+%
+% Notes:
 % c1 == x_, c2 == y_
 % main parameters
 
@@ -16,7 +37,7 @@ pmm.step = 10;
 pmm.initial_window = 0.7;
 pmm.slide_step = 0.02;
 pmm.type = 1;
-pmm.maxn = 8*10^6;
+pmm.maxn = 8*10^6; % max # of pixels (randomly picked) used per regression
 pmm.minpixsiz = 10^2;
 % blur sigma / kernel size
 pmm.bgate = 0;
@@ -48,10 +69,11 @@ y_ = single(y_);
 
 % smooth image
 if pmm.bgate
+    % imblur expects (data, sig, siz, nDims); sig and siz were swapped
     x_ = imblur(x_, ...
-        pmm.siz, pmm.sig, numel(sizY));
+        pmm.sig, pmm.siz, numel(sizY));
     y_ = imblur(y_, ...
-        pmm.siz, pmm.sig, numel(sizY));
+        pmm.sig, pmm.siz, numel(sizY));
 end
 
 % flatten
@@ -68,14 +90,18 @@ clear idx2del
 x_ = (x_ - min(x_(:)))/max(x_(:));
 y_ = (y_ - min(y_(:)))/max(y_(:));
 
-% hard threshold intensity in relative values
+% hard threshold intensity in relative values (0.005 = 0.5% of the
+% normalized range; drops near-background pixels that would dominate the fit)
 idx2del = x_ <= 0.005 | y_ <= 0.005;
 x_(idx2del) = nan;
 y_(idx2del) = nan;
 clear idx2del
 
 % remove major outliers
-outliers = x_ > (mean(x_(:)) + pmm.outlier_std_thresh*std(x_(:)));
+% (x_ holds NaNs from the thresholds above, so use 'omitnan'; otherwise
+% mean/std are NaN and no outlier is ever flagged)
+outliers = x_ > (mean(x_(:), 'omitnan') + ...
+    pmm.outlier_std_thresh*std(x_(:), 'omitnan'));
 figH = [];
 
 if pmm.verbose || pmm.plotr
@@ -234,7 +260,7 @@ else
         if dif < 0 && m > pmm.slope_thresh_2
             % it mainly should depend on dif to pass 0, but if slope_thresh_2
             % is too low it will stop earlier
-            k = False;
+            k = false;
         end
         
         mask(res' > pc_pos) = false;
@@ -247,7 +273,7 @@ else
             %plot(x_(~mask), y_(~mask), 'b.', 'Parent', Ax(2));
             plot(0:pmm.deltabnoridx:1, ...
                 (0:pmm.deltabnoridx:1)*m + yint, ...
-                'color', [1-(i/100) 0 0], 'Linewidth', 2,  'Parent', axH(2))
+                'color', [1-(i/100) 0 0], 'Linewidth', 2,  'Parent', axH(1))
             fprintf(['Iteration # ', num2str(i), ...
                 ' slope ', num2str(m), ...
                 ' dif ', num2str(dif), '\n'])

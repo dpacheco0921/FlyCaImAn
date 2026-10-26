@@ -5,16 +5,19 @@ function nrrd2nii(FolderName, FileName, iparams)
 %   nrrd2nii(FolderName, FileName, iparams)
 %
 % Args:
-%   FolderName: Folder name to load
-%   FileName: File name to load
-%   ip: parameters to update
+%   FolderName: only files whose folder path contains this text (default, all)
+%   FileName: only files whose name contains this text (default, all)
+%   iparams: parameters to update
 %       (im_direction: from which format to waht to do the conversion)
 %           (default, 1, from nrrd 2 nii, 2 from nii to nrrd)
 %       (dir_depth: depth of directory search)
 %           (default, 1)
 %       (nchannels: number of channels)
 %           (2, default)
-
+%       (oDir: output folder; default [], next to each input file)
+%
+% Note: each converted file is written next to the input (or in oDir); there
+%   is no output argument. nii to nrrd of 5-D (multichannel) files is not handled.
 % Default iparams
 z2spars.im_direction = 1;
 z2spars.im_format = {'.nrrd', '.nii'};

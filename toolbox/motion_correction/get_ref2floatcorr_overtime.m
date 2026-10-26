@@ -10,7 +10,9 @@ function CM = get_ref2floatcorr_overtime(templateIm, floatIm)
 %       The size of the matrix is [size(templateIm), time].
 %
 % Returns:
-%   CM: pearson correlation overtime
+%   CM: Pearson correlation coefficient (unitless, -1 to 1) between the
+%       template and each timepoint, row vector [1 x time].
+%       NaN pixels in either input make the result NaN.
 
 siz_ = size(floatIm);
 templateIm = reshape(templateIm, [prod(siz_(1:end-1)) 1]);

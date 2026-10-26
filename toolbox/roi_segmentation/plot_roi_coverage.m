@@ -19,9 +19,18 @@ function plot_roi_coverage(filename, ...
 %   roi: roi parameter
 %   oDir: output directory
 %   roi2sel: indeces of ROIs to use
-%   channel2use: define the channel to use
+%       (default, [], all ROIs)
+%   cha2use: define the channel to use, as text of the expression
+%       (default, 'wDat.GreenChaMean')
 %   com_flag: flag to overlay ROI number using its center of mass
+%       (default, 0)
 %   indroi_color_flag: flag to use different color for each ROI
+%       (default, 0)
+%
+% Returns:
+%   nothing, it saves up to three videos in oDir named
+%   [filename, '_roicov_energyn'], '_roicov_maxn' and '_roicov_bin'
+%   (voxel weights are unitless, normalized per ROI)
 
 if ~exist('vid2plot', 'var') || isempty(vid2plot)
    vid2plot = [1 1 1];
@@ -33,6 +42,11 @@ end
 
 if ~exist('oDir', 'var') || isempty(oDir)
    oDir = pwd;
+end
+
+% make sure the output folder exists before writing videos
+if ~exist(oDir, 'dir')
+    mkdir(oDir)
 end
 
 if ~exist('cha2use', 'var') || isempty(cha2use)
@@ -58,7 +72,9 @@ vidpar.lag = 0.01;
 vidpar.vgate = 1;
         
 % set brackground image and intensity range
-eval(['vidpar.Y2 = double(', cha2use,' )']); 
+eval(['vidpar.Y2 = double(', cha2use,' );']);
+% clip the background display at the 95th percentile so a few very bright
+%   voxels do not make the rest look dark
 vidpar.Y2range = [0 prctile(vidpar.Y2(:), 95)];
 vidpar.sizY = size(vidpar.Y2);
 

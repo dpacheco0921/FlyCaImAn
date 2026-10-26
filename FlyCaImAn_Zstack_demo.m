@@ -1,4 +1,4 @@
-%% demo for analysis of ball video only
+%% demo for preprocessing structural z-stacks
 %% 1) add paths
 % it assumes you have already add the repository folders to your path
 addpath(genpath(pwd))

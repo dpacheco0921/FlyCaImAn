@@ -6,22 +6,27 @@ function [eVar_cs, corrcoef_cs, lFilter_mean, ...
     chunksiz, corenum, btn, shuffle2use, ...
     add_stim_lag, add_inverse, train_idx, ...
     lnfit_flag, regress_matrix, ridge_algorithm)
-% runridgeshuffle_chunks: Run Ridge regression to all 
-%   the possible combinations of train and test data
+% get_explained_variance_shuffle: build a null distribution of explained
+%   variance / correlation by shuffling Y in time and comparing it with
+%   the (unshuffled) predicted traces Y_pred, ROI by ROI (parallel chunks).
+%   Results are written to a temporary mat file so runs can be resumed.
 %
 % Usage:
-%   eVar_cs = get_explained_variance_shuffle(...
+%   [eVar_cs, corrcoef_cs, lFilter_mean, lFilter_med, lFilter_sd] = ...
+%       get_explained_variance_shuffle(...
 %   	Y, Y_pred, lgate, stim_bin, redo, ...
 %   	filename, chunk_minsize, chunk_splitn, ...
 %   	chunksiz, corenum, btn, shuffle2use, ...
-%       add_stim_lag, add_inverse)
+%       add_stim_lag, add_inverse, train_idx, ...
+%       lnfit_flag, regress_matrix, ridge_algorithm)
 %
 % Args:
 %   Y: time traces of variables [n, T]
 %   Y_pred: time traces of predicted variables [n, T]
-%   lgate: flag to generate permuted data
-%   stim_bin: binary vector of stimuli
-%   redo: redo flag
+%   lgate: flag to generate permuted data (true: start from scratch,
+%       false: resume the run stored in filename)
+%   stim_bin: binary vector of stimuli [1, T]
+%   redo: redo flag (default, false); true also restarts from scratch
 %   filename: name of temporary file to generate
 %   chunk_minsize: minimun size of time chunk
 %   chunk_splitn: number of times to split catrace_in in the time domain
@@ -45,14 +50,20 @@ function [eVar_cs, corrcoef_cs, lFilter_mean, ...
 %       (default, 'bayes')
 %
 % Outputs:
-%   eVar_cs: explained variance per permutation for each ROI
-%   corrcoef_cs: correlation coefficient per permutation for each ROI
-%   lFilter_mean: mean estimated filters
-%   lFilter_med: median estimated filters
-%   lFilter_sd: std of estimated filters
+%   eVar_cs: explained variance (squared correlation, unitless, 0-1) per
+%       permutation for each ROI [n, permutations]
+%   corrcoef_cs: Pearson correlation (unitless, -1 to 1) per permutation
+%       for each ROI [n, permutations]
+%   lFilter_mean: mean estimated filters [m, n] (empty unless lnfit_flag)
+%   lFilter_med: median estimated filters [m, n] (empty unless lnfit_flag)
+%   lFilter_sd: std of estimated filters [m, n] (empty unless lnfit_flag)
 
 if ~exist('stim_bin', 'var')
     stim_bin = [];
+end
+
+if ~exist('redo', 'var') || isempty(redo)
+    redo = false;
 end
 
 if ~exist('shuffle2use', 'var')
@@ -64,7 +75,7 @@ if ~exist('add_stim_lag', 'var')
 end
 
 if ~exist('filename', 'var') || isempty(filename)
-    filename = [pwd, 'temp_file.mat'];
+    filename = fullfile(pwd, 'temp_file.mat');
 end
 
 if ~exist('add_inverse', 'var') || isempty(add_inverse)
@@ -95,6 +106,13 @@ if lgate || redo
     
     % initialize parameters
     dataObj.eVar_cs = [];
+    % also clear the other outputs so rows from an older run cannot leak in
+    dataObj.corrcoef_cs = [];
+    if lnfit_flag
+        dataObj.lFilter_cs_mean = [];
+        dataObj.lFilter_cs_med = [];
+        dataObj.lFilter_cs_sd = [];
+    end
 
     % generate shuffle in chunks over time
     if shuffle2use ~= 2
@@ -103,7 +121,8 @@ if lgate || redo
         round(chunk_minsize), btn, stim_bin);
     end
     
-    % add circular permutations
+    % add circular permutations (the 10 is the minimum circular shift in
+    %   timepoints; the number of permutations is set by the shifts available)
     if shuffle2use ~= 0
         rperm_circIdx = randcirshuffleper(...
             numel(Y(1, :)), 10, [], stim_bin, ...
@@ -260,11 +279,14 @@ function [eVar, corrcoef, LN_filter_mean, ...
 %       (default, 'bayes')
 %
 % Outputs:
-%   eVar: explained variance per permutation [n, T]
-%   corrcoef: correlation coefficient [n, T]
-%   LN_filter_mean: mean estimated filters
-%   LN_filter_med: median estimated filters
-%   LN_filter_sd: std of estimated filters
+%   eVar: explained variance (squared correlation) per permutation [1, n]
+%   corrcoef: correlation coefficient (shuffled Y vs Y_pred, test
+%       timepoints only) per permutation [n, 1]. Note: this name shadows
+%       the MATLAB function corrcoef inside this function.
+%   LN_filter_mean: mean estimated filters [m, 1] (NaN(1, 10) placeholder
+%       when lnfit_flag is false)
+%   LN_filter_med: median estimated filters (same shape as above)
+%   LN_filter_sd: std of estimated filters (same shape as above)
 
 if ~exist('train_idx', 'var') || isempty(train_idx)
     train_idx = false([1 size(Y, 2)]);
@@ -308,12 +330,15 @@ if lnfit_flag
 
     for i = 1:perm_n
         
-        if contains(ridge_algorithm, 'bayes')
+        if contains(lower(ridge_algorithm), 'bayes')
             LN_filter_shuffle(:, i) = runRidgeOnly(zs_regressM, ...
                 zs_Y_shuffle(:, i), size(zs_regressM, 2), 1);
-        elseif contains(ridge_algorithm, 'mml')
+        elseif contains(lower(ridge_algorithm), 'mml')
             [~, LN_filter_shuffle(:, i)] = ...
-                ridgeMML(zs_Y_shuffle(:, i), zs_regressM, true);        
+                ridgeMML(zs_Y_shuffle(:, i), zs_regressM, true);
+        else
+            error('Unknown ridge_algorithm: %s (use bayes or MML)', ...
+                ridge_algorithm);
         end
         
     end

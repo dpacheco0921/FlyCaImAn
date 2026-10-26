@@ -7,6 +7,10 @@ function varargout = loadvar(mat_file, var_name, varargin)
 %   [X1, X2, ..., XN] = loadvar(mat_file, var_name1, var_name2, ..., var_nameN)
 %   C = loadvar(mat_file, var_names) % variable names in cell; cell output
 %
+% Returns:
+%   X (or X1..XN): the loaded variable(s). If the number of requested outputs
+%   differs from the number of variables, all are returned together in one cell.
+%
 % Notes:
 %   - This is a shortcut for loading variables from MAT files without creating
 %   a temporary variable to contain the MAT file structure.

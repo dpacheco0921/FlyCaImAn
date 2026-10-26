@@ -36,17 +36,19 @@ function batch_format_and_edit_zstack(FolderName, FileName, iparams)
 %           (10, default)
 %       (zflipgate: gate to flip orientation in Z)
 %           (1, default)
-%       (mirror_flag: flag to also save mirror image (_mw))
+%       (mirror_flag: flag to also save mirror image (_wm))
+%           (0, no mirror image)
 %           (1, default, mirror in x)
-%           (2, default, mirror in y)
+%           (2, mirror in y)
 %       (im_format: image format ".nrrd" or ".nii")
 %           (default, '.nrrd')
 %       (dir_depth: depth of directory search)
 %           (default, 1)
-%       (oDir: output directory)
-%           (pwd, default)
+%       (oDir: output directory, images go to <oDir>/images_ch<N>/)
+%           ('./', default, the current folder)
 %
 % Notes:
+% No return value, images are saved to disk (voxel size in um).
 % 1) For whole brains it gets the resolution from the nrrd/nifti image
 % 2) Performs some processing to whole brains:
 %   *reshape
@@ -116,6 +118,11 @@ if ~isempty(FolderName)
     iDir = iDir(f2run);
 end
 
+if isempty(filename)
+    warning('batch_format_and_edit_zstack:noFiles', ...
+        'No *%s%s files matched in %s', z2spars.fisuffix, z2spars.im_format, pwd)
+end
+
 fprintf(['Running n-files : ', num2str(numel(filename)), '\n'])
 
 for i = 1:numel(filename)
@@ -130,10 +137,10 @@ fprintf('... Done\n')
 end
 
 function genrrdIm(filename, full_dir_path, z2spars)
-% genrrdIm: per file name, _w nrrd images
+% genrrdIm: per file name, _w (and mirrored _wm) nrrd / nifti images
 %
 % Usage:
-%   gennrrd(filename, full_dir_path, z2spars)
+%   genrrdIm(filename, full_dir_path, z2spars)
 %
 % Args:
 %   filename: file name
@@ -216,11 +223,15 @@ for t = 1:size(Data, 4)
     status_(k) = ~exist(lname, 'file');
     k = k + 1;
 
-    lname = [oDir_, filename_o_name, smooth_str, ...
-        '_wm_0', num2str(t), z2spars.im_format];
-    status_(k) = ~exist(lname, 'file');
-    k = k + 1;
-    
+    % mirrored image only needs to exist when mirroring is requested
+    %   (otherwise the files would be regenerated on every run)
+    if z2spars.mirror_flag
+        lname = [oDir_, filename_o_name, smooth_str, ...
+            '_wm_0', num2str(t), z2spars.im_format];
+        status_(k) = ~exist(lname, 'file');
+        k = k + 1;
+    end
+
 end
 
 if sum(status_) || z2spars.redo

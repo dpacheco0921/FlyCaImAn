@@ -16,11 +16,14 @@ function [sel_idx, sel_coord, sel_point, sel_norm] = ...
 %   i_buffer: buffer
 %   neigh_dist: distance from neighbor
 %
-% Output
-%   sel_idx: index of points in trees close to intersection with normal plane
-%   sel_coord: coordinates of points in trees intersecting normal plane
-%   sel_point: points from average trace
-%   sel_norm: normal from average trace
+% Returns:
+%   sel_idx: [n x trees] index of points in trees close to intersection
+%       with normal plane (n = reference points kept after the buffer filter)
+%   sel_coord: [n x 3 x trees] coordinates (same units as the trees) of
+%       points in trees intersecting normal plane
+%   sel_point: [n x 3] points from average trace (centroid across trees)
+%   sel_norm: [n x 3] normal from average trace (sum of the per-tree unit
+%       normals, so its length is about the number of trees)
 
 if ~exist('i_buffer', 'var') || isempty(i_buffer); i_buffer = 5; end
 float_trees = getObj_xyz(float_trees);
@@ -45,6 +48,7 @@ ref_normal(idx2del, :) = [];
 sel_point = nan(size(intersect_idx, 1), 3);
 sel_idx = nan([size(intersect_idx, 1), numel(float_trees)]);
 sel_coord = nan([size(intersect_idx, 1), 3, numel(float_trees)]);
+sel_norm = nan(size(intersect_idx, 1), 3);
 
 for i = 1:size(intersect_idx, 1)
 
@@ -59,25 +63,32 @@ for i = 1:size(intersect_idx, 1)
             sel_pnts_m(:, :, j) = ...
                 float_trees{j}(sel_pnts(j) - i_buffer: sel_pnts(j) + i_buffer, :);
         end
-    catch
-        keyboard
+    catch ME
+        % stop with a clear message instead of waiting in the debugger
+        error('to_get_avg_norm: could not collect points around intersection %d: %s', ...
+            i, ME.message)
     end
-    
+
     % replace intersect point by actual intersection
     sel_pnts_m(i_buffer + 1, :, :) = intersect_coord(i, :, :);
     sel_points_d  = squeeze((sum(bsxfun(@minus, ...
         sel_pnts_m, sel_pnts_m(i_buffer + 1, :, :)).^2, 2)).^0.5) <= neigh_dist;
-    
+
+    % one normal per tree (kept in its own variable: reusing sel_norm for
+    %   both the per-tree normals and the output mixed old averages into
+    %   the new average)
+    tree_norm = nan(size(intersect_idx, 2), 3);
+
     for j = 1:size(intersect_idx, 2)
-        sel_norm(j, :) = sel_pnts_m(find(sel_points_d(:, j), 1, 'last'), :, j) ...
+        tree_norm(j, :) = sel_pnts_m(find(sel_points_d(:, j), 1, 'last'), :, j) ...
             - sel_pnts_m(find(sel_points_d(:, j), 1, 'first'), :, j);
     end
 
     % normalize length
-    sel_norm = bsxfun(@rdivide, sel_norm, (sum(sel_norm.^2, 2)).^0.5);
-    
-    % avg normal
-    sel_norm_avg = sum(sel_norm, 1);
+    tree_norm = bsxfun(@rdivide, tree_norm, (sum(tree_norm.^2, 2)).^0.5);
+
+    % avg normal (sum of unit normals, direction is what matters)
+    sel_norm_avg = sum(tree_norm, 1);
     sel_norm(i, :) = sel_norm_avg;
     sel_point_avg = sum(squeeze(sel_pnts_m(i_buffer + 1, :, :))', 1)/size(intersect_idx, 2);
     sel_point(i, :) = sel_point_avg; % centroid

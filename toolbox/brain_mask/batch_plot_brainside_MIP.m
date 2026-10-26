@@ -11,11 +11,17 @@ function batch_plot_brainside_MIP(...
 %   Filename: name pattern of files to use
 %       (default, [])
 %   oDir: output directory.
+%       (default, [pwd, filesep, 'MIP'])
 %   iparams: parameters to update
 %       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%
+% Returns:
+%   nothing, it saves one figure per file in oDir (red and green channel
+%   maximum projections along z, titled with wDat.bSide)
+%
 % Notes
 
 % default params
@@ -27,7 +33,7 @@ if ~exist('Filename', 'var')
     Filename = [];
 end
 
-if isempty(oDir)
+if ~exist('oDir', 'var') || isempty(oDir)
     oDir = [pwd, filesep, 'MIP'];
 end
 
@@ -62,7 +68,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating plots for ', ...
+if isempty(filename)
+    warning('batch_plot_brainside_MIP: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Generating plots for ',...
     num2str(numel(filename)), ' files\n'])
 
 % plot sMod results
@@ -97,8 +107,17 @@ figH = figure('Position', genfigpos(1, 'center', [600 400]));
 axH(1) = subplot(1, 2, 1);
 axH(2) = subplot(1, 2, 2);
 
-try imagesc(max(wDat.RedChaMean, [], 3), 'Parent', axH(1)); end
-try imagesc(max(wDat.GreenChaMean, [], 3), 'Parent', axH(2)); end
+% a channel can be missing in some recordings, so only warn
+try
+    imagesc(max(wDat.RedChaMean, [], 3), 'Parent', axH(1));
+catch
+    warning('plot_bside_MIP: no red channel mean image for %s', filename)
+end
+try
+    imagesc(max(wDat.GreenChaMean, [], 3), 'Parent', axH(2));
+catch
+    warning('plot_bside_MIP: no green channel mean image for %s', filename)
+end
 
 axH(1).Title.String = strrep(wDat.bSide, '_', '-');
 axH(2).Title.String = strrep(wDat.bSide, '_', '-');

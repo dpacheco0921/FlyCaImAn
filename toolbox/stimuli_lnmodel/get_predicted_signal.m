@@ -15,8 +15,14 @@ function Y_pred = get_predicted_signal(training_idx, ...
 %       n: different train arragaments
 %       T: time.
 %       x: output variables to generate.
+%
+% Returns:
+%   Y_pred: predicted traces [x, T] in z-score units, filled only on the
+%       test timepoints of each arrangement (timepoints that are never in a
+%       test set stay 0)
 
-testing_idx = ~training_idx; 
+% test timepoints are the ones not used for training
+testing_idx = ~training_idx;
 Y_pred = [];
 
 for iter_i = 1:size(training_idx, 1)

@@ -6,6 +6,17 @@ function [dt, timer_id] = stocf(timer_id, str, varargin)
 %   stocf(timer_id, str, ...)
 %   [dt, timer_id] = stocf(_)
 %
+% Args:
+%   timer_id: id returned by stic (optional; default, the most recent timer)
+%   str: sprintf-style message; elapsed seconds are appended as [x.xxs]
+%       (or h/m/s text after 5 min) unless an empty [] is passed in varargin,
+%       in which case dt replaces the last [] there
+%   varargin: values for the sprintf-style message
+%
+% Returns (only if requested):
+%   dt: elapsed seconds since the timer was started
+%   timer_id: id of the timer that was read
+%
 % See also: stic, stoc
 
 % Get elapsed time
@@ -48,6 +59,11 @@ if isempty(dt_idx)
         varargin{dt_idx} = dt;
         
     end
+    
+else
+    
+    % an empty [] was passed in varargin: plug the elapsed time in there
+    varargin{dt_idx} = dt;
     
 end
 

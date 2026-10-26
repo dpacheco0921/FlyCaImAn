@@ -9,7 +9,8 @@ function [figH, axH] = plot_NoRMCorr_shitfs(im_dim, figH, axH, input_colors, var
 %   im_dim: image dimensions
 %   figH: figure handle
 %   axH: axes handle
-%   input_colors: axes handle
+%   input_colors: RGB color(s) [n x 3] used for each shifts input
+%       (a single row is repeated for all inputs)
 %   varargin: n number of shifts cells containing
 %       shifts in X, shifts in Y, and shifts in Z
 %
@@ -76,8 +77,11 @@ for i = 1:numel(varargin)
     else
         
         for j = 1:size(shifts_x, 2)
+            % 2D images have no Z shifts
+            shifts_z_j = [];
+            if im_dim == 3; shifts_z_j = shifts_z(:, j); end
             ploteachtrace(im_dim, shifts_x(:, j), ...
-                shifts_y(:, j), shifts_z(:, j), ...
+                shifts_y(:, j), shifts_z_j, ...
                 intCorvect(j, :), axH)
         end
         

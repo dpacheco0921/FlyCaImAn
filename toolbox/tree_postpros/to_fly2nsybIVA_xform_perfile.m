@@ -8,13 +8,17 @@ function to_fly2nsybIVA_xform_perfile(floatTrees, ...
 %       refIm, xDir, iDir, oDir, esuffix, redo)
 %
 % Args:
-%   floatTrees: name of trees (swc files)
+%   floatTrees: cell array with names of trees (swc files)
 %       naming format (year/month/day)_(flynumber)_(type:w|wm)_(channel:01|02))_(neuronname:P1,etc)).SWC)
-%   xDir: directory of transformation
-%   iDir: *.swc files directory
-%   oDir: output directory
-%   esuffix: extra suffix
-%   redo: redo gate
+%   refIm: name of the reference image/atlas to reformat to
+%   xDir: directory of transformation (default, '.')
+%   iDir: *.swc files directory (default, '.')
+%   oDir: output directory (default, '.')
+%   esuffix: extra suffix (default, '')
+%   redo: redo gate, 1 to redo trees already reformatted (default, 0)
+%
+% Returns:
+%   nothing; saves '<name>_<refIm><esuffix>.swc' in oDir for each tree
 
 if ~exist('esuffix', 'var') || isempty(esuffix); esuffix = ''; end
 if ~exist('xDir', 'var') || isempty(xDir); xDir = '.'; end
@@ -24,7 +28,9 @@ if ~exist('redo', 'var') || isempty(redo); redo = 0; end
 
 for i = 1:numel(floatTrees)
     
-    if exist([iDir, filesep, strrep(floatTrees{i}, '.swc', ...
+    % skip trees whose reformatted swc already exists in the OUTPUT folder
+    %   (it was checked in iDir, but the result is saved in oDir)
+    if exist([oDir, filesep, strrep(floatTrees{i}, '.swc', ...
             ['_', refIm, esuffix, '.swc'])], 'file') ~= 2 || redo
         
         fprintf(['Running file: ', floatTrees{i}, '\n'])
@@ -42,7 +48,10 @@ for i = 1:numel(floatTrees)
         % edit cmtk_streamxform
         % edit cmtk_xform
         
-        if err_status; keyboard; end
+        if err_status
+            error('to_fly2nsybIVA_xform_perfile: CMTK reformatting failed for %s', ...
+                floatTrees{i})
+        end
         
         if numel(tree.X) ~= 0
             

@@ -17,7 +17,7 @@ function batch_brainmaskgen(FolderName, FileName, iparams)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
 %       (tsuffix: name type)
-%           (deaulf, 0 [day _ fly])
+%           (default, 0 [day _ fly])
 %           (1 [day _ fly _ rep])
 %       %%%%%%%%%%%% editing of mean image before generating histograms %%%%%%%%%%%%
 %       (minsize: minumun size of connected components when generating binary mask)
@@ -27,11 +27,18 @@ function batch_brainmaskgen(FolderName, FileName, iparams)
 %       (manual: flag to require manual confirmation of binary mask)
 %           (default, 1)
 %       (all: flag to use all pixels, instead of mask)
-%           (default, 0)
+%           (default, 0; currently not used by the code, use manual = 0
+%           to get a mask with all pixels)
+%
+% Returns:
+%   nothing, it appends wDat.bSide (brain side label), wDat.bF_ths
+%   (intensity threshold per stack, a.u.), wDat.bF_zbin (z plane edges of
+%   each stack) and wDat.bMask (logical mask, same size as the mean
+%   image) to each *_prosmetadata.mat file
 %
 % Notes:
-%   generates wDat.fths_zbin, wDat.fths_zval and wDat.min_f which are used by
-%   batch_formatstacks or batch_stitch_format_stacks_*.m
+%   generates wDat.bSide, wDat.bF_zbin, wDat.bF_ths and wDat.bMask which are
+%   used by ROI segmentation (batch_CaROISegSer)
 %
 % ToDo:
 
@@ -61,6 +68,10 @@ f2run = dir;
 f2run = str2match(FolderName, f2run);
 f2run = str2rm(pbm.fo2reject, f2run);
 f2run = {f2run.name};
+
+if isempty(f2run)
+    warning('batch_brainmaskgen: no folders matched in %s', pwd)
+end
 
 fprintf(['Running n-folders : ', num2str(numel(f2run)), '\n'])
 
@@ -124,9 +135,11 @@ function processfunc(f2run, pbm)
 load([f2run, '_', strrep(pbm.fsuffix, '_', ''), ...
     '.mat'], 'wDat')
 
-if pbm.redo || (~isfield(wDat, 'bSide') ...
-        && ~isfield(wDat, 'bMask')) ...
-        && isfield(wDat, 'vSize')
+% run if there is imaging data (vSize) and either redo is on or no mask
+%   has been generated yet (parenthesized so redo cannot bypass the
+%   vSize check)
+if isfield(wDat, 'vSize') && (pbm.redo || ...
+        (~isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask')))
     
     % Input brain side used
     if pbm.manual
@@ -141,7 +154,7 @@ if pbm.redo || (~isfield(wDat, 'bSide') ...
         
         % input brain side details
         fprintf(['Define hemisphere ', ...
-            '(L (left), R(right), or C(center))'])
+            '(L (left), R(right), or C(center))\n'])
         fprintf('Define Dorso-ventral axis (d, dorsal, v: ventral) : \n')
         
         wDat.bSide = input('brain side : ');
@@ -193,7 +206,10 @@ if pbm.redo || (~isfield(wDat, 'bSide') ...
         plot4Dproj(wDat.RedChaMean, [], wDat.vSize, pi); 
         plot4Dproj(wDat.GreenChaMean, [], wDat.vSize, pi)
         
-        % always manually inspect mask
+        % always manually inspect mask: this pause (keyboard) is the
+        %   intended interactive step, edit wDat.bF_ths in the script
+        %   that opens, then type dbcont to continue (only runs when
+        %   pbm.manual = 1)
         edit brainmaskgen_maninput;
         keyboard;
         
@@ -221,7 +237,7 @@ elseif isfield(wDat, 'bSide') && ~isfield(wDat, 'bMask')
     
 elseif isfield(wDat, 'vSize')
 
-    fprintf('no \n')
+    fprintf('Brain mask already generated for %s (use redo to overwrite)\n', f2run)
     
 end
 

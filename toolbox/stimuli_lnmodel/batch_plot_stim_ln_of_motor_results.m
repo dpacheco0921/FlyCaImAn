@@ -14,15 +14,17 @@ function batch_plot_stim_ln_of_motor_results(...
 %       (default, [])
 %   oDir: output directory.
 %   iparams: parameters to update
-%       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%       (fmetsuffix: suffix of metadata file, also holds sti_ln_mot)
+%           (default, '_prosmetadata.mat'; the batch caller passes
+%           '_metadata.mat' by default)
 %       (hbins: bins for histogram)
 %           (default, -1:0.01:1)
 %       (hbinsp: bins for histogram pvals)
-%           (default, 0:0.01:1)
+%           (default, 0:0.1:1.1)
 %       (fdr: false discovery rate)
 %            (default, 0.01)
-%       (prct2use: bins for histogram)
+%       (prct2use: percentile of the per-fold coefficients used as the
+%           statistic for each motor variable)
 %           (default, 30)
 %       (mccor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
@@ -93,6 +95,11 @@ end
 
 filename = strrep(filename, motpar.fmetsuffix, '');
 
+if isempty(filename)
+    warning('batch_plot_stim_ln_of_motor_results:noFiles', ...
+        'No files matching *%s found, nothing to plot', motpar.fmetsuffix);
+end
+
 fprintf(['Generating plots for ', ...
     num2str(numel(filename)), ' files\n'])
 
@@ -101,10 +108,13 @@ for i = 1:numel(filename)
 
     try
         plotperfly(filename{i}, iDir{i}, oDir, motpar);
-    catch
-        fprintf('/n ****************************************** /n')
-        fprintf(['Failed file: ', filename{i}, '/n'])
-        fprintf('****************************************** /n')
+    catch ME
+        % keep going with the remaining files, but say which one failed and why
+        fprintf('\n ****************************************** \n')
+        fprintf(['Failed file: ', filename{i}, '\n'])
+        warning('batch_plot_stim_ln_of_motor_results:failedFile', ...
+            'Failed file %s: %s', filename{i}, ME.message);
+        fprintf('****************************************** \n')
     end
 
 end
@@ -228,7 +238,9 @@ function plot_traces_of_modulated_vars(var2plot, ...
 %   oDir: output directory
 
 oDir_ = [oDir, filesep, filename,  'stim_mod'];
-mkdir(oDir_)
+if ~exist(oDir_, 'dir')
+    mkdir(oDir_)
+end
 
 fitsize = 0;
 axcolor = 'none';
@@ -241,17 +253,21 @@ figformat = [1 0 0 0 0 0 0 0 1 0 1];
 Y_pred = get_predicted_signal(sti_ln_mot.train_idx, ...
     sti_ln_mot.lFilter, sti_ln_mot.stimM);
 
+% Y and Y_pred only contain the timepoints used for fitting (tidx2use),
+%   so the time axis must be pruned the same way
+fTime_used = wDat.fTime(sti_ln_mot.tidx2use);
+
 for i = 1:numel(var2plot)
-    figH = figure('Position', genfigpos(1, 'center', [1000 300])); 
+    figH = figure('Position', genfigpos(1, 'center', [1000 300]));
     axH(1) = subplot(1, 1, 1);
 
-    plot(wDat.fTime, zscorebigmem(sti_ln_mot.Y(var2plot(i), :)), ...
+    plot(fTime_used, zscorebigmem(sti_ln_mot.Y(var2plot(i), :)), ...
         'k', 'Linewidth', 2, 'Parent', axH(1));
     hold(axH(1), 'on')
-    plot(wDat.fTime, Y_pred(var2plot(i), :), ...
+    plot(fTime_used, Y_pred(var2plot(i), :), ...
         'r', 'Linewidth', 2, 'Parent', axH(1));
 
-    axH(1).XLim = wDat.fTime([1 end]);
+    axH(1).XLim = fTime_used([1 end]);
     axH(1).XLabel.String = 'Time (s)';
     axH(1).YLabel.String = 'Signal (SD)';
 

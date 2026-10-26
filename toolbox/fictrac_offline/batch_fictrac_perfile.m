@@ -10,22 +10,25 @@ function batch_fictrac_perfile(FolderName, FileName, iparams)
 %   iparams: parameters to update
 %       (redo: flag to redo tracking)
 %           (default, 0)
-%       (cDir: current directory)
+%       (cDir: directory to return to after each folder)
 %           (default, pwd)
-%       (cDir: current directory)
-%           (default, pwd)
-%       (do_search_flag: flag to do search)
-%           (default, pwd)
+%       (do_search_flag: flag to do a global search for the ball)
+%           (default, 0)
 %       (load_template_flag: flag to load external template)
-%           (default, pwd)
+%           (default, 0)
 %       (template_fn: template image to use)
-%           (default, [])
+%           (default, 'template_im.jpg')
 %       (oDir: directory to save figures)
 %           (default, [pwd, filesep, 'fictrac'])
 %       (ball_radious: radious of ball)
 %           (default, 4.5 mm)
 %       (hbins_speed: bins to use for histogram)
 %           (default, [-20:0.1:60])
+%
+% Returns:
+%   nothing; per video it writes '<name>_fictrac.txt' (+ other FicTrac
+%   outputs), adds 'fictDat' to '<name>_vDat.mat' and saves a summary
+%   figure in oDir.
 %
 % Notes:
 %   requires fictrac to be installed.
@@ -162,7 +165,15 @@ for i = 1:numel(vid2run)
         % delete temp config file
         delete(temp_config_file)
     end
-    
+
+    % if FicTrac produced no output (e.g. it failed or is not installed)
+    %   skip this video instead of crashing on the missing file
+    if ~exist([vid2run{i}, '_fictrac.txt'], 'file')
+        warning('FicTrac output not found for %s in %s, skipping', ...
+            vid2run{i}, pwd)
+        continue
+    end
+
     % add fictrac variable to '_vDat.mat' file
     fictrac_txt2mat([vid2run{i}, '_fictrac.txt'])
     
@@ -181,21 +192,27 @@ function edit_FicTrac_config(config_file, ...
 % Usage:
 %	edit_FicTrac_config(config_file, ...
 %       vid_name, do_search_flag, load_template_flag, ...
-%       template_name)
+%       template_name, prefixstr)
 %
 % Args:
 %   config_file: config file to use as template
-%   vid_name: video name
-%   do_search_flag: flag to do search
-%   	(default, pwd)
-%   load_template_flag: flag to load external template
-%       (default, pwd)
-%   template_fn: template image to use
-%       (default, [])
-%   prefixstr: video prefix
+%   vid_name: video name (without '_vid' and extension)
+%   do_search_flag: flag to do search (0 or 1)
+%   load_template_flag: flag to load external template (0 or 1)
+%   template_name: template image to use when load_template_flag is 1
+%   prefixstr: video extension ('.mp4' or '.avi')
+%
+% Returns:
+%   nothing; writes 'temp_config.txt' in the current directory
 
 % load text file
 fid = fopen(config_file, 'r');
+if fid == -1
+    error(['Config file ''%s'' not found in %s. Run ', ...
+        'batch_gen_fictrac_input_files first.'], config_file, pwd)
+end
+% NOTE: the line numbers edited below (2-7, 26, 37) refer to the template
+%   fictrac_settings/FicTrac_config.txt; update them if the template changes
 i = 1;
 tline = fgetl(fid);
 A{i} = tline;
@@ -250,9 +267,12 @@ function fictrac_plot_results(fname, fictracpars)
 %	fictrac_plot_results(fname, fictracpars)
 %
 % Args:
-%   fname: name if file containing 'fictDat'
-%   fictracpars: video name
-%   fictracpars: input parameters
+%   fname: name of file containing 'fictDat' ('<name>_vDat.mat')
+%   fictracpars: input parameters (ball_radious, hbins_speed, oDir)
+%
+% Returns:
+%   nothing; saves '<name>_fictrac_stats' (fig and png) in
+%   fictracpars.oDir. Speeds are in mm per video frame here (not mm/s).
 %
 % Notes
 %   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)

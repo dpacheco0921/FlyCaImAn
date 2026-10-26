@@ -1,11 +1,10 @@
 function batch_plot_shifts_over_time(...
     FolderName, FileName, iparams)
-% batch_plot_shifts_over_time: plots shifts
-%   for timeseries and stitching across
-%   stacks
+% batch_plot_shifts_over_time: plots motion-correction shifts (and the
+%   correlation to the template) over time, from the metadata files
 %
 % Usage:
-%   batch_plotShiftPerStack(...
+%   batch_plot_shifts_over_time(...
 %       FolderName, FileName, iparams)
 %
 % Args:
@@ -17,7 +16,7 @@ function batch_plot_shifts_over_time(...
 %       (metsuffix: suffix of metadata)
 %           (default, '_metadata.mat')
 %       (fo2reject: folders to reject)
-%           (default, {'.', '..', 'preprocessed', 'BData'})
+%           (default, {'.', '..'})
 %       (fi2reject: files to reject)
 %           (default, [])
 %       (colorm: color for shift trace)
@@ -25,7 +24,7 @@ function batch_plot_shifts_over_time(...
 %       (ctype: plot each stack: 0 == separately, 1 == together)
 %           (default, 0)
 %       (screen: screen to use for plotting)
-%           (default, 1)
+%           (default, 1, currently unused)
 %       (oDir: output folder to save figures)
 %           (default, [])
 %
@@ -168,11 +167,16 @@ if ~isempty(strfind(motpar.fsuffix, 'rawdata'))
 
     end
 
+    % 2DxT shifts only have 2 rows (Y, X): add a zero Z row so the
+    %   indexing below works (the figure still only has 2 axes)
+    if size(mcDat.rigid, 1) == 2; mcDat.rigid(3, :) = 0; end
+
     if isfield(mcDat, 'rigids') && ~isempty(mcDat.rigids)
 
         if iscell(mcDat.rigids)
             mcDat.rigids = mcDat.rigids{1};
         end
+        if size(mcDat.rigids, 1) == 2; mcDat.rigids(3, :) = 0; end
 
         lineH(1) = ploteachtrace_mc(mcDat.rigids(1, :)*iDat.MetaData{3}(1), ...
             mcDat.rigids(2, :)*iDat.MetaData{3}(2), ...
@@ -283,18 +287,21 @@ end
 function lineH = ploteachtrace_mc(...
     shifts_x, shifts_y, shifts_z, ...
     intCorvect, axH)
-% ploteachtrace_st: plots timeseries 
+% ploteachtrace_mc: plots timeseries
 %   shifts_x, shifts_y, shifts_z on axes axH
-% 
+%
 % Usage:
-%   ploteachtrace_mc(...
+%   lineH = ploteachtrace_mc(...
 %      shifts_x, shifts_y, shifts_z, ...
 %      intCorvect, axH)
 %
 % Args:
-%   shifts_*: shifts on X, Y or Z axis
+%   shifts_*: shifts on X, Y or Z axis (micrometers, one value per stack)
 %   intCorvect: color vector
-%   axH: axes handle
+%   axH: axes handles (one per plotted axis)
+%
+% Returns:
+%   lineH: handle of the last line plotted (used for the legend)
 
 ivect = {'shifts_x', 'shifts_y', 'shifts_z'};
 axS = {'X', 'Y', 'Z'};

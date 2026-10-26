@@ -1,3 +1,10 @@
+% LEDDebug: notes / script to debug the red-channel threshold of
+%   batch_LEDdenoise (opened with 'edit LEDDebug' when ledpars.debug == 1).
+%   It is NOT meant to run on its own: it expects iDat, RedCha, hDat and
+%   params in the workspace of a stopped batch_LEDdenoise (use
+%   'dbstop if error' before running it with ledpars.debug = 1).
+%   Run it section by section.
+
 %% Debugging LED denoising
 %% 1) Difference between the two distributions of max fluorescence is not clear
 iDat.RedChaMean = median(RedCha(:, :, :), 3);

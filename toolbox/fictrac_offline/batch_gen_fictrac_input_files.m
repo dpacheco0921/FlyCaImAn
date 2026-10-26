@@ -18,6 +18,11 @@ function batch_gen_fictrac_input_files(...
 %       (0, use tif)
 %       (1, extract rawim from mp4/avi)
 %
+% Returns:
+%   nothing; writes, in each selected folder, the ball mask image
+%   (*_maskim.tiff or mask.tiff), the calibration-transform file(s)
+%   (*_calibration-transform.dat) and copies of the FicTrac config files.
+%
 % Notes:
 % Based on a function written by Dudi Deutsch.
 % Uses function from
@@ -109,9 +114,11 @@ Calibration_Directory = ...
     strrep(which('batch_gen_fictrac_input_files'), ...
     'batch_gen_fictrac_input_files.m', '');
 addpath(genpath(Calibration_Directory))
-% get directory of fictrac settings
+% the template config files live in the 'fictrac_settings' folder that sits
+%   next to this file (the old strrep on 'toolbox' pointed to a folder that
+%   does not exist, so the config files were never copied)
 Calibration_Directory = ...
-    strrep(Calibration_Directory, 'toolbox', 'fictrac_settings');
+    [Calibration_Directory, 'fictrac_settings', filesep];
 
 if im_mode == 0
     
@@ -122,7 +129,8 @@ if im_mode == 0
     try
         MaskFile = get_recent_file('*mask*.tiff');
     catch
-        imwrite(logical(SnapFile), 'mask.tiff')
+        % start from an all-on mask the size of the snapshot
+        imwrite(logical(imread(SnapFile)), 'mask.tiff')
         MaskFile = get_recent_file('*mask*.tiff');    
     end
 
@@ -130,6 +138,11 @@ if im_mode == 0
     [sphere_cx_px, sphere_cy_px, ...
         sphere_radius_px, height_pix, width_pix] = ...
         get_ball_features(MaskFile, SnapFile);
+
+    if isempty(sphere_cx_px)
+        error(['No ball position available: answer N to the mask ', ...
+            'question and define the ball borders'])
+    end
 
     % 2) generate 'calibration-transform.dat'
     oDir = [pwd, filesep, 'calibration-transform.dat'];
@@ -224,11 +237,15 @@ end
 try
     copyfile([Calibration_Directory, 'FicTrac_config.txt'], ...
         [pwd, filesep, 'FicTrac_config.txt'])
+catch ME
+    warning('Could not copy FicTrac_config.txt into %s: %s', pwd, ME.message)
 end
 
 try
     copyfile([Calibration_Directory, 'FicTracPGR_config.txt'], ...
         [pwd, filesep, 'FicTracPGR_config.txt'])
+catch ME
+    warning('Could not copy FicTracPGR_config.txt into %s: %s', pwd, ME.message)
 end
 
 end
@@ -242,12 +259,18 @@ function [sphere_cx_px, sphere_cy_px, ...
 % Usage:
 %	[sphere_cx_px, sphere_cy_px, ...
 %       sphere_radius_px, height_pix, width_pix] = ...
-%       get_ball_features(mask_filename, rawim_filename)
+%       get_ball_features(mask_filename, rawim_filename, pre_mask_filename)
 %
 % Args:
 %   mask_filename: full path of mask image file
 %   rawim_filename: full path of raw image file
-%   pre_mask_filename: previous mask filename to compare to
+%   pre_mask_filename: previous mask filename to compare to (optional)
+%
+% Returns:
+%   sphere_cx_px, sphere_cy_px: ball centre (pixels); [] if the user kept
+%       the existing mask (ball not re-measured)
+%   sphere_radius_px: ball radius (pixels); [] if the mask was kept
+%   height_pix, width_pix: mask size (pixels)
 
 % read image file
 if exist('pre_mask_filename', 'var') && ...
@@ -432,6 +455,11 @@ function filepath = get_recent_file(file_pattern)
 % Args:
 %   file_pattern: str pattern for finding files
 %       ('*mask*.tiff')
+%
+% Returns:
+%   filepath: full path of the newest matching file. If nothing matches the
+%       output is left unassigned on purpose: callers wrap this call in
+%       try/catch to detect "no file yet".
 
 allfiles = dir(file_pattern);
 DateModified = zeros(1, size(allfiles, 1));

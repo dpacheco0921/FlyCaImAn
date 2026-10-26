@@ -18,8 +18,8 @@ function batch_plot_compare_eVar_motor_per_stim(...
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (oDir: target directory to save figures)
-%           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
+%           (default, [pwd, filesep, 'fictrac_compare'])
+%       (ball_radious: radius of the ball, mm)
 %           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %           (default, 3)
@@ -29,7 +29,14 @@ function batch_plot_compare_eVar_motor_per_stim(...
 %           (default, 100)
 %       (time_buffer: time before and after stimulus)
 %           (default, [-5 +5])
+%
+% Returns:
+%   nothing; saves '<figname>_evar_motor_per_stim' in metpars.oDir
+%   (explained variance, in %, of the response to each stimulus by each
+%   motor variable: speed, fV, lV, yaw, pitch, roll, SVD-1)
+%
 % Notes
+%   each ifiles_1 pattern must match exactly one '*_metadata.mat' file
 
 % default params
 metpars = [];
@@ -38,13 +45,15 @@ metpars.fi2reject = 'Zstack';
 metpars.dir_depth = 0;
 metpars.oDir = [pwd, filesep, 'fictrac_compare'];
 
-if ~exist(metpars.oDir, 'dir')
-   mkdir(metpars.oDir)
-end
-
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 metpars = loparam_updater(metpars, iparams);
+
+% create the output folder after the update, so a user-supplied oDir is
+%   the one that gets created
+if ~exist(metpars.oDir, 'dir')
+   mkdir(metpars.oDir)
+end
 
 fprintf(['Generating plots for # ', ...
     num2str(length(ifiles_1)), ' pairs\n'])
@@ -74,8 +83,10 @@ function plot_per_wDat(wDat, stimuli_name, ...
 %       metpars, figurename)
 %
 % Args:
-%   wDat: file name
-%   stimuli_name: input parameters
+%   wDat: cell array with one metadata structure per file
+%   stimuli_name: cell array of unique stimulus names
+%   metpars: internal parameters
+%   figurename: figure name
 
 figH = figure('Position', genfigpos(1, 'center', [225 900]));
 for i = 1:numel(stimuli_name)
@@ -123,11 +134,16 @@ function wDat = run_each(ifile, metpars)
 % run_each: function that runs each pair
 %
 % Usage:
-%   wDat = run_per_pair(ifile, metpars)
+%   wDat = run_each(ifile, metpars)
 %
 % Args:
-%   ifile: file name
+%   ifile: name pattern of the file to use
 %   metpars: input parameters
+%
+% Returns:
+%   wDat: metadata structure with the explained variance per stimulus
+%       (stim_name, eVar_mean_per_stim, eVar_med_per_stim). Errors if the
+%       pattern does not match exactly one file.
 
 % get all possible files
 if metpars.dir_depth == 0
@@ -158,7 +174,9 @@ if numel(filename) == 1
     wDat.eVar_med_per_stim = sti_ln_mot.eVar_med_per_stim;
     
 else
-    fprintf('more than one possible file\n')
+    % without exactly one file wDat would be returned unassigned
+    error('%d files match pattern ''%s'', expected exactly 1', ...
+        numel(filename), ifile)
 end
 
 end

@@ -15,6 +15,11 @@ function [iObject, err_status] = ...
 %   refo: output reference atlas
 %   xDir: directory of transformation
 %   esuffix: extra suffix
+%
+% Returns:
+%   iObject: input object with its XYZ coordinates reformatted to the
+%       output atlas (same units as the output atlas, um)
+%   err_status: 0 if the reformatting worked (CMTK errors are passed on)
 
 if ~exist('esuffix', 'var') || ...
         isempty(esuffix)
@@ -29,6 +34,8 @@ end
 if contains(refi, 'nsybIVAi') || contains(refo, 'nsybIVAi')
 
     % load transformation
+    % the two transforms (to and from nsybIVAi) are different registrations;
+    %   the output atlas decides which one is used
     if contains(refo, 'nsybIVAi')
 
         transform_ = 'reg_1to2_woOL_cbrain_lambda_1_beta_5_outliers_02_smp_1.mat';

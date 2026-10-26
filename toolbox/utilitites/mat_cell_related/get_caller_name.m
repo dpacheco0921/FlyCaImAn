@@ -5,6 +5,15 @@ function caller = get_caller_name(varargin)
 %   caller = get_caller_name('Path', true)
 %   caller = get_caller_name(..., 'Warn', true) % warning if called from workspace
 %
+% Args (name-value):
+%   Path: if true, return the file path instead of the function name (default, false)
+%   Warn: warn when called from the workspace (default, false)
+%
+% Returns:
+%   caller: name (or path) of the function that CALLED the function calling
+%       get_caller_name (two levels up the stack; used by parse_params to name the
+%       function being parsed); empty if there is no such caller
+%
 % See also: mfilename, funpath, dbstack
 
 % Parse inputs

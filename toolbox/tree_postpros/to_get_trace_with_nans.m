@@ -1,11 +1,18 @@
 function [trace2keep_idx, xyz] = to_get_trace_with_nans(iObject, imatrix)
 % to_get_trace_with_nans: identify traces woth consecutive nans
 % Usage:
-%   to_get_trace_with_nans(iObject)
+%   [trace2keep_idx, xyz] = to_get_trace_with_nans(iObject, imatrix)
 %
 % Args:
 %   iObject: tree obj
-%   imatrix: field to use
+%   imatrix: field to use (0 xyz, 1 xyz_s, 2 xyz_pix, 3 traces) (default, 0)
+%
+% Returns:
+%   trace2keep_idx: [trees by 1] logical, false for traces that have
+%       consecutive NaNs (cannot be repaired)
+%   xyz: cell with one [points by 3] matrix per tree; isolated NaN points
+%       are replaced by the mean of their two neighbours (NaNs at the first
+%       or last point are removed)
 %
 % Note:
 % see getObj_xyz

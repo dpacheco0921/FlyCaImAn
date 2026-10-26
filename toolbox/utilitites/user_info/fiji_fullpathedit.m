@@ -7,13 +7,14 @@ function fijiDirs = fiji_fullpath
 % Usage:
 %   fijiDirs = fiji_fullpath
 %
-% Args:
+% Args: none (the path is hardcoded below, per computer)
 %
-% Output:
+% Returns:
 %   fijiDirs: directory of FIJI executable (full path)
 
 % fijiDir
 
+% returns [] on other systems (e.g. Linux), so callers must check for empty
 fijiDirs = [];
 
 if ispc

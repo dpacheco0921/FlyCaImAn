@@ -10,7 +10,8 @@ function [C, G] = chunk2cell(X, chunkSize, dim)
 %   dim: dimension along which to split (default: 1; 2 for horizontal vectors)
 % 
 % Returns:
-%   C: the chunked array
+%   C: cell array of chunks (numel = ceil(size(X,dim)/chunkSize)); the last
+%       chunk is shorter when the length is not a multiple of chunkSize
 %   G: a grouping variable of the same length as size(X,dim) indicating the
 %       chunk index each number corresponds to
 % 
@@ -18,7 +19,8 @@ function [C, G] = chunk2cell(X, chunkSize, dim)
 
 if nargin < 3; dim = []; end
 if isempty(dim) && isvector(X)
-    dim = argmax(size(X));
+    % vectors are split along their long dimension (same as argmax, without depending on a function outside this repo)
+    [~, dim] = max(size(X));
 end
 if isempty(dim); dim = 1; end
 

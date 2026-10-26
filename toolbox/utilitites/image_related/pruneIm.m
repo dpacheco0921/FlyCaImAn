@@ -8,6 +8,10 @@ function iIm = pruneIm(iIm, mask)
 %   iIm: input volume
 %   mask: 2D/3D image with 0 and 1, zero are pixels to keep
 %
+% Returns:
+%   iIm: iIm without the rows/columns that are entirely 1 in mask
+%       (empty if iIm is empty)
+%
 % Notes
 %   3D images are max projected
 

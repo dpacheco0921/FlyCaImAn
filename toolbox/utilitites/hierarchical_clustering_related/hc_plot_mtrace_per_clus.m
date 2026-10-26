@@ -26,7 +26,7 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %   colorvect: matrix with colors per cluster
 %       (default, jet(numel(unique(clus_label))))
 %   y_gap: gap between traces (y axis)
-%       (deafult, y_gap)
+%       (default, 4.2)
 %   texton_flag: gate to show text
 %       (default, 1)
 %   axH: axes handle
@@ -51,9 +51,22 @@ function [axH, subclus, Y_mean_trace, Y_mean_trace_sc, ...
 %       (1, line of the mean across all timepoints)
 %       (2, line of the min across all timepoints)
 %   text_x_pos: position on text on the x axis
+%       (default, -80, in x axis units, i.e. timepoints)
 %   zscore_flag: flag to perform zscoring of traces
+%       (default, 1)
+%
+% Returns:
+%   axH: handle of the axes used for plotting
+%   subclus: cell per cluster label, with the hierarchicalClus output of
+%       the subclusters (empty if link_ths is empty or plottype ~= 0)
+%   Y_mean_trace: mean trace per cluster [max(label), T] (z-scored units
+%       if zscore_flag, otherwise units of Y)
+%   Y_mean_trace_sc: cell per cluster with mean trace per subcluster
+%   sub_clus_label: new subcluster label per row of Y (0 = not assigned)
+%   sub_clus_order: cell with the Y row indeces of each subcluster
 %
 % Notes
+% Cluster labels are expected to be positive integers (0 and NaN are skipped).
 
 if ~exist('link_ths', 'var') || isempty(link_ths)
     link_ths = [];
@@ -190,9 +203,9 @@ for i = clus2run
             plot(Y_mean_trace_sc{i}(j, :) + (i-1)*y_gap, ...
                 'Color', colorvect_(3, :), 'Linewidth', 1, 'Parent', axH)
             
-            if i == 1
-                hold(axH, 'on')
-            end
+            % keep this trace when plotting the next ones (the first plot
+            % call has already cleared the axes)
+            hold(axH, 'on')
             
             % Collect new clus label
             sub_clus_label(Y_idx(Y_s_idx), 1) = clus_i;
@@ -218,7 +231,8 @@ for i = clus2run
         
         % plot mean trace and error bars
         if ~isempty(idx2nan)
-            temp_Y(i, idx2nan) = nan;
+            % (all rows of this cluster; indexing row i was a bug)
+            temp_Y(:, idx2nan) = nan;
         end
         
         if size(temp_Y, 1) > 1

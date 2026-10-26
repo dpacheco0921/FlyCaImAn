@@ -6,6 +6,10 @@ function [dt, timer_id] = stoc(timer_id)
 %   stoc(timer_id)
 %   [dt, timer_id] = stoc
 %
+% Returns (only if requested):
+%   dt: elapsed seconds since the matching stic
+%   timer_id: id of the timer that was read (default, the most recent stic)
+%
 % See also: stic, systime
 
 global stic_timers;

@@ -8,6 +8,11 @@ function motion_out = read_mcDat_shifts(motion_cell, type)
 %   motion_cell: input shifts (cell)
 %   type: output type
 %       (cumulative (1) or all as 3D matrix (2))
+%
+% Returns:
+%   motion_out: shifts in pixels, [axes x time] per iteration. Type 1: sum
+%       over iterations, same size as motion_cell{1}. Type 2: iterations
+%       stacked along the 3rd dimension.
 
 if ~exist('type', 'var'); type = 1; end
 

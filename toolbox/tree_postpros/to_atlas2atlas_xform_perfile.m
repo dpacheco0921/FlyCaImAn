@@ -2,21 +2,26 @@ function to_atlas2atlas_xform_perfile(floatTrees, ...
     refi, refo, xDir, iDir, oDir, esuffix, redo)
 % to_atlas2atlas_xform_perfile: function that performs 
 %   reformatting of trees from atlas to atlas coordinates using CMTK
-% Usage:
 %
+% Usage:
 %   to_atlas2atlas_xform_perfile(floatTrees, ...
-%       refIm, xDir, iDir, oDir, esuffix, redo)
+%       refi, refo, xDir, iDir, oDir, esuffix, redo)
 %
 % Args:
-%   floatTrees: name of trees (swc files)
+%   floatTrees: cell array with names of trees (swc files)
 %       naming format (year/month/day)_(flynumber)_(type:w|wm)_(channel:01|02))_(neuronname:P1,etc)).SWC)
+%       ending in '_<refi>.swc'
 %   refi: input reference atlas
 %   refo: output reference atlas
-%   xDir: directory of transformation
-%   iDir: *.swc files directory
-%   oDir: output directory
-%   esuffix: extra suffix
-%   redo: redo gate
+%   xDir: directory of transformation (default, '.')
+%   iDir: *.swc files directory (default, '.')
+%   oDir: output directory (default, '.')
+%   esuffix: extra suffix (default, '')
+%   redo: redo gate, 1 to redo trees already reformatted (default, 0)
+%
+% Returns:
+%   nothing; saves '<name>_<refo><esuffix>.swc' in oDir for each tree.
+%   Trees that fail are reported (with the error message) and skipped.
 
 if ~exist('esuffix', 'var') || isempty(esuffix)
     esuffix = '';
@@ -40,7 +45,9 @@ end
 
 for i = 1:numel(floatTrees)
     
-    if exist([iDir, filesep, strrep(floatTrees{i}, ['_', refi, '.swc'], ...
+    % skip trees whose reformatted swc already exists in the OUTPUT folder
+    %   (it was checked in iDir, but the result is saved in oDir)
+    if exist([oDir, filesep, strrep(floatTrees{i}, ['_', refi, '.swc'], ...
             ['_', refo, esuffix, '.swc'])], 'file') ~= 2 || redo
         
         try 
@@ -51,10 +58,10 @@ for i = 1:numel(floatTrees)
             tree = load_tree([iDir, filesep, floatTrees{i}], option);
 
             if numel(tree) > 1
-                
-                keyboard
+
+                % swc file with disconnected pieces: join them
                 tree = to_stitch_trees(tree);
-                
+
             end
             
             % only perform this repairs
@@ -68,7 +75,8 @@ for i = 1:numel(floatTrees)
                 to_atlas2atlas_xform(tree, refi, refo, xDir, esuffix);
 
             if err_status
-                keyboard
+                % caught below, which reports the file name and goes on
+                error('reformatting returned an error status')
             end
 
             if numel(tree.X) ~= 0
@@ -88,9 +96,9 @@ for i = 1:numel(floatTrees)
             clear tree floatIm ibpars
             
             
-        catch
-            
-            fprintf(['tree: ', floatTrees{i}, ' failed\n'])
+        catch ME
+
+            fprintf(['tree: ', floatTrees{i}, ' failed: ', ME.message, '\n'])
             
         end
         

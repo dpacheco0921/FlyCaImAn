@@ -7,9 +7,19 @@ function Y = framegapfill(tp2fill, Y, ftype, fside)
 %
 % Args:
 %   tp2fill: indexes of frames or volumes to fill
-%   Y: original 3D or 4D matrix
+%   Y: original matrix, time is the last dimension for 3D ([Y X T]), the
+%       4th for 4D ([Y X Z T]) and 5D ([Y X Z T C]) arrays
 %   ftype: type of replacing ('mean', default, or other (direct replacement))
 %   fside: side to use (right or left to the timepoint to replace)
+%       ('r' default). Only used when ftype is not 'mean'.
+%
+% Returns:
+%   Y: same size and class-compatible values as the input, with the
+%       requested timepoints replaced by the neighbouring timepoint(s)
+%
+% Notes:
+%   A 4D array is always read as [Y X Z T], so 2DxT data with channels
+%   ([Y X T C]) must be passed one channel at a time.
 
 if ~exist('ftype', 'var'); ftype = 'mean'; end
 if ~exist('fside', 'var'); fside = 'r'; end
@@ -47,6 +57,13 @@ if ~isempty(tp2fill)
         
     end
     
+    % indexes outside the time dimension would give a confusing error below
+    if any(tp2fill(:) < 1) || any(tp2fill(:) > size(Y, tEnd))
+        error('framegapfill:badIndex', ...
+            'tp2fill must be between 1 and %d (size of the time dimension)', ...
+            size(Y, tEnd))
+    end
+
     fprintf(' filling empty frames:\n')
     
     if size(tp2fill, 1) > 1
@@ -108,15 +125,18 @@ end
 end
 
 function t_idx = volsearchForward(vol2fill, t_idx)
-% volsearchForward: Search for closest non-empty 
+% volsearchForward: Search for closest non-empty
 %   frame to average to (forward)
 %
 % Usage:
 %   t_idx = volsearchForward(vol2fill, t_idx)
 %
 % Args:
-%   vol2fill: 2D or 3D matrix
+%   vol2fill: vector of timepoints that are empty (to be filled)
 %   t_idx: starting time point
+%
+% Returns:
+%   t_idx: first timepoint after the start that is not in vol2fill
 
 emptyf = 1;
 
@@ -139,8 +159,12 @@ function t_idx = volsearchBackward(vol2fill, t_idx)
 %   t_idx = volsearchBackward(vol2fill, t_idx)
 %
 % Args:
-%   vol2fill: 2D or 3D matrix
+%   vol2fill: vector of timepoints that are empty (to be filled)
 %   t_idx: starting time point
+%
+% Returns:
+%   t_idx: first timepoint before the start that is not in vol2fill
+%       (can be < 1 if every earlier timepoint is empty)
 
 emptyf = 1;
 

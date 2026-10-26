@@ -19,7 +19,7 @@ function batch_plot_fictrac_results(FolderName, Filename, iparams)
 %           (default, 0)
 %       (oDir: target directory to save figures)
 %           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
+%       (ball_radious: radius of the ball, mm)
 %           (default, 4.5)
 %       (hbins_speed: bins to use for histogram)
 %           (default, [-20:0.1:60])
@@ -29,6 +29,11 @@ function batch_plot_fictrac_results(FolderName, Filename, iparams)
 %           (default, [-5 +5])
 %       (timeres: temporal resolution in sec)
 %           (default, 0.1)
+%
+% Returns:
+%   nothing; saves '<name>_locomotion_stats' and (if the file has
+%   stimuli) '<name>_locomotion_vs_stim_centered' and
+%   '<name>_locomotion_vs_stim_zscored' in metpars.oDir. Speeds are in mm/s.
 %
 % Notes
 %   this setup x = yaw, y = pitch, z = roll (this needs to be tested for every setup)
@@ -135,7 +140,7 @@ function plot_vid_results(wDat, fname, metpars)
 %   metpars: parameters to update
 %       (oDir: target directory to save figures)
 %           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
+%       (ball_radious: radius of the ball, mm)
 %           (default, 4.5)
 %       (hbins_speed: bins to use for histogram)
 %           (default, [-20:0.1:60])
@@ -243,7 +248,7 @@ function plot_vid_stim_results(wDat, fname, metpars)
 %   metpars: parameters to update
 %       (oDir: target directory to save figures)
 %           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
+%       (ball_radious: radius of the ball, mm)
 %           (default, 4.5)
 %       (hbins_speed: bins to use for histogram)
 %           (default, [-20:0.1:60])
@@ -361,28 +366,28 @@ for i = 1:numel(sName)
         [1 0 1], numel(stim2plot) + 3);
     colorvect_3 = colorvect_3(4:end, :);
     
-    colormap = parula(numel(stim2plot));
+    cmapvect = parula(numel(stim2plot));
     
     for ii = stim2plot
 
         % plot speed/velocities
         plot(time_per_stim{ii, 1}, ...
             speed_mm_per_stim_c{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH(i*3))
 
         hold(axH(i*3), 'on')
 
         plot(time_per_stim{ii, 1}, ...
             fspeed_mm_per_stim_c{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH(i*3 - 1))
 
         hold(axH(i*3 - 1), 'on')
 
         plot(time_per_stim{ii, 1}, ...
             lspeed_mm_per_stim_c{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH(i*3 - 2))
 
         hold(axH(i*3 - 2), 'on')
@@ -442,28 +447,28 @@ for i = 1:numel(sName)
         [1 0 1], numel(stim2plot) + 3);
     colorvect_3 = colorvect_3(4:end, :);
     
-    colormap = parula(numel(stim2plot));
+    cmapvect = parula(numel(stim2plot));
     
     for ii = stim2plot
 
         % plot speed/velocities
         plot(time_per_stim{ii, 1}, ...
             speed_mm_per_stim{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH_(i*3))
 
         hold(axH_(i*3), 'on')
 
         plot(time_per_stim{ii, 1}, ...
             fspeed_mm_per_stim{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH_(i*3 - 1))
 
         hold(axH_(i*3 - 1), 'on')
 
         plot(time_per_stim{ii, 1}, ...
             lspeed_mm_per_stim{ii, 1}, ...
-            'Color', colormap(ii == stim2plot, :), ...
+            'Color', cmapvect(ii == stim2plot, :), ...
             'Parent', axH_(i*3 - 2))
 
         hold(axH_(i*3 - 2), 'on')

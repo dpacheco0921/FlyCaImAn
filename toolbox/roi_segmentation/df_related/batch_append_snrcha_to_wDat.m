@@ -1,7 +1,9 @@
 function batch_append_snrcha_to_wDat(...
     Filename, iparams)
-% batch_append_snrcha_to_wDat: plot MIP of segment to 
-%   see match with brain side
+% batch_append_snrcha_to_wDat: compute the median (across trials) SNR
+%   volume (change relative to baseline divided by baseline standard
+%   deviation, z-score units) of the green channel for each selected
+%   stimulus and append it to the metadata file as wDat.GreenChaSNR
 %
 % Usage:
 %   batch_append_snrcha_to_wDat(...
@@ -12,10 +14,12 @@ function batch_append_snrcha_to_wDat(...
 %       (default, [])
 %   iparams: parameters to update
 %       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
+%       (fisuffix: suffix of the data file holding Y)
+%           (default, '_prosdata.mat')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
-%       (bs_range: time before stim and after 
+%       (bs_range: time before stim and after
 %           stim to use for baseline and df calculation in seconds (s))
 %           (default, [-10 -0.5])
 %       (sti_range: time before stim and after stim
@@ -26,9 +30,9 @@ function batch_append_snrcha_to_wDat(...
 %           (default, 0)
 %       (sign2use: use positive or negative changes
 %           (by multipliying it by 1/-1))
-%           (default, 1 (positive))
+%           (1 (positive))
 %           (-1 (negative))
-%           (0 (absolute))
+%           (default, 0 (absolute))
 %       (stim2use: stimuli to use)
 %           (default, 1)
 %       (chunk_size: size of chunks)
@@ -37,6 +41,11 @@ function batch_append_snrcha_to_wDat(...
 %           (default, 4)
 %       (serId: server ID)
 %           ('int' | ispc or ismac, to run locally)
+%
+% Returns:
+%   nothing, it appends wDat.GreenChaSNR (x, y, z, stimulus; z-score
+%   units) to each metadata file
+%
 % Notes
 
 % default params
@@ -89,7 +98,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Collecting DF images for ', ...
+if isempty(filename)
+    warning('batch_append_snrcha_to_wDat: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Collecting DF images for ',...
     num2str(numel(filename)), ' files\n'])
 
 % plot sMod results
@@ -184,10 +197,21 @@ for i = stim2use
    display(sName{i})
 end
 
+% none of the requested stimuli exist in this file, leave wDat unchanged
+%   instead of saving an empty GreenChaSNR
+if isempty(stim2use)
+    warning('get_avg_snr: none of the requested stimuli exist in %s', filename)
+    return
+end
+
 stim_snr_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
 
 for sti_i = 1:numel(stim2use)
-    
+
+    % start each stimulus from scratch, otherwise trials left over from a
+    %   previous stimulus with more trials enter the median below
+    clear stim_snr
+
     try
         % select stim to use
         sti_En = getStim_InitEnd(wDat.fTime, ...
@@ -217,8 +241,11 @@ for sti_i = 1:numel(stim2use)
                 median(stim_snr, length(siz));
         end
         
-    catch
-       keyboard 
+    catch ME
+        % do not stop in the debugger (hangs unattended runs), report where
+        warning('get_avg_snr: stimulus %d of %s failed (%s)', ...
+            stim2use(sti_i), filename, ME.message)
+        rethrow(ME)
     end
     
 end

@@ -4,13 +4,22 @@ function [Y_, idx] = build_matrix_with_lags(...
 %   it builds the stimulus matrix to be used for model fitting
 %
 % Usage:
-%   build_matrix_with_lags(Y, filter_onset_offset, pad_val)
+%   [Y_, idx] = build_matrix_with_lags(Y, filter_onset_offset, pad_val)
 %
 % Args:
 %   Y: stimuli matrix [stimuli_n x time]
 %   filter_onset_offset: timepoints before and after stimuli to use for
-%       matrix building
-%   pad_val: value to pad stimulus ends with before circshit
+%       matrix building, one [onset offset] row per row of Y [stimuli_n x 2]
+%       (onset <= 0 is the number of lags before, offset >= 0 the number
+%       of lags after, in timepoints)
+%   pad_val: value that replaces the NaN padding added at the stimulus
+%       ends before circshift (so shifted-in edges are not wrapped around)
+%
+% Returns:
+%   Y_: design matrix with one column per lag of each stimulus
+%       [time x total_lags]
+%   idx: for each column of Y_, the row of Y (stimulus) it came from
+%       [total_lags x 1]
 
 Y_ = cell(size(Y, 1), 1);
 

@@ -4,14 +4,19 @@ function [i_idx, i_coord] = to_get_planeintersects(iObject, ref_point, ref_norma
 % d = (i_point - lo).i_normal/l.i_normal
 %
 % Usage:
-%   to_get_planeintersects(iObject)
+%   [i_idx, i_coord] = to_get_planeintersects(iObject, ref_point, ref_normal, max_dist, verbose)
 %
 % Args:
-%   iObject: tree obj / xyz matrix
-%   ref_point: reference point
-%   ref_normal: reference normal
+%   iObject: cell array of xyz matrices (one per tree) or tree structure array
+%   ref_point: reference points ([n by xyz])
+%   ref_normal: reference normals ([n by xyz])
 %   max_dist: max distance of points to test in a.u units (um)
-%   verbose: verbose gate
+%   verbose: verbose gate (default, 0)
+%
+% Returns:
+%   i_idx: [n by trees] index of the point closest to each reference
+%       point whose segment is cut by the plane (NaN if none)
+%   i_coord: [n by 3 by trees] coordinates of that intersection (NaN if none)
 %
 % Notes: see traceObj
 

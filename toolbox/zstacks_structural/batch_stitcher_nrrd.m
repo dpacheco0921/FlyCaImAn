@@ -95,14 +95,15 @@ fprintf('\n ********** Done **********\n')
 end
 
 function brainstitcher(FileName, stpars)
-% brainStitch: stitch images using fiji
+% brainstitcher: stitch the segments of every fly in the current folder
+%   (calls Fiji through brainStitch) and update the fly metadata
 %
 % Usage:
-%   brainStitch(flyname, segment_n, stpars)
+%   brainstitcher(FileName, stpars)
 %
 % Args:
 %   FileName: files to use
-%   stpars: input params
+%   stpars: input params (see batch_stitcher_nrrd)
 %       (FieldOfView: default 768um, set for this setup)
 %       (nchannel: default number of channels (2))
 %       (suffix: pattern of files to use '_Zstack_')
@@ -159,6 +160,12 @@ for fly_i = 1:numel(fly_names)
             % Stitch volumes
             brainStitch(flyname_i, seg_n, stpars)
 
+            % Fiji failures do not raise an error in MATLAB, so check the output
+            if ~exist([flyname_i, stpars.im_format], 'file')
+                error('batch_stitcher_nrrd:noOutput', ...
+                    'Fiji did not create %s%s', flyname_i, stpars.im_format)
+            end
+
             % Update metadata
             Data = [];
             
@@ -187,7 +194,7 @@ for fly_i = 1:numel(fly_names)
                 nDim = size(Data); 
             
                 % save stitched volume
-                width_height_depth = iDat.MetaData{3};
+                width_height_depth = iDat.MetaData{3}(1:3);  % voxel size (um)
                 nrrdWriter([flyname_i, stpars.im_format], mat2uint16(Data, 0), ...
                     width_height_depth, [0 0 0], 'gzip');
                 
@@ -195,7 +202,8 @@ for fly_i = 1:numel(fly_names)
                 
                 % load original file
                 Data = niftiread(fullfile([flyname_i, '_1', stpars.im_format]));
-                nifti_info = niftiinfo(fullfile([flyname_i, stpars.im_format]));
+                % (header of the input file: the stitched output does not exist yet)
+                nifti_info = niftiinfo(fullfile([flyname_i, '_1', stpars.im_format]));
                 
                 nDim = size(Data);                
                 
@@ -209,9 +217,10 @@ for fly_i = 1:numel(fly_names)
         iDat.FrameN = nDim(3)/stpars.nchannel; % Z
         iDat.FrameSize = [nDim(1) nDim(2)]; % Y X
         
-        % save mat metadata file
+        % save mat metadata file ('-append' keeps any other variables
+        %   already stored in it)
         save([stpars.cDir, filesep, fDat.FileName, ...
-            '_metadata.mat'], 'fDat', 'iDat')
+            '_metadata.mat'], 'fDat', 'iDat', '-append')
         
     else
         
@@ -232,9 +241,10 @@ function brainStitch(filename, segment_n, stpars)
 %   brainStitch(flyname, segment_n, stpars)
 %
 % Args:
-%   filename: files to use
-%   segment_n: input params
-%   stpars: input params
+%   filename: fly name without segment number (e.g. '<fly>_Zstack'); the
+%       stitched image is written as <filename><im_format> in the current folder
+%   segment_n: number of segments (files) to stitch
+%   stpars: input params (plus width, height, depth: voxel size in um, as text)
 %       (FieldOfView: default 768um, set for this setup)
 %       (nchannel: default number of channels (2))
 %       (suffix: pattern of files to use '_Zstack_')
@@ -245,9 +255,11 @@ function brainStitch(filename, segment_n, stpars)
 %       (redo: gate to overwrite old files)
 %
 % Notes:
+% Runs a Fiji macro from toolbox/utilitites/fiji_macros; no return value.
 
 if ~exist('fiji_fullpath.m', 'file')
-   fprintf('fiji_fullpath.m does not exist, edit fiji_fullpathtoedit.m or add paths')
+   error('batch_stitcher_nrrd:noFiji', ...
+       'fiji_fullpath.m does not exist, edit fiji_fullpathedit.m or add paths')
 end
 
 ij = fiji_fullpath;
@@ -301,7 +313,11 @@ function [basename, segment] = ...
 %   suffix: suffix to use
 %   FileName: filename to select
 %   im_format: image format 'nrrd' or 'NIfTI'
-%   	(default, '.nrrd', if NIfTI use 'nii')
+%   	(default, '.nrrd', if NIfTI use '.nii')
+%
+% Returns:
+%   basename: cell (1 x n files) with the fly name before the suffix
+%   segment: cell (1 x n files) with '_<segment number>' per file
 %
 % Notes:
 

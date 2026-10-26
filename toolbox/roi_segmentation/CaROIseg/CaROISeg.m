@@ -85,8 +85,8 @@ classdef CaROISeg < handle
             end
             
             if ~exist(filename, 'file')
-                % generate the memmap mat file
-                fprintf('Error file does not exist\n')
+                % stop here, otherwise the next lines fail on an empty obj.data
+                error('CaROISeg:loaddata', 'Data file does not exist: %s', filename)
             else
                 % memmap *.mat file
                 obj.data = matfile(filename, 'Writable', true);

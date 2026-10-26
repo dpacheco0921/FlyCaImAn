@@ -1,3 +1,9 @@
+% threshold_ims_maninput: script run by hand while batch_threshold_ims is
+%   stopped in the debugger (it uses that function's workspace: ipars,
+%   Data, Data_smooth and its local functions). Edit the thresholds below,
+%   run section 1 until the mask looks right, then 'dbcont' in the command
+%   window. Section 2 is optional and only displays results.
+
 %% 1) Edit manually input_int_ths by looking at the intensity in plotted planes
 
 ipars.input_int_ths = [75 75 75 90 95];

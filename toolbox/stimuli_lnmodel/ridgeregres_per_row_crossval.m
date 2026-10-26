@@ -6,9 +6,10 @@ function [pcor_raw, lFilter, Y_pred, Y_pred_single, Y_pred_unique] = ...
 %   row of train indeces (train_idx), test indeces would be ~train_idx.
 %
 % Usage:
-%   [pcor_raw, lFilter] = ridgeregres_per_row_crossval(...
+%   [pcor_raw, lFilter, Y_pred, Y_pred_single, Y_pred_unique] = ...
+%       ridgeregres_per_row_crossval(...
 %       training_idx, Y, regress_matrix, ...
-%       chunksiz, corenum, ridge_algorithm)
+%       chunksiz, corenum, ridge_algorithm, regress_type)
 %
 % Args:
 %   training_idx: indexes of training timepoints [n, T]
@@ -18,15 +19,23 @@ function [pcor_raw, lFilter, Y_pred, Y_pred_single, Y_pred_unique] = ...
 %       m: number of regressors.
 %   chunksiz: number of chunks for parpool
 %   corenum: number of cores
-%   ridge_algorithm: algorithm to use ('bayes', 'MML')
+%   ridge_algorithm: algorithm to use ('bayes', 'MML'; case insensitive)
 %       (default, 'bayes')
 %   regress_type: vector with labels (as integers) for different types of
-%       regressors.
+%       regressors [1, m] (default, []; when given, the *_single and
+%       *_unique outputs are computed by shuffling regressor types)
 %
 % Outputs:
-%   pcor_raw: pearson correlation predicted vs raw for test indeces
-%   lFilter: filter per training arragement
-%   Y_pred: predicted signal (same size as Y)
+%   pcor_raw: pearson correlation (unitless) predicted vs raw for test
+%       indeces, per ROI and training arrangement [n, arrangements]
+%   lFilter: filter per training arragement [m, arrangements, n]
+%   Y_pred: predicted signal on test timepoints, z-score units; timepoints
+%       never in a test set stay 0 (same size as Y) [n, T]
+%   Y_pred_single: prediction with each regressor type shuffled in turn
+%       [types, T, n] (NaN if regress_type is empty)
+%   Y_pred_unique: prediction with all but one regressor type shuffled
+%       [types, T, n] (NaN if regress_type is empty, or if there are
+%       only 2 types)
 
 if ~exist('ridge_algorithm', 'var') || isempty(ridge_algorithm)
     ridge_algorithm = 'bayes';
@@ -158,11 +167,14 @@ for iter_i = 1:size(training_idx, 1)
     zs_Y_i = zscorebigmem(Y(1, training_idx(iter_i, :)));
     zs_regressM_i = zscorebigmem(regress_matrix(training_idx(iter_i, :), :)')';
     
-    if contains(ridge_algorithm, 'bayes')
+    if contains(lower(ridge_algorithm), 'bayes')
         LN_filter(:, iter_i) = runRidgeOnly(zs_regressM_i, zs_Y_i', ...
             size(zs_regressM_i, 2), 1);
-    elseif contains(ridge_algorithm, 'mml')
-        [~, LN_filter(:, iter_i)] = ridgeMML(zs_Y_i', zs_regressM_i, true);        
+    elseif contains(lower(ridge_algorithm), 'mml')
+        [~, LN_filter(:, iter_i)] = ridgeMML(zs_Y_i', zs_regressM_i, true);
+    else
+        error('Unknown ridge_algorithm: %s (use bayes or MML)', ...
+            ridge_algorithm);
     end
         
     % calculate predicted trace and correlation 

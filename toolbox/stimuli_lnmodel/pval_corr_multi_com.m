@@ -13,10 +13,15 @@ function [pvalc_dep, pvalc_pdep, pvalc_bh] = ...
 %   pval_input: input pvalues
 %   file_idx: indeces of files where data comes from
 %   fdr: false discovery rate
-%   cortype: type of corrections to perform
-%       Benjamini & Yekutieli (dep)
-%       Bejnamini & Hochberg FDR (pdep)
-%       bonferroni-holm test
+%   cortype: logical/numeric vector [1, 3] choosing which corrections to
+%       compute (default, zeros(1, 3)):
+%       cortype(1): Benjamini & Yekutieli (dep)
+%       cortype(2): Benjamini & Hochberg FDR (pdep)
+%       cortype(3): bonferroni-holm test (bh)
+%
+% Returns:
+%   pvalc_dep, pvalc_pdep, pvalc_bh: corrected p-values, same size as
+%       file_idx (pval_input). NaN for corrections that were not requested.
 
 if ~exist('file_idx', 'var') || isempty(file_idx)
     file_idx = ones(size(pval_input));

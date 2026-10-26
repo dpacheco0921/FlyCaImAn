@@ -18,7 +18,8 @@ function rperm_tIdx = randcirshuffleper(...
 %   add_inverse: adding circular permutation of mirror trace
 %
 % Output:
-%   rperm_tIdx: matrix with indeces of random permutation per rows
+%   rperm_tIdx: n_permutations x timepoints_n matrix, one set of permuted
+%       time indices per row
 
 if ~exist('min_shift', 'var') || isempty(min_shift)
     min_shift = 10;
@@ -38,6 +39,11 @@ end
 
 rng('shuffle');
 
+if timepoints_n <= min_shift
+    error('randcirshuffleper: timepoints_n must be larger than min_shift');
+end
+
+% candidate circular shifts (random order), keeping only shifts above min_shift
 max_circ_perm = randperm(timepoints_n);
 max_circ_perm = max_circ_perm(max_circ_perm > min_shift);
 
@@ -47,9 +53,9 @@ for s_i = 1:numel(max_circ_perm)
     rperm_tIdx(s_i, :) = circshift(1:timepoints_n, max_circ_perm(s_i));
 end
 
-% remove permutations equal to riginal sorting
-perm2rem_ = find(ismember(rperm_tIdx(s_i, :), ...
-        1:timepoints_n, 'rows'));
+% remove permutations equal to the original sorting (all rows are checked;
+% a shift by timepoints_n is the identity)
+perm2rem_ = find(all(bsxfun(@eq, rperm_tIdx, 1:timepoints_n), 2));
 rperm_tIdx(perm2rem_, :) = [];   
     
 % remove permutations with similar stimulus structure

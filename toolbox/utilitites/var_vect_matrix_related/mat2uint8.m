@@ -7,8 +7,13 @@ function Im = mat2uint8(Im, scale_flag)
 %   Im: matrix/vector
 %   scale_flag: flag to scale
 %       (0: no scaling)
-%       (1: assumed to be 0-1 range, then multiplying by 2^16)
-%       (2: scale to min-max range, then multiplying by 2^16)
+%       (1: assumed to be 0-1 range, then multiplying by 2^8; data whose range is
+%           above 1 is NOT rescaled and values above 255 saturate)
+%       (2: scale to min-max range, then multiplying by 2^8; NOTE the code divides
+%           by max(Im) rather than max(Im) - min(Im), left unchanged)
+%
+% Returns:
+%   Im: uint8 array, same size as the input
 
 if ~exist('scale_flag', 'var') || isempty(scale_flag)
     scale_flag = 0;

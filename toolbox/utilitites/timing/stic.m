@@ -3,7 +3,10 @@ function timer_id = stic
 %
 % Usage:
 %   stic
-%   timer_id = tic
+%   timer_id = stic
+%
+% Returns (only if requested):
+%   timer_id: integer id of this timer, to pass to stoc
 %
 % See also: stoc, systime
 

@@ -8,15 +8,19 @@ function [figH, axH] = makefigs(y_subplot, x_subplots, ...
 %       figure_siz, screen_position)
 %
 % Args:
-%   y_subplot: number of columns
+%   y_subplot: number of subplot rows (first argument of subplot)
 %       (default, 5)
-%   x_subplots: number of rows
+%   x_subplots: number of subplot columns
 %       (default, 5)
 %   screen_position: position of figure
-%       (center, NW, NE, SW, SE, [] (whole screen))
+%       ('center', 'nw', 'ne', 'sw', 'se' (lowercase), or other/[] for the whole screen)
 %       (default, 'center')
 %   figure_siz: figure size [width height]
-%       (default, [])
+%       (default, [], genfigpos then uses [300 300])
+%
+% Returns:
+%   figH: figure handle
+%   axH: vector of axes handles, one per subplot (row by row)
 
 if ~exist('y_subplot', 'var') || isempty(y_subplot)
     y_subplot = 5;

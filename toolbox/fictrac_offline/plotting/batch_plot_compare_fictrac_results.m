@@ -21,18 +21,26 @@ function batch_plot_compare_fictrac_results(...
 %       (dir_depth: depth of directory search)
 %           (default, 0)
 %       (oDir: target directory to save figures)
-%           (default, [pwd, filesep, 'fictrac'])
-%       (ball_radious: depth of directory search)
-%           (default, 0)
+%           (default, [pwd, filesep, 'fictrac_compare'])
+%       (ball_radious: radius of the ball, mm)
+%           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %           (default, 3)
 %       (siz: size of kernel  to smooth motor variable)
 %           (default, 10)
-%       (hbins_speed: depth of directory search)
+%       (hbins_speed: bins of the speed histograms, mm/s)
 %           (default, -20:1:60)
 %       (framerate: frame rate)
 %           (default, 100)
+%
+% Returns:
+%   nothing; saves one '<fignames{i}>_pair_locomotion_stats' figure per
+%   pair and 'summary_pair_locomotion_stats' (mean speed, mm/s) in
+%   metpars.oDir.
+%
 % Notes
+%   the total number of files in both groups should equal the number of
+%   metpars.conditiostr labels (they are plotted along the x axis)
 
 % default params
 metpars = [];
@@ -49,13 +57,15 @@ metpars.hbins_speed = -20:1:60;
 metpars.framerate = 100;
 metpars.conditiostr = {'condition-1', 'condition-2'};
 
-if ~exist(metpars.oDir, 'dir')
-   mkdir(metpars.oDir)
-end
-
 % update variables
 if ~exist('iparams', 'var'); iparams = []; end
 metpars = loparam_updater(metpars, iparams);
+
+% create the output folder after the update, so a user-supplied oDir is
+%   the one that gets created
+if ~exist(metpars.oDir, 'dir')
+   mkdir(metpars.oDir)
+end
 
 if length(ifiles_1) ~= length(ifiles_2)
    fprintf('Input files differ in number\n') 
@@ -226,11 +236,11 @@ end
 function [xy_range, lineH, mean_speed] = ...
     plot_pair_pair(filename, iDir, ...
     metpars, colorvect, axH)
-% run_per_pair: function that runs each pair
+% plot_pair_pair: load one metadata file and plot its locomotion
 %
 % Usage:
 %   [xy_range, lineH, mean_speed] = ...
-%       run_per_pair(filename, iDir, ...
+%       plot_pair_pair(filename, iDir, ...
 %       metpars, colorvect, axH)
 %
 % Args:
@@ -259,11 +269,11 @@ end
 function [xy_range, lineH, mean_speed] = ...
     plot_vid_results(wDat, metpars, ...
     colorvect, axH)
-% run_per_pair: function that runs each pair
+% plot_vid_results: plot XY path and speed histograms of one file
 %
 % Usage:
 %   [xy_range, lineH, mean_speed] = ...
-%       run_per_pair(wDat, metpars, ...
+%       plot_vid_results(wDat, metpars, ...
 %       colorvect, axH)
 %
 % Args:

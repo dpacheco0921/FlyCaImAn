@@ -1,16 +1,22 @@
 function ImMeta = tiff2mat_getmetadata(tifname, datatype, verbose)
-% tiff2mat_scanimage: reads metadata only from a tiff file
+% tiff2mat_getmetadata: reads metadata only from a tiff file (no image data)
 %
 % Usage:
-%   ImMeta = tiff2mat_scanimage(tifname, datatype, verbose)
+%   ImMeta = tiff2mat_getmetadata(tifname, datatype, verbose)
 %
 % Args:
-%   tifname: name of tiff file to load
-%   datatype: type of data
-%   verbose: verbose
+%   tifname: name of tiff file to load (without '.tif')
+%   datatype: type of data, if it contains '2DxT_single' or 'old' the
+%       old scanimage header format is read
+%       (default, 'new')
+%   verbose: if 1, print the name of the file that could not be read
+%       before the error is rethrown
+%       (default, 0)
 %
 % Returns:
-%   ImMeta: metadata
+%   ImMeta: metadata (same fields as tiff2mat_scanimage plus
+%       frame_num: total number of frames (all planes and channels)
+%       in the tiff; Z is set to 1 if it is empty)
 %       (Y: Lines per frame or height)
 %       (X: Pixels per line or Width)
 %       (Z: planes per volume)
@@ -71,14 +77,14 @@ try
         ImMeta.Z = 1;
     end
 
-catch error
-    
+catch ME
+
+    % do not swallow the error, name the file and rethrow
     if verbose == 1
-        fprintf(['could not run file ', strrep(tifname, '\', ''), '\n']);
-        keyboard
-        display(error);
+        fprintf('could not run file %s\n', tifname);
     end
-    
+    rethrow(ME);
+
 end
 
 
@@ -110,6 +116,9 @@ elseif contains(microscopetxt, 'int8')
     Imclass = 'int8';
 elseif contains(microscopetxt, 'uint8')
     Imclass = 'uint8';
+else
+    error('tiff2mat_getmetadata:class', ...
+        'Could not find the data type (int16, uint16, ...) in the tiff header')
 end
 
 end

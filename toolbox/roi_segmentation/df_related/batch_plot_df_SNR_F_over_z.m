@@ -11,7 +11,10 @@ function batch_plot_df_SNR_F_over_z(Filename, oDir, iparams)
 %       (default, [])
 %   oDir: output directory.
 %   iparams: parameters to update
-%       (metadata_suffix: suffix of files to load, metadata files)
+%       (metadata_suffix: suffix of files to load, metadata files; it must
+%           hold the GreenChaDfof/GreenChaSNR fields appended by
+%           batch_append_dfcha_to_wDat / batch_append_snrcha_to_wDat)
+%           (default, '_metadata.mat')
 %       (redo: redo flag)
 %           (default, 0 )
 %       %%%%%%%%%%%% video settings %%%%%%%%%%%%
@@ -28,6 +31,10 @@ function batch_plot_df_SNR_F_over_z(Filename, oDir, iparams)
 %       %%%%%%%%%%%% extra %%%%%%%%%%%%
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%
+% Returns:
+%   nothing, it saves one video per selected type and file in oDir
+%   (default, [pwd, filesep, 'dfrel_vid'])
 %
 % Notes:
 %   See get_df_MIP
@@ -89,7 +96,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Generating videos for ', ...
+if isempty(filename)
+    warning('batch_plot_df_SNR_F_over_z: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Generating videos for ',...
     num2str(numel(filename)), ' files\n'])
 
 video_suffix = ipars.vidprefix;

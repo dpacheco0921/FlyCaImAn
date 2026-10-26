@@ -13,7 +13,13 @@ function Data1DxT = interp1DxTixTj(Data1D, iniT, endT, intmethod)
 %       ('linear', 'nearest', 'cubic', 'spline')
 %       (default, 'linear')
 %
+% Returns:
+%   Data1DxT: interpolated traces [roi_i, numel(endT)] (same units as
+%       Data1D); points outside the range of iniT are NaN
+%
 % Notes
+% iniT is [1, t] (shared by all ROIs) or [roi_i, t] (one row per ROI).
+% The NaN re-masking at the end assumes numel(endT) == size(Data1D, 2).
 
 if ~exist('intmethod', 'var'); intmethod = 'linear'; end
 

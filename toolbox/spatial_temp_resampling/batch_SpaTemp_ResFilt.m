@@ -15,7 +15,8 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %       (debug: debug gate)
 %           (default, 0)
 %       (fo2reject: folders to reject)
-%           (default, {'.', '..', 'preprocessed', 'BData'})
+%           (default, {'.', '..', 'preprocessed', 'BData', 'rawtiff',
+%               'motcor', 'stitch', 'dfrel_vid', 'smod', 'roicov'})
 %       (fi2reject: files to reject)
 %           (default, {'Zstack'})
 %       (fsuffix: suffix of files to load)
@@ -26,9 +27,11 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %       (time: internal variable that defines start and end of recordings per file)
 %           (default, [])
 %       %%%%%%%%%%%% spatial resampling & smoothing %%%%%%%%%%%%
-%       (sigma: timepoints to delete (for first frames when the laser warms up))
+%       (sigma: sigma of the XY gaussian blur applied with imblur, in pixels;
+%           spatial smoothing is skipped if sigma or size is empty)
 %           (default, [])
-%       (size: ridig motion correction gate)
+%       (size: size of the XY gaussian blur kernel used by imblur;
+%           spatial smoothing is skipped if sigma or size is empty)
 %           (default, [])
 %       (edgerm_flag: flag to remove edges after spatial smoothing)
 %           (default, 0)
@@ -39,7 +42,7 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %       (art_val: negative value to use for nan replacements before spatial resampling)
 %           (default, -1*10^3)
 %       (wDat_gen: flag to generate wDat)
-%           (default, 0)
+%           (default, 1)
 %       (direction: used for iverting order of planes in the z axis, see notes)
 %           (default, 'invert')
 %       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
@@ -47,12 +50,17 @@ function batch_SpaTemp_ResFilt(FolderName, FileName, iparams)
 %           (default, 0)
 %       (blowcap: fluorescence below which it is zerored)
 %           (default, 0)
-%       (fshift: shift distribution of F to the positive side)
-%           (default, 6)
+%       (fshift: shift distribution of F to the positive side, [red green])
+%           (default, [6 6])
 %       (stack2del: remove timepoints)
 %           (default, [])
 %       (idp_run_flag: flag to run each selected file independently)
 %           (default, 0)
+%
+% Returns:
+%   nothing. Each '*_rawdata.mat' (and '*_refdata.mat' if present) is
+%   overwritten with the resampled Data, '*_metadata.mat' is updated
+%   (iDat, lStim) and, if wDat_gen = 1, wDat is saved (see save_wDat).
 %
 % Notes:
 % Works for 3DxT and 2DxT
@@ -126,15 +134,22 @@ function runperfolder(fname, spte)
 % runperfolder: run all files per folder
 %
 % Usage:
-%   runperfolder(fname_trial)
+%   runperfolder(fname, spte)
 %
 % Args:
 %   fname: file name pattern
+%   spte: parameters (see batch_SpaTemp_ResFilt)
 
 % determine if fname narrows down to just one file
 [f2plot, ~, rep2plot] = ...
     rdir_namesplit(fname, '.mat', ...
     spte.fsuffix, spte.fi2reject, [], 1);
+
+if isempty(f2plot)
+    fprintf('No files with suffix %s found in this folder\n', spte.fsuffix)
+    return
+end
+
 fprintf('Temporal resampling & aligment of');
 
 if spte.idp_run_flag == 1
@@ -166,13 +181,22 @@ for file_i = 1:numel(f2plot)
     [filename, ~, repnum] = ...
         rdir_namesplit(f2plot{file_i}, '.mat', ...
         spte.fsuffix, spte.fi2reject, [], 1);
-    filename = unique(filename);
-    repnum = sort(repnum);
-    
+
+    % rdir_namesplit matches by substring, so fly 'x_1' would also pick up
+    %   'x_10'. Keep only exact matches of the fly name (or fly name + rep).
+    full_names = strcat(filename, '_', ...
+        arrayfun(@num2str, repnum, 'UniformOutput', false));
+    exact_match = strcmp(filename, f2plot{file_i}) | ...
+        strcmp(full_names, f2plot{file_i});
+    filename = unique(filename(exact_match));
+    repnum = sort(repnum(exact_match));
+
     if numel(filename) == 1
         processfunc(filename{1}, repnum, spte);
     else
-        fprintf('error')
+        warning('batch_SpaTemp_ResFilt:flyname', ...
+            'Skipping %s: found %d distinct fly names instead of 1', ...
+            f2plot{file_i}, numel(filename))
     end
     
 end
@@ -183,15 +207,24 @@ function processfunc(f2run, repnum, spte)
 % processfunc: run all reps per f2run name
 %
 % Usage:
-%   runperfolder(fname_trial)
+%   processfunc(f2run, repnum, spte)
 %
 % Args:
 %   f2run: file name
 %   repnum: reps to load and align
+%   spte: parameters (see batch_SpaTemp_ResFilt)
 
 % load all trials or reps per fly to get the best spte.time
 spte.time = getInitEnd(f2run, repnum, spte.newtimeres);
-spte
+
+% an empty (or reversed) time window would silently fall into the
+%   "empty newtimeres" branch below, so stop here instead
+if ~isempty(spte.newtimeres) && spte.time(2) < spte.time(1)
+    error('batch_SpaTemp_ResFilt:notimeoverlap', ...
+        ['Reps of %s do not overlap in time (start %g s > end %g s), ', ...
+        'process them independently (idp_run_flag = 1)'], ...
+        f2run, spte.time(1), spte.time(2))
+end
 
 % generate new timestamps
 lstEn = [];
@@ -236,9 +269,12 @@ for i = 1:numel(repnum)
         
     end
     
-    % update Data size
-    iDat.FrameSize = [size(Data, 1), size(Data, 2)];
-    iDat.FrameN = size(Data, 3);
+    % update Data size (only if the raw image exists, an empty Data would
+    %   overwrite the metadata with FrameSize [0 0] and FrameN 1)
+    if ~isempty(Data)
+        iDat.FrameSize = [size(Data, 1), size(Data, 2)];
+        iDat.FrameN = size(Data, 3);
+    end
     
     % remove unwanted stacks
     if ~isempty(spte.stack2del) && ~isempty(Data)
@@ -464,7 +500,8 @@ for i = 1:numel(repnum)
             if spte.debug == 1
                 figure();
                 imagesc(nan_data);
-                keyboard;
+                error('batch_SpaTemp_ResFilt:nanslices', ...
+                    'debug stop: whole slices are nan in %s', rep2run)
             end
 
         end
@@ -524,7 +561,8 @@ for i = 1:numel(repnum)
             if spte.debug == 1
                 figure();
                 plot(nan_data);
-                keyboard;
+                error('batch_SpaTemp_ResFilt:nanvolumes', ...
+                    'debug stop: whole volumes are nan in %s', rep2run)
             end
 
         end
@@ -632,8 +670,10 @@ for i = 1:numel(repnum)
     end
     
     fprintf('\n')
+    % cDat and vidDat must be cleared too, otherwise the next rep would
+    %   silently reuse the ones of this rep when its own file has none
     clear iDat lStim orig_timestamp ...
-        Data inpres nantest rep2run
+        Data inpres nantest rep2run cDat vidDat
     
 end
 
@@ -649,7 +689,11 @@ function start_end_time = getInitEnd(f2run, repnum, newtimeres)
 %   f2run: file name
 %   repnum: reps to load and align
 %   newtimeres: new temporal resolution in seconds
-% 
+%
+% Returns:
+%   start_end_time: [start end] of the common time window (seconds,
+%       relative to the first stimulus onset) shared by all reps
+%
 % Notes
 % Check for already run files: 
 % 1) automatically generate time boundaries or 2) and retrieve Tres and iniT
@@ -678,7 +722,7 @@ if ~check_gate
         
     end
 
-    fprintf('All onset-offset times:/n')
+    fprintf('All onset-offset times:\n')
     display(iniT)
     
     if ~isempty(newtimeres)
@@ -726,6 +770,15 @@ function [iIm, nan_idx, nan_idx_2_i] = ...
 %   nan_idx: nan pixels before resampling
 %   nan_idx_2_i: nan pixels after resampling
 %   z_length: length on z
+%
+% Returns:
+%   iIm: resampled matrix (or memory-mapped object, if one was given),
+%       with the original nan pixels restored
+%   nan_idx: logical vector (one per XYZ pixel), pixels that were nan
+%       before resampling (in any timepoint)
+%   nan_idx_2_i: logical vector, pixels flagged as nan after resampling
+%       (the ones that were filled with nan2val and pushed below the
+%       original minimum by the interpolation)
 
 % iIm is a memory map variable, load data
 iobj = [];
@@ -767,7 +820,8 @@ Im_siz_o = size(iIm);
 % from XYZT --> RT
 iIm = reshape(iIm, prod(Im_siz_o(1:end-1)), Im_siz_o(end));
 
-if ~exist('nan_idx_2_i', 'var') || isempty(nan_idx)
+% (nan_idx_2_i is an input argument, so test for empty, not for exist)
+if ~exist('nan_idx_2_i', 'var') || isempty(nan_idx_2_i)
     nan_idx_2_i = max(iIm < iIm_min, [], 2);
 end
 
@@ -792,23 +846,38 @@ function [lStim, iDat, Y1, Y2] = ...
 %   and adjust lStim and iDat metadata accordingly
 %
 % Usage:
-%   [lStim, iDat] =  volumeprunner(lStim, iDat, data_obj)
+%   [lStim, iDat, Y1, Y2] = volumeprunner(lStim, iDat, stack2del, Y1, Y2)
 %
 % Args:
-%   lStim: stimuli metadata variable
-%   iDat: image metadata variable
+%   lStim: stimuli metadata variable ([] to only prune Y1 / Y2)
+%   iDat: image metadata variable ([] to only prune Y1 / Y2)
 %   stack2del: timepoints to delete
 %   Y1: 3DxT or 2DxT data
 %   Y2: 3DxT or 2DxT data (another channel)
+%
+% Returns:
+%   lStim: stimuli metadata with trace and onset/offset re-zeroed to the
+%       first remaining frame (sampling points)
+%   iDat: image metadata with fstEn, StackN and PMT_fscore pruned
+%   Y1, Y2: data without the deleted timepoints
+%   (lStim and iDat are returned empty if they were not provided)
 
 if ~exist('Y1', 'var'); Y1 = []; end
 if ~exist('Y2', 'var'); Y2 = []; end
 
 % Prune Data
 if ~isempty(stack2del)
-    
-    % load data    
-    if iDat.FrameN > 1
+
+    % decide if data are volumes (3DxT) or planes (2DxT); without iDat
+    %   (red channel call) infer it from the data dimensions
+    if ~isempty(iDat)
+        is_volume = iDat.FrameN > 1;
+    else
+        is_volume = ndims(Y1) > 3 || ndims(Y2) > 3;
+    end
+
+    % load data
+    if is_volume
         
         if isobject(Y1)
             data = Y1.Data;
@@ -858,8 +927,8 @@ if ~isempty(stack2del)
         
     end
     
-    if exist('iDat', 'var') && exist('lStim', 'var')
-        
+    if ~isempty(iDat) && ~isempty(lStim)
+
         % Rechape fsTen
         initF = reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]);
         initF(:, stack2del) = [];
@@ -891,7 +960,7 @@ if ~isempty(stack2del)
         
     else
         
-        fprintf('no iDat and lStim input provided')
+        % no metadata provided (only the data were pruned)
         iDat = [];
         lStim = [];
         

@@ -2,12 +2,16 @@ function [xyz, idx_inside] = to_get_points_inside_mesh(X, Y, Z, i_mesh, chunksiz
 % to_get_points_inside_mesh: function that finds XYZ coordinates that are
 % inside a i_mesh
 % Usage:
-%   to_get_points_inside_mesh(X, Y, Z, i_mesh, chunksiz)
+%   [xyz, idx_inside] = to_get_points_inside_mesh(X, Y, Z, i_mesh, chunksiz)
 %
 % Args:
-%   X, Y, Z: point coordinates
-%   i_mesh: input mesh
-%   chunksiz: size of chunks
+%   X, Y, Z: point coordinates (same size, any shape)
+%   i_mesh: input mesh (treestoolbox 'elem' format or faces/vertices)
+%   chunksiz: number of points tested at a time (default, 1000)
+%
+% Returns:
+%   xyz: [m by 3] coordinates of the points inside the mesh
+%   idx_inside: [1 by m] linear index (into X(:)) of those points
 %
 % Notes: see 'treestoolbox' for format info
 

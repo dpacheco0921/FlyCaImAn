@@ -13,14 +13,15 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %       (fo2reject: folders to reject)
 %       (fi2reject: files to reject)
 %       (metsuffix: suffix of files with wDat variable)
-%           (default, '_prosmetadata')
+%           (default, '_metadata')
 %       (redo: redo even if sti_ln_mot exist, redo raw, redo shuffle)
 %           (default, [0 0 0])
 %       (varname: output variable name
 %           (default, 'sti_ln_mot')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
-%       (filterlength_stim: filter length in seconds)
-%           (default, 10)
+%       (filterlength_stim: [before after] stimulus filter length in seconds)
+%           (default, [], i.e. computed per stimulus from the post-stimulus
+%           baseline time in wDat.sPars.basPost)
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
 %           (default, [])
@@ -38,15 +39,13 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %           (default, 5)
 %       (per2use: percentage of trials to use for training [0-1])
 %           (default, 0.8)
-%       (type2run: type of shuffle to perform (as, af, cs)
-%           (as: Random Shuffle)
-%           (af: Amplitude Adjusted Fourier Transform)
-%           (cs: Random chunk Shuffle)
-%           (default, default [0 0 1])
+%       (type2run: NOT USED here, the shuffle type is fixed in the code
+%           (circular + chunk shuffle, see get_explained_variance_shuffle))
+%           (default, [0 0 1])
 %       (btn: number of permutations)
 %           (default, 10^4)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -61,10 +60,11 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %            (default, 0.01)
 %       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
-%       (prct2use: bins for histogram)
+%       (prct2use: percentile of the per-fold coefficients used as the
+%           statistic for each motor variable)
 %           (default, 30)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
-%       (ball_radious: depth of directory search)
+%       (ball_radious: radius of the ball in mm)
 %           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
 %           (default, 3)
@@ -75,6 +75,8 @@ function batch_get_stim_ln_of_motor(FolderName, FileName, iparams)
 %           (default, [pwd, filesep, 'sti_ln_mot'])
 %
 % Notes:
+% the saved fields sti_ln_mot.eVar and .eVar_cs hold Pearson correlations
+%   (predicted vs measured on test folds), not explained variance.
 % for info about regression algorithm see:
 %   runRidgeOnly (ridge regression using empirical Bayes)
 % for info about surrogate data see https://en.wikipedia.org/wiki/Surrogate_data_testing
@@ -129,6 +131,11 @@ pSMMot = loparam_updater(pSMMot, iparams);
 
 pSMM_plot.fmetsuffix = [pSMMot.metsuffix, '.mat'];
 
+% plots must use the same significance settings as the model
+pSMM_plot.fdr = pSMMot.fdr;
+pSMM_plot.mccor_method = pSMMot.pval_cor_method;
+pSMM_plot.prct2use = pSMMot.prct2use;
+
 % start pararell pool if not ready yet
 ppobj = setup_parpool(pSMMot.serverid, pSMMot.corenum);
 
@@ -151,7 +158,7 @@ for i = 1:numel(f2run)
     
     cd(pSMMot.cDir);
     
-    batch_plot_stim_ln_of_motor_results(FolderName, FileName, oDir, pSMM_plot)
+    batch_plot_stim_ln_of_motor_results(f2run{i}, FileName, oDir, pSMM_plot)
     
     fprintf('\n')
     
@@ -177,6 +184,11 @@ function runperfolder(FileName, pSMMot)
 f2run = rdir(['.', filesep, '*', pSMMot.metsuffix, '*.mat']);
 f2run = str2match(FileName, f2run); 
 f2run = {f2run.name};
+
+if isempty(f2run)
+    warning('batch_get_stim_ln_of_motor:noFiles', ...
+        'No files matching *%s*.mat found in %s', pSMMot.metsuffix, pwd);
+end
 
 fprintf('Estimating stimuli modulation for all ROIs\n')
 fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
@@ -281,7 +293,8 @@ if isempty(pSMMot.filterlength_stim)
 else
     
     filterlength_tp = round(pSMMot.filterlength_stim/dt);
-    filterlength_tp = repmat(filterlength_tp, [1, stim_ntype]);
+    % one [before after] row per stimulus type
+    filterlength_tp = repmat(filterlength_tp, [stim_ntype, 1]);
     
 end
 
@@ -350,8 +363,10 @@ sti_ln_mot.stimM = sti_ln_mot.stimM(sti_ln_mot.tidx2use, :);
 %   build matrix with indexes of timepoints used
 %   as training data (testing data is ~train_idx)
 trialidx_u = unique(stim_trial_idx);
+% randperm gives positions in trialidx_u, so map them to trial labels
+%   before removing them (labels are not always 1..n, e.g. with trials2use)
 test_comb = chunk2cell(randperm (numel(trialidx_u)), numel(trialidx_u) - ntrial_train)';
-trial_comb = cf(@(x) setdiff(trialidx_u, x), test_comb);
+trial_comb = cf(@(x) setdiff(trialidx_u, trialidx_u(x)), test_comb);
 train_idx = zeros(size(trial_comb, 1), size(stim_trial_idx, 2), 'logical');
 
 for iter_i = 1:size(trial_comb)

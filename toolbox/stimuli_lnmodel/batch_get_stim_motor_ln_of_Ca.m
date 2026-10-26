@@ -42,11 +42,9 @@ function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %           (default, 5)
 %       (per2use: percentage of trials to use for training [0-1])
 %           (default, 0.8)
-%       (type2run: type of shuffle to perform (as, af, cs)
-%           (as: Random Shuffle)
-%           (af: Amplitude Adjusted Fourier Transform)
-%           (cs: Random chunk Shuffle)
-%           (default, default [0 0 1])
+%       (type2run: NOT USED here, the shuffle type is fixed in the code
+%           (circular + chunk shuffle, see get_explained_variance_shuffle))
+%           (default, [0 0 1])
 %       (btn: number of permutations)
 %           (default, 10^4)
 %       (pst_time: peri stimulus time to use to extract trial structure from whole trace (seconds))
@@ -57,7 +55,7 @@ function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %       (pval_cor_method: multiple comparison correction to use: dep, pdep, bh)
 %            (default, 'dep')
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -66,10 +64,12 @@ function batch_get_stim_motor_ln_of_Ca(FolderName, FileName, iparams)
 %       (febgate: gate to generate filter error bounds)
 %           (default, 0)
 %       %%%%%%%%%%%% motor variable related %%%%%%%%%%%%
-%       (ball_radious: depth of directory search)
+%       (ball_radious: radius of the ball in mm)
 %           (default, 4.5)
 %       (sig: std of gaussian kernel to smooth motor variable)
+%           (default, 3)
 %       (siz: size of kernel  to smooth motor variable)
+%           (default, 10)
 %       %%%%%%%%%%%% save summary plots %%%%%%%%%%%%
 %       (oDir: output directory to save summary results)
 %           (default, [pwd, filesep, 'sti_mot_ln_ca'])
@@ -170,6 +170,11 @@ f2run = rdir(['.', filesep, '*', pSLM.fsuffix, '*.mat']);
 f2run = str2match(filename, f2run); 
 f2run = {f2run.name};
 
+if isempty(f2run)
+    warning('batch_get_stim_motor_ln_of_Ca:noFiles', ...
+        'No files matching *%s*.mat found in %s', pSLM.fsuffix, pwd);
+end
+
 fprintf('Estimating stimuli modulation for all ROIs\n')
 fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
 
@@ -264,7 +269,8 @@ if isempty(pSLM.filterlength_stim)
 else
     
     filterlength_tp = round(pSLM.filterlength_stim/dt);
-    filterlength_tp = repmat(filterlength_tp, [1, stim_ntype]);
+    % one [before after] row per stimulus type
+    filterlength_tp = repmat(filterlength_tp, [stim_ntype, 1]);
     
 end
 
@@ -300,7 +306,8 @@ clear stim_m jj
 motor_m = load_edit_fictrac_motor_var(wDat, pSLM.ball_radious, ...
     pSLM.mot2use, pSLM.sig, pSLM.siz, 1);
 if ~isempty(pSLM.filterlength_motor)
-    filterlength_tp_ = repmat(pSLM.filterlength_motor/dt, [size(motor_m, 1), 1]);
+    % lags must be whole timepoints (circshift needs integers)
+    filterlength_tp_ = repmat(round(pSLM.filterlength_motor/dt), [size(motor_m, 1), 1]);
 else
     filterlength_tp_= repmat([0 1], [size(motor_m, 1), 1]);
 end
@@ -393,7 +400,11 @@ if sum(abs(diag(fullQRR)) > max(size(sti_mot_ln_ca.stimM)) * ...
         'Removing %d/%d additional regressors.\n'], sum(temp), sum(~rejIdx));
     % reject regressors that cause rank-defficient matrix
     rejIdx(~rejIdx) = temp;
-    keyboard
+    % rejIdx is not applied downstream, so do not continue with a
+    %   rank-deficient design matrix
+    error('batch_get_stim_motor_ln_of_Ca:rankDeficient', ...
+        'Design matrix is rank-deficient for %d regressors (file %s)', ...
+        sum(rejIdx), filename);
 end
 
 % 13) Collect Ca trace and Stim
@@ -591,6 +602,23 @@ end
 
 function plot_stim_vs_motor_sig(var_stim_mean, ...
     evar_motor, pval_in, filenamefig, oDir)
+% plot_stim_vs_motor_sig: scatter of stimulus-explained vs motor-explained
+%   variance per ROI, with ROIs of p-value <= 0.01 drawn in red
+%
+% Usage:
+%   plot_stim_vs_motor_sig(var_stim_mean, evar_motor, pval_in, ...
+%       filenamefig, oDir)
+%
+% Args:
+%   var_stim_mean: fraction of variance explained by the mean stimulus
+%       response per ROI [K, 1]
+%   evar_motor: fraction of residual variance explained by the motor
+%       model (squared correlation) per ROI [K, 1]
+%   pval_in: p-value per ROI [K, 1]
+%   filenamefig: file name prefix of the figure
+%   oDir: output directory
+%
+% Returns: nothing (the figure is saved to oDir and closed)
 
 figH = figure('Position', genfigpos(1, 'center', [400 400]));
 axH(1) = subplot(1, 1, 1);
@@ -861,6 +889,27 @@ end
 function plot_evar_stim_vs_motor(...
     var_stim_mean, evar_motor, var_total, motor_prediction, rel_time, ...
     stimvect_, roi_per_trial, roi_per_trial_res_mean, filenamefig, oDir)
+% plot_evar_stim_vs_motor: summary figure with example ROIs (most
+%   stimulus-driven, most motor-driven, and mixed), their trial responses,
+%   residuals and motor-model fits, plus per-ROI variance summaries
+%
+% Usage:
+%   plot_evar_stim_vs_motor(var_stim_mean, evar_motor, var_total, ...
+%       motor_prediction, rel_time, stimvect_, roi_per_trial, ...
+%       roi_per_trial_res_mean, filenamefig, oDir)
+%
+% Args:
+%   var_stim_mean, evar_motor, var_total: per-ROI variances [K, 1]
+%   motor_prediction: motor-model prediction per ROI [K, T]
+%   rel_time: time relative to stimulus onset (seconds)
+%   stimvect_: stimulus vector over rel_time
+%   roi_per_trial: cell per ROI of [trials, time] z-scored traces
+%   roi_per_trial_res_mean: residuals after removing the mean trial
+%       response, trials concatenated [K, T]
+%   filenamefig: file name prefix of the figure
+%   oDir: output directory
+%
+% Returns: nothing (the figure is saved to oDir and closed)
 
 % plot summary results
 figH = figure('Position', genfigpos(1, 'center', [965 881]));

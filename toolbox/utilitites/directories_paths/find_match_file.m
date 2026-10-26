@@ -7,6 +7,10 @@ function [exist_index] = find_match_file(filename, suffix)
 % Args:
 %   filename: cell array of filenames
 %   suffix: string to add at the end of filename
+%
+% Returns:
+%   exist_index: logical column vector [numel(filename), 1], true where
+%       the file (filename + suffix) exists
 
 exist_index = false(numel(filename), 1);
 

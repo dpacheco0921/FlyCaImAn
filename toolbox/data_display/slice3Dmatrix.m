@@ -74,11 +74,16 @@ function slice3Dmatrix(Y, iparams)
 %       (lag: time lag for display)
 %           (default, 0.001)
 %       (cbargate: plot colorbar image)
-%           (default, 1)
+%           (default, 0)
 %       (axisratio: flag to use equal axis or not)
 %           (default, 1)
 %       (text_position: use the default (0), or com position)
 %           (default, 0)
+%
+% Returns:
+%   nothing; opens a figure and steps through the slices along axis axp
+%   (optionally writing a video / single frames, see vgate and
+%   save_frame_flag)
 %
 % Notes:
 % 2019-02-26:
@@ -419,10 +424,10 @@ end
 
 function plotproj(axH, im, tidx, itergate, ...
     imrange, axesname, sparef, cmap, axisratio)
-% overlay_mask: overlay contour of im > 0 over axH
-% 
+% plotproj: show one 2D slice of the stack
+%
 % Usage:
-%   overlay_mask(axH, im, idx_c, cnt_text)
+%   plotproj(axH, im, tidx, itergate, imrange, axesname, sparef, cmap, axisratio)
 %
 % Args:
 %   axH: axes handle
@@ -450,7 +455,8 @@ end
 if isempty(sparef) || ~axisratio
     imagesc(squeeze(im), 'Parent', axH);
     
-    if tidx == 1
+    % tidx is a string (frame number), so convert before comparing
+    if str2double(tidx) == 1
        colormap(axH, cmap)
     end
     

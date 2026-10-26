@@ -12,8 +12,15 @@ function oVar = load_variable_across_files(Filename, ...
 %   filesuffix: suffix of files to load
 %   variable_name: name of variable to load
 %   fieldstocompile: fields from variable to compile
-%   dir_depth: depth of directory for search
-
+%   dir_depth: depth of directory for search (0, 1 or 2 folder levels below the
+%       current folder; default 0)
+%
+% Returns:
+%   oVar: struct array, one element per matching file (in file order), holding
+%       the requested fields (all fields if fieldstocompile is empty) of variable_name
+%
+% Note: files are searched from the current folder (pwd); Filename is matched
+%   as a substring of the file name.
 if ~exist('dir_depth', 'var') || isempty(dir_depth)
     dir_depth = 0;
 end

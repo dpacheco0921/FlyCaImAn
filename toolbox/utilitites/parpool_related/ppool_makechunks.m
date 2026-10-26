@@ -15,8 +15,8 @@ function [chunks, nchunks, chunk_idx] = ...
 %   vect_length: length of vector to split
 %   vect_init: first index of this vector
 % 
-% Returns
-%   chunks: first vector index per chunk
+% Returns:
+%   chunks: first vector index per chunk (row vector)
 %   nchunks: number of chunks
 %   chunk_idx: chunks indeces grouped in corenum batches
 

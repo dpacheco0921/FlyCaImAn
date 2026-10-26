@@ -1,6 +1,29 @@
 function batch_signalextract(FolderName, FileName, iparams)
-% batch_signalextract(FolderName, FileName, iparams, roiparams)
-% roiparams need to be provided
+% batch_signalextract: re-extract the ROI signals (raw, filtered, dfof)
+%   from existing ROI segmentation results (*_prosroi.mat)
+%
+% Usage:
+%   batch_signalextract(FolderName, FileName, iparams)
+%
+% Args:
+%   FolderName: name of folders to run
+%       (default, [], all folders)
+%   FileName: name pattern of files to run
+%       (default, [], all files)
+%   iparams: parameters to update (fields of the global 'p' below), e.g.
+%       (redo: 1 to extract again even if signals already exist)
+%           (default, 0)
+%       (fisuffix, osuffix: suffix of the ROI file, '_prosroi')
+%       (orawfsuffix: suffix of the green channel data, '_prosdata')
+%       (orefsuffix: suffix of the reference (red) channel, '_prosref')
+%       (serverid, corenum: parpool settings, 'int' and 1)
+%
+% Returns:
+%   nothing, it appends the updated 'roi' variable to each
+%   *_prosroi.mat file
+%
+% Notes:
+%   uses the global variable p to share settings with its sub-functions
 global p
 p = [];
 p.cDir = pwd;
@@ -62,6 +85,10 @@ f2run = strrep(f2run, ['.', p.sep], '');
 f2run = strrep(f2run, [p.fisuffix, '.mat'], '');
 f2run = unique(f2run);
 
+if isempty(f2run)
+    warning('batch_signalextract: no %s files found in %s', [p.fisuffix, '.mat'], pwd)
+end
+
 fprintf(['Extracting signal from ', num2str(numel(f2run)),' flies\n'])
 
 for fly_i = 1:numel(f2run)
@@ -72,9 +99,9 @@ end
 end
 
 function batch_getCatrace(filename)
-% batch_CaROISeg(FileName, roiparams)
-% segment ROIs from 2DxT or 3DxT data (not big data though)
-% runs ROI segmentation per mat file, it requires the mat file to be in the right mat format
+% batch_getCatrace: extract the signals of the ROIs already segmented in
+%   filename_prosroi.mat from the raw data and save them back in that file
+%   (it does not segment ROIs again)
 
 % parameters
 global p
@@ -103,7 +130,7 @@ if ~isfield(roi, 'filtered_') || ~isfield(roi, 'filtered') ...
 else
     
     fprintf(['Already extracted signal of fly: ', filename, '\n']);
-    display([p.cDir, p.sep, filename, p.osuffix, '.mat'])
+    display([pwd, p.sep, filename, p.osuffix, '.mat'])
     
 end
 

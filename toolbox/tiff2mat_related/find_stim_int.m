@@ -8,12 +8,30 @@ function stimuli_onset_offset = ...
 %       find_stim_int(itrace, minwidth, threshold_val)
 %
 % Args:
-%   itrace: input stimuli trace
-%   minwidth: minimun width of stimuli timepoints
-%   threshold_val: voltage threshold
+%   itrace: input stimuli trace (vector, volts, one value per sample)
+%   minwidth: minimun gap between two stimuli (samples), closer
+%       stimuli are merged into one
+%       (default, 0, nothing is merged)
+%   threshold_val: voltage threshold, |trace| above it counts as stimulus
+%       (default, 0)
+%
+% Returns:
+%   stimuli_onset_offset: [n-stimuli x 2] sample index of the first
+%       sample above threshold (onset) and of the first sample back
+%       below threshold (offset)
+%
+% Notes:
+% onsets and offsets are paired by order, so a trace that starts
+%   already above threshold will pair the wrong edges.
 
-if ~exist('threshold_val', 'var')
-   threshold_val = 0; 
+% an empty minwidth would make the comparison below fail (and an empty
+%   threshold would select nothing), so fall back to the defaults
+if ~exist('minwidth', 'var') || isempty(minwidth)
+    minwidth = 0;
+end
+
+if ~exist('threshold_val', 'var') || isempty(threshold_val)
+   threshold_val = 0;
 end
 
 itrace = abs(itrace) > threshold_val;

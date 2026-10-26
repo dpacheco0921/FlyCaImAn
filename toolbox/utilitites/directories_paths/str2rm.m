@@ -10,7 +10,7 @@ function i_file = str2rm(i_str, i_file)
 %   i_file: is a string or a cell of strings (input files)
 % 
 % Returns:
-%   i_file: subset of i_file that matches i_str
+%   i_file: subset of i_file that does NOT contain any i_str pattern
 
 if ~isempty(i_str)
     

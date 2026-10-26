@@ -10,21 +10,36 @@ function [pval_raw, pvalc_dep, ...
 %   [pval_raw, pvalc_dep, ...
 %      pvalc_pdep, pvalc_bh, pvalks] = ...
 %      calculate_pval(coef_stat, ...
-%      coef_raw, pcor_shuffle, fdr, ...
+%      coef_raw, coef_shuffle, fdr, ...
 %      pval_cortype, chunksiz, corenum)
 %
 % Args:
-%   coef_stat: percentile of coef_raw 
-%   coef_raw: coefficient from raw data
+%   coef_stat: statistic per ROI (percentile of coef_raw) [K, 1]
+%   coef_raw: coefficient from raw data [K, folds]
 %       (correlation coefficient or explained variance, etc)
-%   coef_shuffle: coefficient from shuffle data
+%   coef_shuffle: coefficient from shuffle data [K, permutations]
 %       (correlation coefficient or explained variance, etc)
-%   fdr: false discovery rate
-%   pval_cortype: type of corrections to perform
+%   fdr: false discovery rate (default, 0.01)
+%   pval_cortype: logical vector [1, 4] choosing the corrections to run:
+%       [dep pdep bh ks] (default, zeros(1, 4)). dep: Benjamini &
+%       Yekutieli, pdep: Benjamini & Hochberg, bh: Bonferroni-Holm,
+%       ks: KS test p-value (only the first corenum*chunksiz ROIs are
+%       computed, see Notes)
 %   chunksiz: number of chunks for parpool
 %   	(default, 2*10^3)
 %   corenum: number of cores
 %   	(default, 4)
+%
+% Returns:
+%   pval_raw: uncorrected p-value per ROI [K, 1] (fraction of shuffle
+%       values >= coef_stat; negative coef_stat gives 1)
+%   pvalc_dep, pvalc_pdep, pvalc_bh: corrected p-values [K, 1]
+%       (NaN for corrections not requested in pval_cortype)
+%   pvalks: KS-test p-values, empty unless pval_cortype(4) is set
+%
+% Notes:
+%   The KS branch only processes chunk_idx{1} (the first batch of
+%   corenum chunks), so ROIs beyond corenum*chunksiz are left unfilled.
 
 if ~exist('pval_cortype', 'var') ...
         || isempty(pval_cortype)

@@ -9,7 +9,7 @@ function MIP_proj = get_df_MIP(...
 %   MIP_proj = get_df_MIP(...
 %   	rawdata_name, metadata_name, baseline_tp, ...
 %   	slices2project, time2load, sign2use, ...
-%       df_flag, chunk_size, corenumber)
+%       df_flag, chunk_size, corenumber, serverid)
 %
 % Args:
 %   rawdata_name: name of '_prosdata.mat' file to use.
@@ -34,6 +34,15 @@ function MIP_proj = get_df_MIP(...
 %   corenumber: number of cores to use.
 %   serverid: server ID.
 %       ('int' | ispc or ismac, to run locally)
+%       (default, 'int')
+%
+% Returns:
+%   MIP_proj: cell array (one row per set of slices in slices2project,
+%       four columns: DF/Fo, DF, MaxF, SNR). Each non-empty entry is a
+%       frame-size x time array of maximum-intensity projections. DF and
+%       MaxF are divided by their overall maximum (unitless, 0 to 1), DF/Fo
+%       is unitless and SNR is in z-score units. Columns not requested in
+%       df_flag stay empty.
 %
 % Notes:
 % it requires a metadata variable wDat
@@ -52,8 +61,9 @@ if ~exist('baseline_tp', 'var') || isempty(baseline_tp)
     baseline_tp = 1:9;
 end
 
+% both files are needed, returning nothing would only hide the problem
 if isempty(rawdata_name) || isempty(metadata_name)
-    return
+    error('get_df_MIP: rawdata_name and metadata_name are required')
 end
 
 if ~exist('sign2use', 'var') || isempty(sign2use)

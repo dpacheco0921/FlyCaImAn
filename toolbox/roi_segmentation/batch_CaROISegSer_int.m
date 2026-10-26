@@ -9,10 +9,20 @@ function batch_CaROISegSer_int(FolderName, ...
 %
 % Args:
 %   FolderName: name of folders to load
+%       (default, [], all folders)
 %   FileName: name of files to load
-%   iparams: roi file selection and job related params
-%   roiparams: roi segmentation paramters (see roiseg_params)
-% 
+%       (default, [], all files)
+%   iparams: roi file selection and job related params, fields of
+%       'roipars' below (cDir, redo, fo2reject, fi2reject, fimetsuffix,
+%       fisuffix, fosuffix, rfisuffix, rfosuffix, c_ths, serverid, corenum)
+%   roiparams: roi segmentation paramters (see roiseg_params), required
+%       (usually created by running a script in roi_seg_settings)
+%
+% Returns:
+%   nothing, for each file it saves *_t_<patch>.mat files and
+%   *_prosroi.mat (in roiparams.tDir if given, else the data folder) and
+%   coverage videos in the 'roicov' folder
+%
 % Notes:
 % unlike ROI segmentation code for big stacks (CaROISegSer),
 %   this one does jobpart-1 and -2 in the same run
@@ -43,6 +53,11 @@ roipars = loparam_updater(roipars, iparams);
 if ~exist('FolderName','var'); FolderName = []; end
 if ~exist('FileName', 'var'); FileName = []; end
 
+% roiparams has no default, fail early with a clear message
+if ~exist('roiparams', 'var') || isempty(roiparams)
+    error('batch_CaROISegSer_int: roiparams must be provided')
+end
+
 % set up parpool
 ppobj = setup_parpool(roipars.serverid, roipars.corenum);
 
@@ -65,7 +80,8 @@ for i = 1:numel(f2run)
     
 end
 
-if ~ispc || ~ismac
+% only shut down the parpool on clusters (it is left open on desktops)
+if ~ispc && ~ismac
     delete_parpool(ppobj);
 end
 
@@ -120,11 +136,13 @@ for fly_i = 1:numel(f2plot)
         
         for rep_i = 1:numel(repnum)
             
+            % filename was reduced to one unique name above, so it is
+            %   always element 1 (indexing with fly_i failed for fly_i > 1)
             fprintf(['ROI segmenting file: ', ...
-                filename{fly_i}, '_', ...
+                filename{1}, '_', ...
                 num2str(repnum(rep_i)),'\n'])
-            
-            roiseg_int([filename{fly_i}, '_', ...
+
+            roiseg_int([filename{1}, '_', ...
                 num2str(repnum(rep_i))], ...
                 roiparams, roipars);
             
@@ -132,7 +150,8 @@ for fly_i = 1:numel(f2plot)
         
     else
         
-        fprintf('error')
+        warning('batch_CaROISegSer_int: skipping %s, it matched %d different file names', ...
+            f2plot{fly_i}, numel(filename))
         
     end
     
@@ -270,14 +289,14 @@ for patch_idx = 1:length(obj.patches)
             
         end
         
-    catch error
-        
+    catch ME
+
         fprintf(['Failed processing patch # ', ...
             num2str(patch_idx), ' out of ', ...
             num2str(length(obj.patches)), '.\n']);
-        error.identifier
-        error.message
-        error.cause
+        % keep going with the other patches but name the culprit
+        warning('batch_CaROISegSer_int: patch %d of %s failed (%s): %s', ...
+            patch_idx, filename, ME.identifier, ME.message)
         
     end
     
@@ -305,7 +324,7 @@ if ~exist([loDir, filesep, filename, '_prosroi.mat'], 'file') || roipars.redo
     
     plot_roi_coverage_int(filename, ...
         [roipars.cDir, filesep, 'roicov'], ...
-        roipars.fimetsuffix);
+        roipars.fimetsuffix, loDir);
     
 else
     
@@ -317,23 +336,29 @@ end
 end
 
 function plot_roi_coverage_int(...
-    filename, oDir, filesuffix)
+    filename, oDir, filesuffix, roi_dir)
 % plot_roi_coverage_int: plot roi coverage
 %   it plot both sum of max norm weights and binarized voxels
 %
 % Usage:
 %   plot_roi_coverage_int(...
-%       filename, oDir, filesuffix)
+%       filename, oDir, filesuffix, roi_dir)
 %
 % Args:
 %   filename: file name
 %   oDir: output directory
 %   filesuffix: metadata suffix
+%   roi_dir: folder that holds filename_prosroi.mat
+%       (default, current folder)
+
+if ~exist('roi_dir', 'var') || isempty(roi_dir)
+    roi_dir = pwd;
+end
 
 % load metadata file
 load([filename, filesuffix], 'wDat')
-% load ROI file
-load([filename, '_prosroi'], 'roi')
+% load ROI file (it is saved in roi_dir, which can differ from pwd)
+load([roi_dir, filesep, filename, '_prosroi'], 'roi')
 
 % plot videos
 plot_roi_coverage(filename, ...

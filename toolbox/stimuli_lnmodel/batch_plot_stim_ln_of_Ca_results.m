@@ -14,14 +14,16 @@ function batch_plot_stim_ln_of_Ca_results(...
 %       (default, [])
 %   oDir: output directory.
 %   iparams: parameters to update
-%       (fsuffix: suffix of raw data)
-%           (default, '_rawdata.mat')
+%       (fsuffix: suffix of file with the roi variable)
+%           (default, '_prosroi.mat')
 %       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
+%       (var2load: name of the saved results variable to plot)
+%           (default, 'sMod')
 %       (hbins: bins for histogram)
 %           (default, -1:0.01:1)
 %       (hbinsp: bins for histogram pvals)
-%           (default, 0:0.01:1)
+%           (default, 0:0.01:1.1)
 %       (prct2use: bins for histogram)
 %           (default, 30)
 %       (fdr: bins for histogram)
@@ -44,8 +46,6 @@ function batch_plot_stim_ln_of_Ca_results(...
 %           (default, 'wDat.GreenChaMean')
 %       (display_all: flag to display mean traces of all ROIs)
 %           (default, 0)
-%       (channel2use: define the channel to use)
-%           (default, 'wDat.GreenChaMean')
 %       (com_flag: flag to overlay ROI number using its center of mass)
 %           (default, 0)
 %       (indroi_color_flag: flag to use different color for each ROI)
@@ -119,6 +119,11 @@ end
 
 filename = strrep(filename, plotpars.fsuffix, '');
 
+if isempty(filename)
+    warning('batch_plot_stim_ln_of_Ca_results:noFiles', ...
+        'No files matching *%s found, nothing to plot', plotpars.fsuffix);
+end
+
 fprintf(['Generating plots for ', ...
     num2str(numel(filename)), ' files\n'])
 
@@ -127,11 +132,13 @@ for i = 1:numel(filename)
 
     try
         plotperfly(filename{i}, iDir{i}, oDir, plotpars);
-    catch error
-        fprintf('/n ****************************************** /n')
-        fprintf(['Failed file: ', filename{i}, '/n'])
-        error
-        fprintf('****************************************** /n')
+    catch ME
+        % keep going with the remaining files, but say which one failed and why
+        fprintf('\n ****************************************** \n')
+        fprintf(['Failed file: ', filename{i}, '\n'])
+        warning('batch_plot_stim_ln_of_Ca_results:failedFile', ...
+            'Failed file %s: %s', filename{i}, ME.message);
+        fprintf('****************************************** \n')
     end
 
 end
@@ -632,7 +639,10 @@ if size(CaRaw_zs_tl, 1) > 1
     end
     
 else
-    
+
+    % only one ROI selected: keep its index so the coverage plot still gets it
+    new_order = init_order;
+
     plot(time_tl, CaRaw_zs_tl, ...
         'Parent', axH(1))
     hold(axH(1), 'on')
@@ -671,9 +681,13 @@ for i = unique(stim_idx)
        
         legend_str{k} = strrep(wDat.sName{i}, '_', '-');
         k = k + 1;
-        
+
+    catch ME
+        warning('batch_plot_stim_ln_of_Ca_results:legendFailed', ...
+            'Could not draw stimulus lines/legend for %s (stim %d): %s', ...
+            filename, i, ME.message);
     end
-    
+
 end
 
 lgH = legend(axH(2), linH, legend_str);

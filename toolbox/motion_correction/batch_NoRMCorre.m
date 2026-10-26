@@ -60,13 +60,15 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %       (use_parallel: for each frame, update patches in parallel)
 %           (deafult, true)
 %       (min_patch_size: minimum size of patch)
-%           (deafult, [64 64 5])
+%           (deafult, [64 64 4])
 %       (plot_df_flag: flag to plot df videos)
-%           (deafult, 0)
+%           (deafult, 1)
 %           (if 1, it plots iteration 0, and the last iteration)
 %           (if 2, it plots iteration 0, and all iterations)
 %       (baseline_tp: timepoints to use as baseline to generate DF videos)
 %           (deafult, [1:5])
+%           (currently unused: the baseline subtraction in plot_df_video
+%               is commented out, videos show max-projected raw intensity)
 %       (int_range: intensity range for DF videos)
 %           (deafult, [0 1])
 %       (oDir: directory where videos are saved)
@@ -89,7 +91,7 @@ function batch_NoRMCorre(FolderName, FileName, iparams)
 %       (PMT_cha: channel to use)
 %           (default, 1)
 %       (f_threshold: fluorescence value beyond which a frame is considered saturated)
-%           (default, 1000)
+%           (default, 10)
 %       %%%%%%%%%%%% shift fluorescence distribution %%%%%%%%%%%%
 %       (shift_f_flag: substract the minimun F value)
 %       %%%%%%%%%%%% smooth data before correction %%%%%%%%%%%%
@@ -242,6 +244,10 @@ f2run = rdir(['.', filesep, '*', pMC.fsuffix]);
 fname = addsuffix(fname, pMC.fsuffix);
 f2run = str2match(fname, f2run);
 f2run = {f2run.name};
+if isempty(f2run)
+    warning('batch_NoRMCorre:noFiles', ...
+        'No files matching *%s found in %s', pMC.fsuffix, pwd)
+end
 fprintf('Correcting motion\n')
 k = 1;
 
@@ -249,10 +255,10 @@ for F2R_idx = 1:numel(f2run)
     
     try
         runperfile(f2run{F2R_idx}, pMC)
-    catch error
-        if ispc
-            keyboard
-        end
+    catch ME
+        % report which file failed and why, then continue with the next one
+        warning('batch_NoRMCorre:fileFailed', 'Motion correction failed for %s: %s', ...
+            f2run{F2R_idx}, ME.message)
         failedfiles{k, 1} = strrep(f2run{F2R_idx}, ...
             '_rawdata', '_refdata');
         k = k + 1;
@@ -396,8 +402,9 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                     
                     % do each plane separately
                     for plane_i = 1:dgDim(3)
+                        % blur only when both kernel parameters are given
                         if ~isempty(pMC.smooth_siz) && ...
-                                isempty(pMC.smooth_sig)
+                                ~isempty(pMC.smooth_sig)
                             eval(['[~, shifts_pre{plane_i}, template_(:, :, plane_i), ~, col_shift{plane_i}] = ', ...
                                 'normcorre_batch(imblur(squeeze(', cha_str{pMC.refcha}, ...
                                 '(:, :, plane_i, :)), pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
@@ -409,8 +416,9 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                     
                 else
                     
+                    % blur only when both kernel parameters are given
                     if ~isempty(pMC.smooth_siz) && ...
-                            isempty(pMC.smooth_sig)
+                            ~isempty(pMC.smooth_sig)
                         eval(['[~, shifts_pre, template_, ~, col_shift] = ', ...
                             'normcorre_batch(imblur(', cha_str{pMC.refcha}, ...
                             ', pMC.smooth_sig, pMC.smooth_siz, 2), options_r);']);
@@ -421,9 +429,11 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                     
                 end
                 
-            catch
+            catch ME
+                % without shifts nothing below is valid, so stop this file
                 fprintf(['normcorre_batch failed', ...
                     ' at iteration ', num2str(iter_i), '\n'])
+                rethrow(ME)
             end
             
             % correlation with the mean (CM):
@@ -574,8 +584,8 @@ if iDat.MotCorr == 0 || pMC.redo == 1
                     end
 
                     if size(iDat.fstEn, 1) ~= prod([iDat.FrameN iDat.StackN])
-                        fprintf('Error fstEn and Data size dont match')
-                        keyboard
+                        error('batch_NoRMCorre:fstEnSize', ...
+                            'iDat.fstEn and Data size do not match')
                     end
                     
                 else
@@ -684,7 +694,10 @@ if iDat.MotCorr == 0 || pMC.redo == 1
         init_temp = reshape(iDat.fstEn(:, 1), [iDat.FrameN, iDat.StackN]);
         end_temp = reshape(iDat.fstEn(:, 2), [iDat.FrameN, iDat.StackN]);
 
-        for l = 1:delta_siz(3)
+        % 2DxT data has no Z padding, so there are no Z timestamps to copy
+        n_z_pad = 0;
+        if numel(delta_siz) >= 3; n_z_pad = delta_siz(3); end
+        for l = 1:n_z_pad
             init_temp(end + 1, :) = init_temp(end, :);
             end_temp(end + 1, :) = end_temp(end, :);
         end
@@ -729,8 +742,9 @@ if iDat.MotCorr == 0 || pMC.redo == 1
     Data = GreenCha;
     
     % plot image of start vs end of recording
+    %   (mean of the first and last ~10 timepoints, to compare drift)
     if ~isempty(Data)
-        
+
         if length(dgDim) == 4
             float_im_1 = ...
                 mean(Data(:, :, :, 1:10), 4);
@@ -801,19 +815,20 @@ end
 
 function [options_r, options_nr] = ...
     generate_normcore_params(siz, pMC)
-% generate_normcore_params: calculate correlation of 
-%   template to each frame of floating image
+% generate_normcore_params: build the NoRMCorre option structures
+%   (rigid and non-rigid) for an image of a given size
 %
 % Usage:
 %   [options_r, options_nr] = ..
 %       generate_normcore_params(siz, pMC)
 %
 % Args:
-%   siz: image dimensions
-%   pMC: floating image
+%   siz: image dimensions [height width (depth) time], in pixels
+%   pMC: parameter structure of batch_NoRMCorre
 %
 % Returns:
 %   options_r & options_nr motion correction parameters (see NoRMCorreSetParms)
+%   (only options_r is used at the moment, non-rigid correction is disabled)
 
 % motion correction parameters
 if length(siz) == 4 && ~pMC.withinplane_flag
@@ -957,7 +972,13 @@ end
 iDat.PMT_fscore = ...
     squeeze(max(max(data, [], 1), [], 2));
 
-% flag frames above f_ths
+% 2DxT: squeeze returns a column (T x 1), make it a row so it is scored per
+%   timepoint instead of collapsing to one number
+if iDat.FrameN <= 1
+    iDat.PMT_fscore = iDat.PMT_fscore(:)';
+end
+
+% flag frames below f_ths (1 = frame max under the threshold, i.e. not saturated)
 if size(iDat.PMT_fscore, 1) == 1
     iDat.PMT_fscore = iDat.PMT_fscore < f_ths;
 else
@@ -1140,7 +1161,13 @@ function [shifts_i, shifts_s, igate] = ...
 %   shift_ths: threshold for the shifts
 %
 % Returns:
-%   shifts_i, shifts_s, igate: zeroed shifts in vector format
+%   shifts_i: edited (smoothed / zeroed) shifts, same format as the input
+%   shifts_s: same as shifts_i (kept for backwards compatibility)
+%   igate: 1 if any shift axis of any plane was zeroed (delta above
+%       shift_ths), 0 otherwise
+
+% initialised once, so a flag set by one plane is not erased by the next
+igate = 0;
 
 if ~iscell(shifts_i)
     shifts_i = {shifts_i};
@@ -1148,7 +1175,6 @@ end
 
 for i = 1:numel(shifts_i)
     
-    igate = 0;
     shifts_s{i} = shifts_i{i};
     shifts_r = shifts_editor(shifts_i{i}, 'read');
 

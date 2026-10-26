@@ -13,9 +13,17 @@ function [CorrData, cDat, lStim] = ...
 %   Baseline: time without opto stimulation
 %   iDat: image metadata structure
 %   lStim: stimuli metadata structure
-%   axH: File name to load
-%   cDat: LED correction metadata structure
+%   axH: axes handles [1 x 3] used to plot this iteration (only used if plotgate)
+%   cDat: LED correction metadata structure (needs Iter, buffer, CorType)
 %   plotgate: flag to plot process
+%
+% Returns:
+%   CorrData: LED-corrected data, same dimensions as Data except the
+%       height, which is 2 pixels shorter (last rows are dropped)
+%   cDat: updated correction structure (light triggered median / average
+%       before and after correction, per iteration, in fluorescence units)
+%   lStim: updated stimuli structure (lStim2D = stimulus interpolated to
+%       pixel times, pstEn = pulse start / end in pixel-time samples)
 %
 % Notes:
 % updates cDat with LTA, LTM per iteration
@@ -45,8 +53,13 @@ end
 if ~isempty(iDat.DelFrames) 
     
     % Discarding frames that are empty
+    %   (lStim2D is only chopped if it still has all frames: after the
+    %   first iteration it was already chopped, and chopping it again
+    %   would remove the wrong frames)
     PrelStim2D = lStim.lStim2D;
-    lStim.lStim2D(:, :, iDat.DelFrames) = [];
+    if size(lStim.lStim2D, 3) == size(DataNorm2DxT, 3)
+        lStim.lStim2D(:, :, iDat.DelFrames) = [];
+    end
     PreNorm2D = DataNorm2DxT;
     DataNorm2DxT(:, :, iDat.DelFrames) = [];
     
@@ -160,6 +173,15 @@ end
 end
 
 function Data = OptVolFiller(frame2corr, Data)
+% OptVolFiller: fill whole volumes that contain empty frames
+%
+% Args:
+%   frame2corr: indexes of empty frames, counted over all planes and
+%       timepoints of the raw data (plane fastest)
+%   Data: 4D [Y X Z T] data
+%
+% Returns:
+%   Data: same size, volumes with any empty frame replaced (framegapfill)
 
 % assumes that Data has the same planes and timepoints as the original (raw)
 Idx_1D = zeros(1, size(Data, 3)*size(Data, 4));
@@ -172,6 +194,17 @@ fprintf('\n')
 end
 
 function [DataNorm2DxT, DataMedian, oDim] = preprocessingIm(Data, Baseline, iDat, lStim, plotgate)
+% preprocessingIm: subtract the baseline median image (per trial), undo
+%   the bidirectional scanning flip and reshape to [X Y frames]
+%
+% Args:
+%   Data: [Y X (Z) T] imaging data; Baseline: timepoints without light
+%   iDat, lStim: metadata (StackN, trialn); plotgate: flag to plot
+%
+% Returns:
+%   DataNorm2DxT: baseline-subtracted data [X Y frames]
+%   DataMedian: cell (one per trial) with the subtracted median images
+%   oDim: size of the input Data
 
 % Smoothing / reshaping Data
 Data = double(Data);
@@ -251,6 +284,16 @@ end
 end
 
 function lta = ltagen(lStim, DataNorm1D, buffer)
+% ltagen: light triggered traces, one row per light pulse of the most
+%   common width, each with 'buffer' samples before and after the pulse
+%
+% Args:
+%   lStim: stimuli structure (pstEn: pulse start / end samples)
+%   DataNorm1D: data as one long vector in pixel-time order
+%   buffer: samples to include before and after each pulse
+%
+% Returns:
+%   lta: [pulses x (pulse width + 2*buffer + 1)] smoothed traces
 
 % Selecting the median pulse width and use those for pulse lta
 ModPulse = mode(lStim.pstEn(:, 2) - lStim.pstEn(:, 1));
@@ -269,6 +312,18 @@ end
 
 function [lStim2DxT, DataNorm2DxT, DataMedian] = ...
     lStimInterp(dDim, oDim, iDat, lStim, DataNorm2DxT, DataMedian, plotgate)
+% lStimInterp: interpolate the light stimulus trace to the time each pixel
+%   was scanned, and drop the last 2 columns of data / stimulus / medians
+%   (same pruning is applied to the red channel in batch_LEDdenoise)
+%
+% Args:
+%   dDim: size of DataNorm2DxT; oDim: original data size
+%   iDat: image metadata (fstEn: frame start / end samples)
+%   lStim: stimuli structure (trace); DataMedian: cell of median images
+%
+% Returns:
+%   lStim2DxT: stimulus value per pixel [X-2 Y frames]
+%   DataNorm2DxT, DataMedian: inputs without the last 2 columns
 
 % Interpolate LED pulses to frame times and reduces frame size (x-2 pixels)
 PixelSpacing = prod(dDim(1:2));
@@ -308,6 +363,15 @@ end
 
 function [CorDataNorm2DxT, lta] = ...
     videoCorr(DataNorm1D, lStim1D, lStim, corrVector, buffer, dDim)
+% videoCorr: subtract the light triggered median (corrVector) around
+%   every light pulse; pulses cut by the start / end of the recording or
+%   of different width use the matching part of corrVector.
+%   The hard-coded 300 and 50 sample values trim the stitching region
+%   between the two ends of corrVector and the pulse edges (set to 0).
+%
+% Returns:
+%   CorDataNorm2DxT: corrected data [dDim]; lta: light triggered traces
+%   of the corrected data
 
 % This function perfomrs video correction (substraction)
 CorDataNorm1D = DataNorm1D;
@@ -360,12 +424,12 @@ for p_idx = 1:size(lStim.pstEn, 1)
                 
                 lta2sub([1:50 end-50:end]) = 0;
                 
-            catch error
-                
-                if ~isempty(error)
-                    keyboard
-                end
-                
+            catch ME
+
+                % lta2sub is not defined if this failed, so stop here
+                error('LEDdenoiser:videoCorr', ...
+                    'Pulse %d could not be corrected: %s', p_idx, ME.message)
+
             end
             
         end
@@ -384,7 +448,8 @@ CorDataNorm2DxT = ...
 end
 
 function plottingCorrVideo(CorDataNorm2DxT, DataNorm2DxT, lStim2D, plotgate)
-% plot video
+% plottingCorrVideo: (if plotgate == 1) play raw, corrected and stimulus
+%   frames side by side; no return value
 
 if plotgate == 1
     
@@ -407,7 +472,9 @@ end
 end
 
 function resultplotter(cDat, axH)
-% plot figure
+% resultplotter: plot light triggered average / median before and after
+%   correction (axH(1)) and the raw / corrected YX projections (axH(2:3));
+%   no return value
 
 % LTA
 plot(cDat.LTM(cDat.Iter, :), 'b', 'Parent', axH(1)); hold(axH(1), 'on'); 

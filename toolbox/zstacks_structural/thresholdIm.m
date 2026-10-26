@@ -33,6 +33,11 @@ function thresholdIm(input_im_name, output_im_name, input_int_ths, ...
 %       default('pre')
 %   im2mask_name: full name of image to mask
 %       default([])
+%
+% Notes:
+% No return value, the image is saved as <output_im_dir>/<output_im_name>.nrrd
+%   (uint16, same voxel size as the input). If padn pads X or Y, only Z is
+%   cropped back to its original size.
 
 if ~exist('outputType', 'var') || isempty(outputType)
     outputType = 0;

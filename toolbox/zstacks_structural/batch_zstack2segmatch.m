@@ -7,12 +7,15 @@ function batch_zstack2segmatch(FolderName, FileName, iparams)
 % Usage:
 %   batch_zstack2segmatch(FolderName, FileName, iparams)
 %
+% Args:
 %   FolderName: Folder name to load
 %   FileName: File name to load
-%   ip: parameters to update
+%   iparams: parameters to update
 %       (cDir: current directory)
 %       (fisuffix: file suffix)
+%           ('prosmetadata.mat', default)
 %       (fo2reject: folder to reject)
+%       (refcha_suffix: suffix added to output names, '_01' default)
 %       (redo: redo)
 %           (0, default)
 %       (refcha: channel to save as nrrd, for wholebrain)
@@ -61,6 +64,9 @@ function batch_zstack2segmatch(FolderName, FileName, iparams)
 %   *resample
 %   *mirror
 %   *output image is saved as nrrd
+%
+% No return value: *_s_01.nrrd and *_w_01.nrrd (uint16, voxel size in um)
+%   are saved in the fly folders.
 %
 % To do:
 % fix bug related to imprepros_correctpath(wDat.cDir)

@@ -1,22 +1,22 @@
 function [ppobj, ppprofile] = setup_parpool(deviceID, corenum)
-% setup_parpool Returns the index at which the max is found.
+% setup_parpool: start a local parallel pool (on a cluster node, use a temp job folder).
 % 
 % Usage:
-%   pphandle = setup_parpool(deviceID, corenum)
+%   [ppobj, ppprofile] = setup_parpool(deviceID, corenum)
 %
 % Args:
 %   deviceID: 'int', internal, 'spock' or 
 %       'della' or other names it assumes they are clusters
-%   corenum: number of workers
+%   corenum: number of workers (default, 1)
 % 
 % Returns:
 %   ppobj: parpool obj
-%   ppprofile: parpool profile
+%   ppprofile: parpool profile (both are [] if a pool was already running)
 % 
 % See also: parcluster parpool
 
 if ~exist('deviceID', 'var') || isempty(deviceID)
-    deviceID = [];
+    deviceID = ''; % char, so contains(deviceID, ...) below does not error
 end
 
 if ~exist('corenum', 'var') || isempty(corenum)
@@ -38,7 +38,8 @@ else
     if isempty(gcp('nocreate'))
         ppprofile = parcluster('local');
 
-        % use temporary folder
+        % use node-local temp folder (unique per user and SLURM job) because
+        % the default job storage location is not safe on shared cluster disks
         ppprofile.JobStorageLocation = ...
             strcat('/tmp/', getenv('USER'), ...
             '-', getenv('SLURM_JOB_ID'));

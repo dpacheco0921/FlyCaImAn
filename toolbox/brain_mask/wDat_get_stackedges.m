@@ -10,7 +10,13 @@ function lnbis = wDat_get_stackedges(wDat, ...
 % Args:
 %   wDat: main metadata structure
 %   planes: planes that define stack edges
+%       (default, [], one stack covering the whole volume)
 %   planeorder: direction bottom2up or up2bottom
+%       (default, 'bottom2up')
+%
+% Returns:
+%   lnbis: 1 x (number of stacks + 1) row vector of z plane indices that
+%       delimit the stacks (stack i spans planes lnbis(i)+1 to lnbis(i+1))
 
 if ~exist('planeorder', 'var')
     planeorder = 'bottom2up';

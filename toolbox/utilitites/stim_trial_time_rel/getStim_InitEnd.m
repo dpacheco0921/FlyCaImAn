@@ -9,7 +9,10 @@ function stEn = getStim_InitEnd(...
 %
 % Args:
 %   frame_time: frame timestamps (seconds)
-%   stimuli_time: stimuli start and end (seconds)
+%   stimuli_time: stimuli start and end (seconds), n x 2
+%
+% Returns:
+%   stEn: n x 2 matrix, frame index of stimulus start (col 1) and end (col 2)
 
 % round to tens of miliseconds
 frame_time = round(frame_time*100)/100;
@@ -32,12 +35,13 @@ for trial_i = 1:size(stimuli_time, 1)
     stEn(trial_i, 1) = find(dt_i == min(dt_i), 1);
     stEn(trial_i, 2) = find(dt_e == min(dt_e), 1);
     
-    % correct length
+    % correct length (stretch or shrink the end by one frame so the stim width
+    %   matches the true duration; never move the end past the last frame)
     d_stEn = stEn(trial_i, 2) - stEn(trial_i, 1);
     
     if d_stEn > round(dt_stim/dt)
        stEn(trial_i, 2) = stEn(trial_i, 2) - 1;
-    elseif d_stEn < round(dt_stim/dt) && d_stEn < numel(frame_time)
+    elseif d_stEn < round(dt_stim/dt) && stEn(trial_i, 2) < numel(frame_time)
        stEn(trial_i, 2) = stEn(trial_i, 2) + 1;
     end
     

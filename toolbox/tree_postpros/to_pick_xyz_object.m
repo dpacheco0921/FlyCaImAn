@@ -2,12 +2,16 @@ function iObject = to_pick_xyz_object(obj, idx2sel, imatrix)
 % to_pick_xyz_object: function to parse xyz field to use
 %
 % Usage:
-%   to_pick_xyz_object(iObject, idx2sel, imatrix)
+%   iObject = to_pick_xyz_object(obj, idx2sel, imatrix)
 %
 % Args:
 %   obj: traceObj obj
-%   idx2sel: files/indeces to use
-%   imatrix: field to use
+%   idx2sel: files/indeces to use ([] for all)
+%   imatrix: field to use (0 xyz, 1 xyz_s, 2 xyz_pix, 3 traces) (default, 0)
+%
+% Returns:
+%   iObject: the selected field of obj (cell of xyz matrices, or the tree
+%       structures when imatrix is 3), restricted to idx2sel
 
 if ~exist('imatrix', 'var') || ...
         isempty(imatrix)
@@ -38,7 +42,11 @@ else
     elseif imatrix == 3
         iObject = obj.traces(idx2sel);
     end
-    
+
 end
+
+% an unknown imatrix would otherwise end in "output not assigned"
+assert(exist('iObject', 'var') == 1, ...
+    'to_pick_xyz_object: imatrix must be 0, 1, 2 or 3, got %d', imatrix)
 
 end

@@ -2,14 +2,15 @@ function [oFile, iDir] = split_path(iFile)
 % split_path: it splits path into file name and full directory
 % 
 % Usage:
-%   iFile = split_path(InputFiles)
+%   [oFile, iDir] = split_path(iFile)
 %
 % Args:
-%   iFile: input files to chop
-% 
+%   iFile: input file path (string) or cell array of paths
+%
 % Returns:
 %   oFile: file name(s) in cells
-%   iDir: file directory(s) in cells
+%   iDir: file directory(s) in cells (no trailing file separator,
+%       so use fullfile(iDir, oFile) to rebuild a path)
 
 idelimiter = filesep;
 

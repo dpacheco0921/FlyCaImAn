@@ -1,11 +1,11 @@
 function [filtered_, raw_] = ...
     signalExtraction_int_2(Y, Y_, A, C, b, f, d1, d2, d3, iparams)
-% signalExtraction_int: extract the signal after CNMF is ran but just for
+% signalExtraction_int_2: extract the signal after CNMF is ran but just for
 %   Y_ channel
 %
 % Usage:
 % 	[filtered_, raw_] = ...
-%   	signalExtraction(Y, Y_, A, C, b, f, d1, d2, extractControl)
+%   	signalExtraction_int_2(Y, Y_, A, C, b, f, d1, d2, d3, iparams)
 %
 % inputs: 
 %         Y raw data (d X T matrix, d # number of pixels, T # of timesteps)
@@ -17,10 +17,9 @@ function [filtered_, raw_] = ...
 %         d1 dimension 1 
 %         d2 dimension 2 
 %         d3 dimension 3 
-%         extractControl.baselineRatio: residue baseline of signals from CNMF (default:0.25)
-%               set to 0 to ignore this residue baseline 
-%         extractControl.thr: energy fraction included in the raw signal contour (default:0.99)
-% 
+%         iparams: structure that overrides the defaults set below
+%               (same fields as signalExtraction_int)
+%
 % outputs:
 %   filtered_: spatial weighting on the ROI pixels, unmixing, background
 %       substraction for additional channel (Y_)
@@ -28,10 +27,10 @@ function [filtered_, raw_] = ...
 %       background substraction for additional channel (Y_)
 %   
 %   Each variable has these fields:
-%       df: df signal
-%       F: baseline
-%       dfof: dfof
-%       CR: information of the cell contour used in raw signal calculation
+%       df: df signal (ROIs x time, fluorescence a.u.)
+%       F: baseline (ROIs x time, fluorescence a.u.)
+%       dfof: df relative to the baseline (ROIs x time, unitless)
+%       (both outputs are empty when Y_ is empty)
 %
 % Notes:
 %   edited from signalExtraction (Author: Eftychios A. Pnevmatikakis, and Weijian Yang)

@@ -11,7 +11,16 @@ function [Y, imtime, vidtime, SVD_Dat] = ...
 %   filename: filename
 %   sig: std of gaussian kernel
 %   siz: size of kernel
-%   tres_flag: flag to resample to imaging time resolution
+%   tres_flag: flag to resample to imaging time resolution (default, 0)
+%
+% Returns:
+%   Y: temporal components of the video motion SVD [components, T]
+%       (T = video frames, or imaging frames if tres_flag)
+%   imtime: imaging frame times in seconds, rounded to 10 ms
+%   vidtime: video frame times in seconds
+%   SVD_Dat: the whole 'proc' structure loaded from filename
+%
+% Errors if the *_proc.mat file does not exist (run facemap first).
 
 if ~exist('sig', 'var')
     sig = [];
@@ -28,8 +37,10 @@ end
 if exist(filename, 'file')
     load(filename, 'proc')
 else
-    fprintf('*_proc.mat fiel does not exist - do facemap\n')
-    return
+    % returning here would leave the outputs unassigned and give a
+    %   confusing error in the caller, so fail with a clear message
+    error('load_edit_video_SVD:noFile', ...
+        '*_proc.mat file does not exist - do facemap (%s)', filename)
 end
 
 % get imaging timepoints

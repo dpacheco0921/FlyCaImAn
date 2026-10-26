@@ -12,15 +12,22 @@ function stimuli_onset_offset = ...
 %   lStim: stimuli variable from LEDcontroler (only requires .freq and .fs)
 %
 % Returns:
-%   stimuli_onset_offset: stimuli onset and offset [onset, offset]
+%   stimuli_onset_offset: [n-trains x 2] sample index of the first pulse
+%       onset and last pulse offset of each stimulus train [onset, offset]
 %
 % Notes:
 % assumes any change from 0 is an stimulus
+% two pulses further apart than 2 pulse periods start a new train
 
 % Using the stim trace, it gets the beginning and end of stimulation (LED)
-pulseIdx = diff(trace);  
+pulseIdx = diff(trace);
 pulsenInit = find(pulseIdx > 0) + 1;
 pulseEnd = find(pulseIdx < 0);
+
+if isempty(pulsenInit) || isempty(pulseEnd)
+    error('optostim_init_end:nopulses', ...
+        'No stimulus pulses found in the stimulus trace')
+end
 
 % find trains
 try

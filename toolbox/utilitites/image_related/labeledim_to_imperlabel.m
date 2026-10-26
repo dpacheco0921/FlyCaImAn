@@ -4,10 +4,15 @@ function [Y, cm] = labeledim_to_imperlabel(Im)
 %   label
 %
 % Usage:
-%   [Im] = split_im_into_cc(Im)
+%   [Y, cm] = labeledim_to_imperlabel(Im)
 %
 % Args:
-%   Im: input image
+%   Im: input labeled image (2D or 3D); 0 and NaN are background
+%
+% Returns:
+%   Y: sparse matrix [numel(Im), n_labels], column k is the binary
+%       (flattened) mask of the k-th smallest label
+%   cm: center of mass per label [n_labels, 3] (pixels; from com)
 
 % get original size
 d1 = size(Im, 1);

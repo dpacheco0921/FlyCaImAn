@@ -17,6 +17,10 @@ function [linH, somaH] = to_plottree_3d(...
 %   psoma: plot soma
 %   nodetags: nodes to tag (plot in different color - black)
 %
+% Returns:
+%   linH: handle of the line with the whole tree
+%   somaH: handle of the soma marker (0 if psoma is 0)
+%
 % Todo:
 % add flag to select some nodes
 % make soma color independent of trace color

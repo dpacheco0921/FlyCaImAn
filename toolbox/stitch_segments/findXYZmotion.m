@@ -6,13 +6,18 @@ function coridx_per_xyz = findXYZmotion(refIm, floatIm, maxshift)
 %   coridx_per_xyz = findXYZmotion(refIm, floatIm, maxshift)
 %
 % Args:
-%   refIm: reference image
-%   floatIm: floating image
-%   maxshift: maximun pixel shift in X/Y
+%   refIm: reference image [height width]
+%   floatIm: floating image(s) [height width planes], same height and width
+%   maxshift: maximun pixel shift in X/Y (pixels)
+%
+% Returns:
+%   coridx_per_xyz: correlation coefficients (unitless) of refIm with each
+%       plane of floatIm, [2*maxshift+1 (rows shift), 2*maxshift+1 (columns
+%       shift), planes]. NaN pixels give NaN correlations.
 
-coridx_per_xyz = zeros(1, size(floatIm, 3));
 xrange = -maxshift:1:maxshift;
 yrange = -maxshift:1:maxshift;
+coridx_per_xyz = zeros(numel(xrange), numel(yrange), size(floatIm, 3));
 
 for z = 1:size(floatIm, 3)
     

@@ -7,8 +7,12 @@ function Y_norm = normdata(Y, p, dim)
 %
 % Args:
 %   Y: 2DxT matrix
-%   p: norm type, see norm
-%   dim: dimension across which to normalize
+%   p: norm type, see norm (default, 2)
+%   dim: dimension across which to normalize (default, 1)
+%
+% Returns:
+%   Y_norm: same size as Y (double); each vector along dim is divided by its p-norm
+%       (all-zero vectors give NaN)
 %
 % Notes: see norm
 

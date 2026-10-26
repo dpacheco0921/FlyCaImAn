@@ -15,12 +15,18 @@ function plot_fused_image_vid(...
 %   iparams: parameters to update
 %       (vquality: video quality)
 %           (default, 100)
-%       (frate: video rate)
+%       (frate: video rate, frames per second)
 %           (default, 10)
+%
+% Notes:
+% Writes a video file named oDir/filename (no return value). Each video
+%   frame is one plane (3rd dimension) with image 1 in red and image 2 in green.
 
-% default video settings
-iparams.vquality = 100;
-iparams.frate = 10;
+% default video settings (user values in iparams take precedence)
+ip.vquality = 100;
+ip.frate = 10;
+if ~exist('iparams', 'var'); iparams = []; end
+ip = loparam_updater(ip, iparams);
 
 % Normalize images, scale to [0 1]
 min_ = prctile([float_im_1(:); float_im_2(:)], 1);
@@ -38,8 +44,8 @@ axH = subplot(1, 1, 1);
 
 % video related
 vHandle = VideoWriter([oDir, filesep, filename]);
-vHandle.Quality = iparams.vquality;
-vHandle.FrameRate = iparams.frate;
+vHandle.Quality = ip.vquality;
+vHandle.FrameRate = ip.frate;
 open(vHandle);
 
 for i = 1:size(float_im_1, 3)

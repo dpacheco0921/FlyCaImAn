@@ -1,7 +1,8 @@
 function batch_append_dfcha_to_wDat(...
     Filename, iparams)
-% batch_append_dfcha_to_wDat: plot MIP of segment to 
-%   see match with brain side
+% batch_append_dfcha_to_wDat: compute the median (across trials) dF/F
+%   volume of the green channel for each selected stimulus and append it
+%   to the metadata file as wDat.GreenChaDfof
 %
 % Usage:
 %   batch_append_dfcha_to_wDat(...
@@ -12,10 +13,12 @@ function batch_append_dfcha_to_wDat(...
 %       (default, [])
 %   iparams: parameters to update
 %       (fmetsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%           (default, '_prosmetadata.mat')
+%       (fisuffix: suffix of the data file holding Y)
+%           (default, '_prosdata.mat')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
-%       (bs_range: time before stim and after 
+%       (bs_range: time before stim and after
 %           stim to use for baseline and df calculation in seconds (s))
 %           (default, [-10 -0.5])
 %       (sti_range: time before stim and after stim
@@ -26,9 +29,9 @@ function batch_append_dfcha_to_wDat(...
 %           (default, 0)
 %       (sign2use: use positive or negative changes
 %           (by multipliying it by 1/-1))
-%           (default, 1 (positive))
+%           (1 (positive))
 %           (-1 (negative))
-%           (0 (absolute))
+%           (default, 0 (absolute))
 %       (stim2use: stimuli to use)
 %           (default, 1)
 %       (chunk_size: size of chunks)
@@ -37,6 +40,11 @@ function batch_append_dfcha_to_wDat(...
 %           (default, 4)
 %       (serId: server ID)
 %           ('int' | ispc or ismac, to run locally)
+%
+% Returns:
+%   nothing, it appends wDat.GreenChaDfof (x, y, z, stimulus; unitless
+%   dF/F) to each metadata file
+%
 % Notes
 
 % default params
@@ -89,7 +97,11 @@ if ~isempty(Filename)
     iDir = iDir(f2run);
 end
 
-fprintf(['Collecting DF images for ', ...
+if isempty(filename)
+    warning('batch_append_dfcha_to_wDat: no files found for the given pattern/dir_depth')
+end
+
+fprintf(['Collecting DF images for ',...
     num2str(numel(filename)), ' files\n'])
 
 % plot sMod results
@@ -184,10 +196,21 @@ for i = stim2use
    display(sName{i})
 end
 
+% none of the requested stimuli exist in this file, leave wDat unchanged
+%   instead of saving an empty GreenChaDfof
+if isempty(stim2use)
+    warning('get_avg_df: none of the requested stimuli exist in %s', filename)
+    return
+end
+
 stim_dfof_p_sti = zeros([siz(1:end-1), numel(stim2use)]);
 
 for sti_i = 1:numel(stim2use)
-    
+
+    % start each stimulus from scratch, otherwise trials left over from a
+    %   previous stimulus with more trials enter the median below
+    clear stim_dfof
+
     % select stim to use
     sti_En = getStim_InitEnd(wDat.fTime, ...
         wDat.sTime(ismember(sIdx, stim2use(sti_i)), :));
@@ -282,6 +305,8 @@ else
     stim_dfof = sign2use*stim_dfof;
 end
 
+% dF/F: a zero baseline gives Inf/NaN voxels (no guard here on purpose, it
+%   would change the saved values)
 stim_dfof = stim_dfof./abs(imblur(bas_mean, 1, 3, length(siz) - 1));
 
 if stat2use == 0

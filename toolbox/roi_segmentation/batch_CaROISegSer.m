@@ -17,7 +17,7 @@ function batch_CaROISegSer(fname, inputparams, ...
 %       ROI segmentation parameters
 %       (default, roiseg_3D_dense_fr_2Hz_z2)
 %   serverid: server ID 'int', 'spock', 'della'
-%       (default, 'spock')
+%       (default, 'int')
 %   jobpart: type of job to run
 %       1) run roi segmentation for patches of whole volume
 %       2) compile patches
@@ -25,14 +25,15 @@ function batch_CaROISegSer(fname, inputparams, ...
 %          file
 %       4) compile without merging across planes
 %       (default, 1)
-%   memreq: RAM memory to request
-%       (deafult, 48)
+%   memreq: RAM memory to request, in GB
+%       (default, 48)
 %   patchtype: flag on how to define patches
-%       (default, 1, it splits it into nXmXt segments)
-%       (alternatively, for stitched volumes, it splits them into segments
+%       (default, 0, it splits it into nXmXt segments)
+%       (1, for stitched volumes, it splits them into segments
 %       of the same stack)
 %   corenum: number of cores to request
-%       (default, 4)
+%       (default, 4 on clusters; on a PC/Mac it is overwritten with the
+%       number of local workers)
 %   roi_n_init: number of ROIs to segment
 %       (default, [])
 %   stitch_flag: flag indicating that file is stitched (used to then find input files)
@@ -43,7 +44,13 @@ function batch_CaROISegSer(fname, inputparams, ...
 %       (default, [])
 %   jobsperbatch: jobs run per batch
 %       (default, 4)
-% 
+%
+% Returns:
+%   nothing, it saves the parameter files '<timestamp>_impre.mat' and
+%   '_status.mat' in <temporary dir>/jobsub/roirel and either runs the
+%   jobs locally (serverid 'int'/'PC') or writes the slurm file there
+%   (it is not submitted automatically)
+%
 % Notes:
 % it requires that the script is run in the data folder
 % internal variable with important parameters CaRp
@@ -202,10 +209,12 @@ else
     
 end
 
-if ~exist([temporary_dir, 'jobsub', filesep, 'roirel'], 'dir')
-    mkdir([temporary_dir, 'jobsub', filesep, 'roirel']);
+% fullfile adds the separator only if temporary_dir lacks one, so this is
+%   the same folder CaROISegSer reads from
+tDir = fullfile(temporary_dir, 'jobsub', 'roirel');
+if ~exist(tDir, 'dir')
+    mkdir(tDir);
 end
-tDir = [temporary_dir, 'jobsub', filesep, 'roirel'];
 
 % Find input files withing data folder CaRp.cDir
 [filename, patchidx] = getinputfiles(...
@@ -250,7 +259,10 @@ if ~isempty(filename)
     submitjob(param_file, tDir, ...
         username, corenum, serverid, ...
         numT, memreq, jobtime, userdomain)
-    
+
+    % go back to the data folder (submitjob leaves us in tDir)
+    cd(CaRp.cDir)
+
 else
     
     fprintf('No files selected\n')
@@ -358,8 +370,8 @@ function submitjob(name, tDir, ...
 %   serverid: server ID 'int', 'spock', 'della'
 %       (deafult, 'spock')
 %   numT: number of jobs
-%   memreq: RAM memory to request
-%       (deafult, 48)
+%   memreq: RAM memory to request, in GB
+%       (default, 48)
 %   jobtime: time to run jobs
 %       (default, 4 hours)
 %   userdomain: domain to use for username

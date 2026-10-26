@@ -14,6 +14,11 @@ function Data2DxT = interp2DxT(Data2DxT, ...
 %       ('linear', 'nearest', 'cubic', 'spline')
 %       (default, 'linear')
 %
+% Returns:
+%   Data2DxT: resampled data (single), same dims as input except X and Y,
+%       whose sizes follow XYend (only dimensions 1 and 2 are resampled;
+%       input must be 2D or 3D)
+%
 % Notes:
 % units in microns order: [X Y T] which is:
 %   (height, width, time), XYT and XYT are (1, 3) vectors

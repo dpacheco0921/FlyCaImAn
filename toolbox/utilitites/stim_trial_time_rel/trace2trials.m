@@ -8,7 +8,7 @@ function [oTraces, oTime, tInitEnd, lInitEnd, ...
 %   [oTraces, oTime, tInitEnd, lInitEnd, ...
 %       oMean, oMed, oSEM, oTimerel, oStimidx, ...
 %       oStimvect] = trace2trials(wDat, iTrace, ...
-%       tRange, tRmode, sType)
+%       tRange, sTypeIdx, tRmode, sType)
 %
 % Args:
 %   wDat: input main metadata variable
@@ -19,11 +19,16 @@ function [oTraces, oTime, tInitEnd, lInitEnd, ...
 %   sType: stimuli to use
 %
 % Outputs:
-%   oTraces: all trials per K
-%   oTime: absolute time used
-%   tInitEnd: time indexces of start-end trial
-%   lInitEnd: time indexces of start-end of stim
-%   oMean, oMed, oSEM: main statistics of trials per K
+%   oTraces: cell (K x 1); each is a trials x time matrix, stimuli concatenated
+%       along columns and NaN padded
+%   oTime: time of each column of oTraces (seconds, relative to stim onset), 1 x time
+%   tInitEnd: {1} frame indices of the first trial; {2} first column of each stimulus block
+%   lInitEnd: frame indices of stim start and end, trials x (2 * stimuli)
+%   oMean, oMed: mean and median across trials, K x time
+%   oSEM: spread across trials, K x time (note: scaled by numel(tend)^2, not a true SEM)
+%   oTimerel: time within each stimulus block (seconds), 1 x time
+%   oStimidx: stimulus type of each column, 1 x time
+%   oStimvect: stimulus-on marker coded by stimulus type, 1 x time
 
 if ~exist('tRange', 'var')
     tRange = [-min(wDat.sPars.basPre(:)), ...
@@ -224,9 +229,12 @@ for roi_i = 1:K
                             :initidx(stim_j + 1)) = sType(stim_j);
                     end
                     
-                catch
-                    
-                    keyboard
+                catch ME
+
+                    % report where it failed, then stop instead of hanging on keyboard
+                    fprintf(2, 'trace2trials failed at ROI %d, trial %d, stim %d\n', ...
+                        roi_i, trial_j, stim_j);
+                    rethrow(ME)
                     
                 end
             end
@@ -270,11 +278,13 @@ for stim_ = 1:size(tend, 2)
             + 1):initidx(stim_ + 1)) = time_;
 
         if size(tRange, 1) == 1
-            t_init_ = find(oTimerel ...
-                + tRange(1, 1) == 0);
+            % tolerance instead of exact == 0, because the relative time is
+            % built from floating-point multiples of dt
+            t_init_ = find(abs(oTimerel ...
+                + tRange(1, 1)) < dt/2);
         else
-            t_init_ = find(oTimerel ...
-                + tRange(sType(stim_), 1) == 0);
+            t_init_ = find(abs(oTimerel ...
+                + tRange(sType(stim_), 1)) < dt/2);
         end
 
         t_init(stim_) = t_init_(stim_);

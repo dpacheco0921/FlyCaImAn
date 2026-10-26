@@ -5,7 +5,7 @@ function Data3DxT = interp3DxT(Data3DxT, ...
 %
 % Usage:
 %   Data3DxT = interp3DxT(Data3DxT, ...
-%       XYZinit, XYZfinal, LastDim, method)
+%       XYZinit, XYZend, LastDim, method)
 %
 % Args:
 %   Data3DxT: 3DxT matrix
@@ -15,6 +15,10 @@ function Data3DxT = interp3DxT(Data3DxT, ...
 %   intmethod: interpolation method
 %       ('linear', 'nearest', 'cubic', 'spline')
 %       (default, 'linear')
+%
+% Returns:
+%   Data3DxT: resampled data (single); dimensions 1 to LastDim follow
+%       XYZend, other dimensions are unchanged
 %
 % Notes:
 % units in microns order: [X Y Z] which is:

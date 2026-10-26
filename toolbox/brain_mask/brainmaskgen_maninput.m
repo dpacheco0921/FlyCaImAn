@@ -1,5 +1,12 @@
 %% Generating brain mask
 %% Manual curation/editing of mask
+% This is a script (not a function). It is opened by batch_brainmaskgen
+%   (via 'edit' + 'keyboard') and is meant to be run cell by cell (not top
+%   to bottom) inside that function's workspace. It needs the variables
+%   wDat (metadata structure), bGreen (blurred green mean image, can be
+%   empty) and f2run (file name). Editing wDat.bF_ths here (a.u. intensity
+%   threshold per stack) changes the mask that batch_brainmaskgen then
+%   saves after you continue (dbcont). Nothing is saved from this script.
 % 1.1) test if generated 'wDat.bF_ths' is good
 display(wDat.bF_ths) % display current threshold
 display([min(wDat.GreenChaMean(:)) ...
@@ -30,7 +37,7 @@ slice3Dmatrix(wDat.GreenChaMean, pi)
 
 %% save stitched image
 pi.vgate = 1;
-pi.vname = ['C:\Users\diego\Dropbox\tempfiles\stitch', filesep, f2run];
+pi.vname = [pwd, filesep, f2run, '_brainmask_temp']; % saved in current folder
 pi.frate = 1;
 slice3Dmatrix(wDat.GreenChaMean, pi)
 

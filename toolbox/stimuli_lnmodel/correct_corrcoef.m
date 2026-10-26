@@ -8,11 +8,17 @@ function [coef_stat, coef_raw, coef_shuffle] = ...
 %       correct_corrcoef(coef_raw, coef_shuffle, prct2use)
 %
 % Args:
-%   coef_stat: percentile of coef_raw 
-%   coef_raw: coefficient from raw data
+%   coef_raw: coefficient from raw data [K, folds]
 %       (correlation coefficient or explained variance, etc)
-%   coef_shuffle: coefficient from shuffle data
+%   coef_shuffle: coefficient from shuffle data [K, permutations]
 %       (correlation coefficient or explained variance, etc)
+%   prct2use: percentile (0-100) of coef_raw across columns used as the
+%       statistic (required)
+%
+% Returns:
+%   coef_stat: percentile of coef_raw per row [K, n_percentiles]
+%   coef_raw: input with NaN replaced by 0
+%   coef_shuffle: input with NaN replaced by 0
 %
 % Notes: 
 % interpretation of nans (nans are zeroed): it assumes that nan means that

@@ -16,6 +16,9 @@ function input_struct = loparam_updater(...
 %   input_struct: updated structure
 %
 % Notes:
+% Only fields that already exist in input_struct (or in
+% input_struct.(sel_field)) are updated; extra fields in input_var are
+% ignored, so a misspelled field name is silently skipped.
 
 if exist('input_var', 'var') && ~isempty(input_var)
     if exist('sel_field', 'var') && ~isempty(sel_field)

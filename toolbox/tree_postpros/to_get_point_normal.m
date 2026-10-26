@@ -2,11 +2,18 @@ function [i_point, i_normal] = to_get_point_normal(iObject, norm_step)
 % to_get_point_normal: walk through the tree and generates point and normal vector
 % to generate orthogonal planes to each xyz point
 % Usage:
-%   to_get_point_normal(iObject, i_xyz)
+%   [i_point, i_normal] = to_get_point_normal(iObject, norm_step)
 %
 % Args:
 %   iObject: tree obj / xyz matrix
 %   norm_step: number of points beyond to use for normal stimation
+%       (default, 5)
+%
+% Returns:
+%   i_point: [n by 3] points of the tree (the last norm_step points are
+%       dropped because they have no point ahead)
+%   i_normal: [n by 3] vector from the point norm_step ahead to the point
+%       (not normalized, same units as the coordinates)
 %
 % Notes: see 'treestoolbox' for format info
 
@@ -22,6 +29,11 @@ i_normal = [];
 i_point = [];
 
 xyz = getObj_xyz(iObject);
+
+% with too few points the loop below would silently return empty results
+assert(size(xyz, 1) > norm_step, ...
+    'to_get_point_normal: tree has %d points, needs more than norm_step (%d)', ...
+    size(xyz, 1), norm_step)
 
 % plane equation: (p - i_point).i_normal = 0
 for i = 1:(size(xyz, 1) - norm_step)

@@ -17,6 +17,9 @@ function [results, unmatched] = parse_params(args, defaults, varargin)
 %   results: a structure containing the parsed results
 %   unmatched: a structure containing any args that did not have a default
 %
+% Note: unknown names are kept (KeepUnmatched = true) and returned in unmatched,
+%   matching is case-insensitive and allows partial names.
+%
 % See also: inputParser, struct2nameval, nameval2struct
 
 % Make sure args are name-val cells

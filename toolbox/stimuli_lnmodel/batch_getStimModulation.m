@@ -22,8 +22,8 @@ function batch_getStimModulation(FolderName, FileName, iparams)
 %       (varname: output variable name
 %           (default, 'sMod')
 %       %%%%%%%%%%%% filter related %%%%%%%%%%%%
-%       (filterlength_stim: filter length in seconds)
-%           (default, 10)
+%       (filterlength_stim: [before after] stimulus filter length in seconds)
+%           (default, [0 10])
 %       (customtrial_init: number of seconds before stimuli 
 %           start to count trial start (abs number))
 %           (default, [])
@@ -47,7 +47,7 @@ function batch_getStimModulation(FolderName, FileName, iparams)
 %       (btn: number of permutations)
 %           (default, 10^4)
 %       %%%%%%%%%%%% parpool & server related %%%%%%%%%%%%
-%       (serId: server id)
+%       (serverid: server id)
 %           (default, 'int')
 %       (corenum: number of cores)
 %           (default, 4)
@@ -162,6 +162,11 @@ function runperfolder(FileName, pSM)
 f2run = rdir(['.', filesep, '*', pSM.fsuffix, '*.mat']);
 f2run = str2match(FileName, f2run); 
 f2run = {f2run.name};
+
+if isempty(f2run)
+    warning('batch_getStimModulation:noFiles', ...
+        'No files matching *%s*.mat found in %s', pSM.fsuffix, pwd);
+end
 
 fprintf('Estimating stimuli modulation for all ROIs\n')
 fprintf(['Running n-files : ', num2str(numel(f2run)), '\n'])
@@ -645,7 +650,7 @@ for i = 1:numel(chunk_idx)
                 getsMod_ridgeperiter_ashuffle(...
                 train_idx_l, catrace_in(iii, :), stim_in, ...
                 stimSiz, rperm_chunkIdx, iFilter(:, iii), ...
-                filterebound)
+                filterebound);
 
             if i == 1 && ii == 1 && k == 1
                 fprintf(['time per roi', ...

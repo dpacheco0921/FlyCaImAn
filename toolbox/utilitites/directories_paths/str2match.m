@@ -7,9 +7,10 @@ function [i_file, sel_idx] = str2match(i_str, i_file, mtype)
 % Args:
 %   i_str: is a string or a cell of strings (pattern to look for)
 %   i_file: is a string or a cell of strings (input files)
-%   mtype: ignore case
-%       (1: ignore lower/cap case)
-%       (0: otherwise, default)
+%   mtype: type of matching
+%       (1: exact match of the whole string, ignoring lower/cap case)
+%       (0: i_str only has to be contained in the string, case
+%           sensitive, default)
 % 
 % Returns:
 %   i_file: subset of i_file that matches i_str
@@ -36,7 +37,7 @@ if ~isempty(i_str)
         else
             
             if mtype
-                BinM = strcmpi(i_file, i_str{Str_idx});
+                BinM = strcmpi({i_file.name}, i_str{Str_idx});
             else
                 BinM = contains({i_file.name}, i_str{Str_idx});
             end

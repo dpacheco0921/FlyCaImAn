@@ -5,6 +5,13 @@ function [h, m, s] = secs2hms(numSecs)
 %   hms = secs2hms(numSecs) % numeric vector
 %   [h, m, s] = secs2hms(numSecs)
 %
+% Args:
+%   numSecs: number of seconds (scalar)
+%
+% Returns:
+%   h, m: whole hours and minutes
+%   s: remaining seconds, including the fractional part
+%
 % See also: duration, hms, secs2str
 
 [h, m, s] = hms(duration([0 0 numSecs]));

@@ -10,11 +10,21 @@ function batch_plot_zstack_MIP(...
 %   Filename: name pattern of files to use
 %       (default, [])
 %   oDir: output directory.
+%       (default, [pwd, filesep, 'Zstack_MIP'])
 %   iparams: parameters to update
-%       (fsuffix: suffix of metadata file)
-%           (default, '_metadata.mat')
+%       (fsuffix: suffix of the nrrd files to plot)
+%           (default, '_Zstack.nrrd')
 %       (dir_depth: depth of directory search)
 %           (default, 0)
+%       (nchannels: number of channels interleaved along the third
+%           dimension of the nrrd files, at least 2 are needed because
+%           channels 1 and 2 are both plotted)
+%           (default, 2)
+%
+% Returns:
+%   nothing. It saves one maximum intensity projection image per channel
+%   ('_r_MIP' for channel 1, '_g_MIP' for channel 2) in oDir.
+%
 % Notes
 
 % default params
@@ -50,6 +60,11 @@ else
     f2run = rdir(['.', filesep, '*', ...
         filesep, '*', filesep, '*', ...
         metpars.fsuffix]);
+end
+
+if isempty(f2run)
+    fprintf('No files with suffix %s found\n', metpars.fsuffix)
+    return
 end
 
 f2run = {f2run.name}';

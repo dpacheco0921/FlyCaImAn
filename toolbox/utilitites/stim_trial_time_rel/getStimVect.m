@@ -9,15 +9,22 @@ function [stimvect, stEn, stimuli_name] = ...
 %
 % Args:
 %   wDat: input main metadata variable
-%   delta: delta to use for binary vector
-%   trial2use: specific trials to use 
-%   stim2use: specific stimuli (by ordered idx)
+%   delta: value written into the vector during stimuli (default, 1)
+%   trial2use: specific trials to use (default, all); relative to each stimulus
+%       when stim2use is also given
+%   stim2use: specific stimuli (by ordered idx; default, all)
+%
+% Returns:
+%   stimvect: 1 x numel(wDat.fTime), delta during the selected stimuli, 0 elsewhere
+%   stEn: n x 2 frame indices of stimulus start and end per selected trial
+%       ([] if no trials were found)
+%   stimuli_name: cell, stimulus name plus _AMP_ plus intensity
 %
 % Notes:
 % 1) Uses wDat.sTime, wDat.fTime, wDat.sPars.int, 
 %   wDat.sPars.name, wDat.sPars.order
 %   to generate the binary vector of the stimuli
-% 2) Rounds time to hundreds of miliseconds.
+% 2) Rounds time to tens of miliseconds (0.01 s).
 % 3) get stimuli names and indexes (assumes stim is the same (number and
 %   order) across subvolumes).
 % 4) any stimuli shorter than dt will be assigned a dt width.

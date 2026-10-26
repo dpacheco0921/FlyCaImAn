@@ -20,14 +20,15 @@ function batch_threshold_ims(FolderName, FileName, iparams)
 %       (padval: value that is assumed to be padding)
 %           (0, default)
 %       (oDir: output directory)
-%           (pwd, default)
+%           ('./', default, the current folder)
 %       (input_int_ths: set of intensity thresholds)
 %           ([75 75 75 90 95], default)
-%       (z_slices_per_int_ths: z slice number per input_int_ths)
+%       (z_slices_per_int_ths: z slice boundaries of each threshold; threshold
+%           i applies to planes (z(i)+1):z(i+1); the last value is replaced by
+%           the number of planes of the image)
 %           ([0 100 130 170 200 240], default)
-%       (z_slices_per_int_ths: z slice number per input_int_ths)
-%           ([0 100 130 170 200 240], default)
-%       (default_planes: planes to be plotted)
+%       (default_planes: planes to be plotted, at most 9, all must exist
+%           in the image)
 %           ([10 30 50 70 100 130 170 200 230], default)
 %       (medfilt_flag: flag to do median filtering)
 %           (0, default)
@@ -39,6 +40,12 @@ function batch_threshold_ims(FolderName, FileName, iparams)
 %           ([20 20 10], default)
 %       (redo: redo flag)
 %           ([0], default)
+%
+% Notes:
+% No return value: saves the thresholded image to oDir. For every file it
+%   plots the planes and stops in the debugger (keyboard) after opening
+%   threshold_ims_maninput.m, so you can edit the thresholds and re-run
+%   that script; type 'dbcont' to save the image.
 %
 % Todo
 %   generalize to nii
@@ -101,6 +108,11 @@ if ~isempty(FolderName)
     iDir = iDir(f2run);
 end
 
+if isempty(filename)
+    warning('batch_threshold_ims:noFiles', ...
+        'No *%s%s files matched in %s', ipars.fisuffix, ipars.im_format, pwd)
+end
+
 fprintf(['Running n-files : ', num2str(numel(filename)), '\n'])
 
 for i = 1:numel(filename)
@@ -115,7 +127,8 @@ fprintf('... Done\n')
 end
 
 function threslholdims(filename, full_dir_path, ipars)
-% threslholdims: crop each image
+% threslholdims: threshold each image (mask by intensity, keep the largest
+%   connected object per group of planes) and save it
 %
 % Usage:
 %   threslholdims(filename, full_dir_path, ipars)
