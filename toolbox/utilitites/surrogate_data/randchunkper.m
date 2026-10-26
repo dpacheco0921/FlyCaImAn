@@ -17,8 +17,9 @@ function [Yo, idx_out] = randchunkper(...
 % Output:
 %   Yo: Yi sorted with idx_out
 %   idx_out: matrix with all chunk-permuted indeces
+%
 % Notes:
-% Also, during the permutation of the chunks it excludes consecutive chunks
+%   Also, during the permutation of the chunks it excludes consecutive chunks
 
 if ~exist('stim', 'var')
     stim = [];
@@ -39,7 +40,7 @@ for i = 1:repn
         % get chunks init and end indeces
         chunk_i_e_idx = get_chunks_i_e(idx_vect, n_points, chunk_min_size);
         
-        % split vectos into chunks
+        % split vector into chunks
         chunks_cell = [];
         chunks_cell = split_vector_chunks(idx_vect, n_points, chunk_i_e_idx);
         
